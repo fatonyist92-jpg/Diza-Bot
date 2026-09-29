@@ -17,10 +17,11 @@ test("DIZA web metadata and install manifest are wired", () => {
   assert.equal(manifest.start_url, "/");
 });
 
-test("service worker never caches API traffic", () => {
+test("service worker keeps API live while caching fetched shell assets", () => {
   assert.match(sw, /url\.pathname\.startsWith\("\/api\/"\)/);
   assert.match(sw, /request\.method !== "GET"/);
   assert.match(sw, /request\.mode === "navigate"/);
+  assert.match(sw, /cache\.put\(request, copy\)/);
 });
 
 test("PWA registration is additive and secure-context aware", () => {
