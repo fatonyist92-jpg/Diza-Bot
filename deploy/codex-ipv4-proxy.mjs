@@ -8,22 +8,33 @@ const server = net.createServer((client) => {
     const first = head.toString("latin1").split("\r\n", 1)[0] || "";
     const match = /^CONNECT ([^:]+):(\d+) HTTP\/1\.[01]$/.exec(first);
     if (!match) {
+      console.error("[diza-codex-proxy] rejected non-CONNECT request");
       client.end("HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\n\r\n");
       return;
     }
+
+    const host = match[1];
+    const targetPort = Number(match[2]);
     try {
-      const { address } = await dns.lookup(match[1], { family: 4 });
-      const upstream = net.connect(Number(match[2]), address, () => {
+      const { address } = await dns.lookup(host, { family: 4 });
+      console.error(`[diza-codex-proxy] CONNECT ${host}:${targetPort} -> ${address}`);
+      const upstream = net.connect(targetPort, address, () => {
         client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
         upstream.pipe(client);
         client.pipe(upstream);
       });
-      upstream.on("error", () => client.destroy());
+      upstream.on("error", (error) => {
+        console.error(`[diza-codex-proxy] upstream error ${host}: ${error?.code || "UNKNOWN"}`);
+        client.destroy();
+      });
       client.on("error", () => upstream.destroy());
-    } catch {
+    } catch (error) {
+      console.error(`[diza-codex-proxy] DNS error ${host}: ${error?.code || "UNKNOWN"}`);
       client.destroy();
     }
   });
 });
 
-server.listen(port, "127.0.0.1");
+server.listen(port, "127.0.0.1", () => {
+  console.error(`[diza-codex-proxy] listening on 127.0.0.1:${port}`);
+});
