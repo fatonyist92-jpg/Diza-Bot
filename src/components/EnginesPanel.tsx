@@ -138,7 +138,7 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
     const poll = () => {
       api("/api/providers/codex/login")
         .then((login) => {
-          setCodexLogin(login);
+          setCodexLogin((current) => ({ ...(current ?? { status: "idle" }), ...login }));
           if (login.status === "connected") void refreshEngines();
         })
         .catch(() => {});
