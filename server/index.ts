@@ -4864,6 +4864,7 @@ const server = createServer(async (req, res) => {
     const open =
       (method === "GET" && path === "/api/health") ||
       (method === "POST" && path === "/api/pair/claim") ||
+      (method === "POST" && path === "/api/web/session") ||
       (method === "GET" && Boolean(STATIC_DIR) && !path.startsWith("/api/"));
     if (!open && !deviceForToken(bearerToken(req))) {
       return json(res, 401, { error: "pair this device first" });
@@ -8535,6 +8536,22 @@ const server = createServer(async (req, res) => {
       broadcast({ kind: "pairing", ...pairingStatus() });
       return json(res, 200, { ok: true });
     }
+    // A deployment may pre-register a paired-device token by digest only.
+    // The raw token can then arrive privately in the URL fragment, which
+    // browsers never send to the server as part of the request URL. This
+    // route only trades an already-valid paired-device token for the same
+    // HttpOnly cookie used by normal pairing; it cannot create a device.
+    if (method === "POST" && path === "/api/web/session") {
+      const body = await readBody(req);
+      const token = typeof body.token === "string" ? body.token : "";
+      if (!deviceForToken(token)) return json(res, 401, { error: "invalid web access token" });
+      res.setHeader(
+        "set-cookie",
+        `diza_pair=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`,
+      );
+      return json(res, 200, { ok: true });
+    }
+
     // The one route a device may call before it is anybody. A wrong code
     // burns one of five tries and the fifth closes the window, so this
     // cannot be ground down.
