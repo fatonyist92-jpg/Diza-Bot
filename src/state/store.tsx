@@ -393,15 +393,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let es: EventSource | null = null;
     let lastSeq = 0;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let streamFailures = 0;
+    const startPollingFallback = () => {
+      if (pollTimer) return;
+      loadAll();
+      pollTimer = setInterval(loadAll, 2000);
+    };
+    const stopPollingFallback = () => {
+      if (!pollTimer) return;
+      clearInterval(pollTimer);
+      pollTimer = null;
+    };
     const connect = () => {
       if (!alive) return;
       es = new EventSource(lastSeq ? `/api/events?since=${lastSeq}` : "/api/events");
-      es.onopen = () => rawDispatch({ type: "connected", value: true });
+      es.onopen = () => {
+        streamFailures = 0;
+        stopPollingFallback();
+        rawDispatch({ type: "connected", value: true });
+      };
       es.onerror = () => {
-        rawDispatch({ type: "connected", value: false });
+        streamFailures += 1;
+        rawDispatch({ type: "connected", value: streamFailures >= 3 });
         es?.close();
+        if (streamFailures >= 3) startPollingFallback();
         if (retryTimer) clearTimeout(retryTimer);
-        retryTimer = setTimeout(connect, 1500);
+        retryTimer = setTimeout(connect, streamFailures >= 3 ? 15_000 : 1500);
       };
       es.onmessage = onFrame;
     };
@@ -525,6 +543,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
       if (retryTimer) clearTimeout(retryTimer);
+      stopPollingFallback();
       es?.close();
     };
   }, []);
