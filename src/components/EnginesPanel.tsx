@@ -4,7 +4,7 @@
 // real browser sign-in; the rest are a pasted key, a CLI that already
 // holds a login, or a server on this machine. Nothing here pretends to be
 // a sign-in that is really a text field.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Check from "lucide-react/dist/esm/icons/check.mjs";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link.mjs";
 import Loader2 from "lucide-react/dist/esm/icons/loader-2.mjs";
@@ -77,6 +77,12 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
   const [open, setOpen] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [codexLogin, setCodexLogin] = useState<{
+    status: "idle" | "pending" | "connected" | "failed";
+    verificationUrl?: string;
+    userCode?: string;
+    error?: string;
+  } | null>(null);
 
   // an engine can be connected and still be down: no CLI on PATH, a key
   // the provider rejected, a local server that is not running
@@ -95,6 +101,54 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
       .catch((e) => setError(e.message))
       .finally(() => setSigningIn(false));
   };
+
+  const refreshEngines = () =>
+    Promise.all([
+      api("/api/providers").then(({ providers }) => dispatch({ type: "providers", providers })),
+      api("/api/instances").then(({ instances }) => dispatch({ type: "instances", instances })),
+    ]);
+
+  const signInCodex = () => {
+    setSigningIn(true);
+    setError(null);
+    const authWindow = window.open("about:blank", "_blank");
+    api("/api/providers/codex/login", { method: "POST" })
+      .then((login) => {
+        setCodexLogin(login);
+        if (login.status === "connected") {
+          authWindow?.close();
+          return refreshEngines();
+        }
+        if (login.status === "pending" && login.verificationUrl) {
+          if (authWindow) authWindow.location.href = login.verificationUrl;
+          else window.open(login.verificationUrl, "_blank", "noopener");
+        } else {
+          authWindow?.close();
+        }
+      })
+      .catch((e) => {
+        authWindow?.close();
+        setError(e.message);
+      })
+      .finally(() => setSigningIn(false));
+  };
+
+  useEffect(() => {
+    if (provider.kind !== "codex" || codexLogin?.status !== "pending") return;
+    const poll = () => {
+      api("/api/providers/codex/login")
+        .then((login) => {
+          setCodexLogin(login);
+          if (login.status === "connected") void refreshEngines();
+        })
+        .catch(() => {});
+    };
+    const timer = setInterval(poll, 2_000);
+    return () => clearInterval(timer);
+    // refreshEngines is deliberately local: polling only depends on the
+    // provider row and whether a Codex login attempt is active.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider.kind, codexLogin?.status]);
 
   const act = () => {
     if (provider.auth === "oauth") return signIn();
@@ -127,9 +181,15 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
         </div>
 
         {provider.auth === "cli" ? (
-          <span className="shrink-0 text-[11.5px] text-muted-foreground">
-            {provider.connected ? "" : "Not found"}
-          </span>
+          provider.kind === "codex" && provider.connected && provider.needsSignIn ? (
+            <Button variant="secondary" size="sm" onClick={signInCodex} disabled={signingIn} className="shrink-0">
+              {signingIn ? <Loader2 size={13} className="animate-spin" /> : "Sign in"}
+            </Button>
+          ) : (
+            <span className="shrink-0 text-[11.5px] text-muted-foreground">
+              {provider.connected ? "" : "Not found"}
+            </span>
+          )
         ) : provider.connected ? (
           <Button
             variant="ghost"
@@ -166,8 +226,36 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
               Some CLIs sign in where we cannot see it, so the second is a
               hint rather than a verdict, and stays muted. */}
           {provider.connected
-            ? `No sign-in detected. ${provider.signInHint ?? provider.keyHint}`
+            ? provider.kind === "codex"
+              ? "Codex is installed. Sign in with ChatGPT to use it."
+              : `No sign-in detected. ${provider.signInHint ?? provider.keyHint}`
             : provider.keyHint}
+        </div>
+      )}
+      {provider.kind === "codex" && codexLogin?.status === "pending" && (
+        <div className="mt-2 ml-10 rounded-xl border bg-muted/40 px-3 py-2 text-[12px]">
+          <div className="text-muted-foreground">Enter this one-time code on the OpenAI page:</div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <code className="select-all text-[14px] font-semibold tracking-[0.08em] text-foreground">
+              {codexLogin.userCode}
+            </code>
+            {codexLogin.verificationUrl && (
+              <a
+                href={codexLogin.verificationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex shrink-0 items-center gap-1 font-medium text-foreground"
+              >
+                Open OpenAI <ExternalLink size={11} />
+              </a>
+            )}
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Waiting for approval…</div>
+        </div>
+      )}
+      {provider.kind === "codex" && codexLogin?.status === "failed" && (
+        <div className="mt-1.5 pl-10 text-[12px] text-destructive">
+          {codexLogin.error ?? "ChatGPT sign-in failed."}
         </div>
       )}
       {error && <div className="mt-1.5 pl-10 text-[12px] text-destructive">{error}</div>}
