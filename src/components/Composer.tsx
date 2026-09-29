@@ -182,7 +182,7 @@ export function Composer({
       },
       onFailed: () => {
         setSubmitting(false);
-        setAttachNotice("Send failed; your text and attachments were kept. Try again when ready.");
+        setAttachNotice("Pengiriman gagal; teks dan lampiran tetap disimpan. Coba lagi saat siap.");
       },
     });
     track("message_sent", { driver: bot.modelSelection?.instanceId });
@@ -558,7 +558,7 @@ export function Composer({
           <button
             onClick={() => dispatch({ type: "interrupt", botId: bot.id })}
             className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-            title="Stop"
+            title="Hentikan"
           >
             <Square size={13} className="fill-current" />
           </button>
@@ -585,7 +585,7 @@ export function Composer({
               ? "bg-primary text-primary-foreground hover:opacity-90"
               : "cursor-not-allowed bg-muted text-muted-foreground/60",
           )}
-          title="Send"
+          title="Kirim"
         >
           <ArrowUp size={17} strokeWidth={2.4} />
         </button>
