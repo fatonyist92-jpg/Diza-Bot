@@ -51,11 +51,11 @@ function Shell() {
         <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
           <Loader2 size={20} className="animate-spin" />
           <div className="text-[14px]">
-            {state.connected ? "No agents yet" : "Connecting to the Bloks server…"}
+            {state.connected ? "Belum ada agen" : "Menghubungkan ke server Bloks…"}
           </div>
           {!state.connected && (
             <div className="text-[12px]">
-              Start it with <code className="rounded bg-muted px-1.5 py-0.5">pnpm dev:server</code>
+              Jalankan dengan <code className="rounded bg-muted px-1.5 py-0.5">pnpm dev:server</code>
             </div>
           )}
         </main>
