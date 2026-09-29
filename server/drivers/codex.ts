@@ -216,9 +216,14 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         onNotify: (msg) => onAgentNotification(msg),
       });
 
+      let turnWatchdog: ReturnType<typeof setTimeout> | null = null;
       const finish = (ok: boolean, stopReason: string | null) => {
         if (finished) return;
         finished = true;
+        if (turnWatchdog) {
+          clearTimeout(turnWatchdog);
+          turnWatchdog = null;
+        }
         for (const answer of [...asks.values()]) answer("deny", "Bloks: the turn ended", "turn-ended");
         rpc.failPending(new Error("turn settled"));
         running.delete(threadId);
@@ -456,6 +461,24 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
 
       running.set(threadId, { turnId, abort, asks });
       emit({ ...envelope(threadId, turnId), type: "turn.started" });
+
+      // A remote Codex turn can lose its transport without ever sending
+      // turn/completed. Do not leave the lane locked forever in that case:
+      // settle through the driver's normal completion path, which removes
+      // the running session and lets the harness drain queued messages.
+      // This is deliberately Codex-only so other engines keep their
+      // existing long-running behaviour.
+      const TURN_WATCHDOG_MS = 120_000;
+      turnWatchdog = setTimeout(() => {
+        if (finished || !running.has(threadId)) return;
+        emit({
+          ...envelope(threadId, turnId),
+          type: "runtime.error",
+          message: "Codex did not finish this turn within 120 seconds. The stuck turn was stopped so queued messages can continue.",
+        });
+        finish(false, "turn_timeout");
+      }, TURN_WATCHDOG_MS);
+      turnWatchdog.unref?.();
 
       // Handshake and kickoff. Anything that goes wrong in here has to end
       // the turn: a refused handshake would otherwise leave the composer
