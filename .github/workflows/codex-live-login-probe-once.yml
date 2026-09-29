@@ -26,15 +26,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 48); do
+          wanted="${GITHUB_SHA:0:7}"
+          for i in $(seq 1 72); do
             out="$(faable deploy status 2>&1 || true)"
             echo "$out"
-            if echo "$out" | grep -q "READY"; then
+            deployments="$(faable deploy deployments 2>&1 || true)"
+            echo "$deployments"
+            if echo "$out" | grep -q "READY" && echo "$deployments" | grep -E "READY.*${wanted}.*live"; then
               exit 0
             fi
             sleep 5
           done
-          echo "Faable did not become READY in time" >&2
+          echo "This commit did not become the READY live deployment in time" >&2
           exit 1
 
       - name: Start Codex ChatGPT device login
@@ -57,13 +60,13 @@ jobs:
           NODE
 
       - name: Store private login challenge
-        if: always() && hashFiles('/tmp/codex-login.json') != ''
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: codex-login-challenge
           path: /tmp/codex-login.json
           retention-days: 1
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Poll Codex login completion
         if: success()
