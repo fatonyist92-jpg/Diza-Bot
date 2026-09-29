@@ -4863,7 +4863,8 @@ const server = createServer(async (req, res) => {
     // Bloks at all, and trade its code in. Nothing else.
     const open =
       (method === "GET" && path === "/api/health") ||
-      (method === "POST" && path === "/api/pair/claim");
+      (method === "POST" && path === "/api/pair/claim") ||
+      (method === "GET" && Boolean(STATIC_DIR) && !path.startsWith("/api/"));
     if (!open && !deviceForToken(bearerToken(req))) {
       return json(res, 401, { error: "pair this device first" });
     }
@@ -8542,6 +8543,14 @@ const server = createServer(async (req, res) => {
       // `credential` is the QR token or the code; `code` is the old name
       const claimed = claimPairing(body.credential ?? body.code, body.device);
       if (!claimed) return json(res, 401, { error: "that code is not valid" });
+      // Web/PWA clients cannot attach Authorization to EventSource. Keep the
+      // paired-device token out of JavaScript after claim and let same-origin
+      // requests carry it as an HttpOnly cookie instead. Native clients still
+      // receive the token in the JSON response exactly as before.
+      res.setHeader(
+        "set-cookie",
+        `diza_pair=${claimed.token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`,
+      );
       broadcast({ kind: "pairing", ...pairingStatus() });
       return json(res, 200, claimed);
     }
