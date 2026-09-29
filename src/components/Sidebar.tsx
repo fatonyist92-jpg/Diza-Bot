@@ -17,9 +17,9 @@ import FolderKanban from "lucide-react/dist/esm/icons/folder-kanban.mjs";
 import Activity from "lucide-react/dist/esm/icons/activity.mjs";
 import BotIcon from "lucide-react/dist/esm/icons/bot.mjs";
 import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock.mjs";
-import Cari from "lucide-react/dist/esm/icons/search.mjs";
+import Search from "lucide-react/dist/esm/icons/search.mjs";
 import Share2 from "lucide-react/dist/esm/icons/share-2.mjs";
-import PengaturanIcon from "lucide-react/dist/esm/icons/settings-2.mjs";
+import SettingsIcon from "lucide-react/dist/esm/icons/settings-2.mjs";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles.mjs";
 import Users from "lucide-react/dist/esm/icons/users.mjs";
 import Sun from "lucide-react/dist/esm/icons/sun.mjs";
@@ -127,7 +127,7 @@ function SectionPicker({ filing, onClose }: { filing: FilingState; onClose: () =
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Bagian baru"
+            placeholder="New section"
             maxLength={60}
             className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-ring/60"
           />
@@ -230,7 +230,7 @@ function BotContextMenu({
         divider("d1"),
         item(<Pencil size={15} className="text-muted-foreground" />, "Edit profil", () => {
           dispatch({ type: "select", id: bot.id });
-          dispatch({ type: "togglePengaturan", open: true });
+          dispatch({ type: "toggleSettings", open: true });
         }),
         item(<Copy size={15} className="text-muted-foreground" />, "Duplicate", () =>
           dispatch({ type: "duplicateBot", botId: bot.id }),
@@ -666,7 +666,7 @@ export function Sidebar() {
       {(selectedBot?.tasks ?? []).some((task) => task.archivedAt) && (
         <DropdownMenuItem onClick={() => setShowArchivedChats(true)}>
           <Archive size={15} />
-          Chat diarsipkan
+          Archived chats
           <span className="ml-auto pl-3 text-[11px] text-muted-foreground">
             {(selectedBot?.tasks ?? []).filter((task) => task.archivedAt).length}
           </span>
@@ -675,7 +675,7 @@ export function Sidebar() {
       {state.bots.some((b) => b.hidden) && (
         <DropdownMenuItem onClick={() => setShowArchived(true)}>
           <Archive size={15} />
-          Agen diarsipkan
+          Archived agents
           <span className="ml-auto pl-3 text-[11px] text-muted-foreground">
             {state.bots.filter((b) => b.hidden).length}
           </span>
@@ -695,7 +695,7 @@ export function Sidebar() {
             <DropdownMenuTrigger asChild>
               <button
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-                title="Baru…"
+                title="New…"
               >
                 <Plus size={17} strokeWidth={2} />
               </button>
@@ -711,11 +711,11 @@ export function Sidebar() {
             ))}
           </div>
           <button
-            onClick={() => dispatch({ type: "toggleAppPengaturan" })}
+            onClick={() => dispatch({ type: "toggleAppSettings" })}
             title="Pengaturan"
             className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
           >
-            <PengaturanIcon size={16} />
+            <SettingsIcon size={16} />
           </button>
         </header>
         {menu && <BotContextMenu menu={menu} onClose={() => setMenu(null)} onFile={setFiling} />}
@@ -757,7 +757,7 @@ export function Sidebar() {
             onMouseLeave={() => setLogoHover(false)}
             onClick={toggleCollapsed}
             title="Buka sidebar"
-            aria-label="Buka sidebar"
+            aria-label="Open sidebar"
             className="flex size-8 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-accent" 
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
           >
@@ -773,7 +773,7 @@ export function Sidebar() {
               <button
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                title="Baru…"
+                title="New…"
               >
                 <Plus size={17} strokeWidth={2} />
               </button>
@@ -796,7 +796,7 @@ export function Sidebar() {
               <DropdownMenuTrigger asChild>
                 <button
                   className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-                  title="Baru…"
+                  title="New…"
                 >
                   <Plus size={17} strokeWidth={2} />
                 </button>
@@ -814,11 +814,11 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Cari */}
+      {/* Search */}
       {!rail && (
         <div className="px-3 pb-2 pt-1">
           <div className="flex items-center gap-2 rounded-xl bg-accent/70 px-3 py-[7px] transition-colors duration-150 focus-within:bg-accent">
-            <Cari size={15} className="shrink-0 text-muted-foreground" />
+            <Search size={15} className="shrink-0 text-muted-foreground" />
             <input
               ref={searchRef}
               value={query}
@@ -986,7 +986,7 @@ export function Sidebar() {
             })}
           {visibleBots.length === 0 && !rail && (
             <div className="px-3 py-8 text-center text-[13px] text-muted-foreground">
-              {query ? "Tidak ada agen yang cocok" : "Belum ada agen. Buat dengan tombol +"}
+              {query ? "No agents match" : "Belum ada agen. Buat dengan tombol +"}
             </div>
           )}
         </div>
@@ -1036,21 +1036,21 @@ export function Sidebar() {
         ))}
         <div className={cn("mt-0.5 flex items-center", rail ? "flex-col gap-0.5" : "gap-0.5")}>
           <button
-            onClick={() => dispatch({ type: "toggleAppPengaturan" })}
+            onClick={() => dispatch({ type: "toggleAppSettings" })}
             title="Pengaturan"
             className={cn(
               "flex items-center gap-2.5 rounded-lg py-1.5 text-left text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground",
               rail ? "px-1.5" : "min-w-0 flex-1 px-2.5",
             )}
           >
-            <PengaturanIcon size={16} />
+            <SettingsIcon size={16} />
             {!rail && "Pengaturan"}
           </button>
           {!rail && (
             <button
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-              title={resolvedTheme === "dark" ? "Beralih ke mode terang" : "Beralih ke mode gelap"}
+              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             >
               {resolvedTheme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
@@ -1106,7 +1106,7 @@ function ArchivedChats({ botId, onClose }: { botId: string; onClose: () => void 
       >
         <div className="text-[16px] font-semibold text-foreground">Chat diarsipkan</div>
         <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-          Chat diarsipkan keep their full conversation and can be restored.
+          Archived chats keep their full conversation and can be restored.
         </div>
         <div className="mt-3 flex max-h-[48vh] flex-col gap-1 overflow-y-auto">
           {archived.map((task) => (
