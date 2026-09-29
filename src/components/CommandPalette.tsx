@@ -178,7 +178,7 @@ export function CommandPalette() {
                 setOpen(false);
               }
             }}
-            placeholder="Jump to an agent, room, or anything anyone said…"
+            placeholder="Cari agen, ruang, atau isi percakapan…"
             className="h-12 w-full bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
           />
           <kbd className="shrink-0 rounded-md border px-1.5 py-0.5 text-[10.5px] text-muted-foreground">
