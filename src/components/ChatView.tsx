@@ -421,7 +421,7 @@ function Bubble({
                   Save
                 </button>
                 <button onClick={() => setEditing(null)}>Batal</button>
-                <span className="opacity-70">Enter saves, Escape cancels</span>
+                <span className="opacity-70">Enter menyimpan, Escape membatalkan</span>
               </div>
             </div>
           ) : user ? (
@@ -521,7 +521,7 @@ function ScreenFrame({ png, mime }: { png: string; mime?: string }) {
     <div className="flex animate-rise-in justify-start">
       <img
         src={`data:${safeMime};base64,${png}`}
-        alt="Agent screen"
+        alt="Layar agen"
         className="max-w-[82%] rounded-xl border sm:max-w-[68%]"
       />
     </div>
@@ -549,7 +549,7 @@ function LiveBrowser({ botId, frame }: { botId: string; frame: { png: string; mi
         </div>
         <img
           src={`data:${safeMime};base64,${frame.png}`}
-          alt="The agent's browser"
+          alt="Browser agen"
           className="block w-full cursor-pointer"
           onClick={(e) => {
             const box = e.currentTarget.getBoundingClientRect();
@@ -568,7 +568,7 @@ function LiveBrowser({ botId, frame }: { botId: string; frame: { png: string; mi
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Ketik di halaman, Enter untuk mengirim"
-            aria-label="Type into the agent's browser"
+            aria-label="Ketik di browser agen"
             className="w-full bg-transparent px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-muted-foreground"
           />
         </form>
@@ -906,7 +906,7 @@ export function ChatView({ bot }: { bot: Bot }) {
             {query.trim().length < 2
               ? ""
               : hits.length === 0
-                ? "No matches"
+                ? "Tidak ada hasil"
                 : `${Math.min(hitAt, hits.length - 1) + 1} of ${hits.length}`}
           </span>
           <div className="flex shrink-0 items-center gap-0.5">
@@ -1047,7 +1047,7 @@ export function ChatView({ bot }: { bot: Bot }) {
               so a fast drag that leaves the strip keeps working. */}
           <div
             role="separator"
-            aria-label="Resize the terminal"
+            aria-label="Ubah ukuran terminal"
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId);
               const startY = e.clientY;
