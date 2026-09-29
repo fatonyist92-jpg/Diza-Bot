@@ -88,6 +88,14 @@ export async function startCodexDeviceLogin(cli = "codex"): Promise<CodexLoginVi
   const rpc = attachRpc({
     stdin: child.stdin,
     stdout: child.stdout,
+    onFrame: (message, direction) => {
+      if (direction !== "in" || !message?.error) return;
+      const safe = JSON.stringify(message.error)
+        .replace(/(authorization|bearer)\\s+[^\\s"]+/gi, "$1 [redacted]")
+        .replace(/("(?:access_token|refresh_token|id_token)"\\s*:\\s*")[^"]+(")/gi, "$1[redacted]$2")
+        .slice(-4_000);
+      console.error("[diza-codex-rpc-error] " + safe);
+    },
     onRequest: (message) => {
       // Login should not ask the host for permissions or tools. Refuse any
       // unexpected request instead of leaving the app-server hanging.
