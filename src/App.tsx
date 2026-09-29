@@ -106,11 +106,7 @@ export default function App() {
   // setup, and someone who resets setup should not sit through the film
   // twice.
   const forced = new URLSearchParams(location.search).has("intro");
-  const [introOpen, setIntroOpen] = useState(
-    // never replay the film for a workspace that finished setup before the
-    // intro existed; ?intro forces a showing for design review
-    () => (introPending() && !setupDone()) || forced,
-  );
+  const [introOpen, setIntroOpen] = useState(true);
   // Until the workspace answers, showing the dashboard would be a guess,
   // and a wrong guess flashes the whole app for a moment before the
   // welcome covers it. A workspace that has clearly never been set up
