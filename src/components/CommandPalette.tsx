@@ -188,7 +188,7 @@ export function CommandPalette() {
 
         <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-2">
           {bots.length > 0 && (
-            <Section label="Agents">
+            <Section label="Agen">
               {bots.map((bot: Bot) =>
                 row(
                   ++index,
@@ -211,7 +211,7 @@ export function CommandPalette() {
             </Section>
           )}
           {rooms.length > 0 && (
-            <Section label="Rooms">
+            <Section label="Ruang">
               {rooms.map((room) =>
                 row(
                   ++index,
@@ -229,7 +229,7 @@ export function CommandPalette() {
             </Section>
           )}
           {hits.length > 0 && (
-            <Section label="Messages">
+            <Section label="Pesan">
               {hits.map((hit, i) =>
                 row(
                   ++index,
