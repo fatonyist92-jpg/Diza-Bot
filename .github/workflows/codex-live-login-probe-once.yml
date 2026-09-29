@@ -1,6 +1,7 @@
 name: DIZA Codex live login probe once
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - live-test-bab14
