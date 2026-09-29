@@ -58,6 +58,7 @@ import { extractTeamPlan, MAX_HIRES, normalizePlan, TEAM_PROTOCOL, type TeamPlan
 import { houseStyle, HOUSE_STYLE } from "./house-style.ts";
 import { composeDizaIdentity } from "./diza-identity.ts";
 import { captureFrame, clickAt, typeText } from "./browser-view.ts";
+import { codexLoginStatus, startCodexDeviceLogin } from "./codex-login.ts";
 import { bearerToken, isLocalRequest, isSameOrigin } from "./http-guard.ts";
 import {
   bindHost,
@@ -6500,6 +6501,16 @@ const server = createServer(async (req, res) => {
     // ── engines: what you can connect, and how ──
     if (method === "GET" && path === "/api/providers") {
       return json(res, 200, await providerCatalog());
+    }
+
+    // Codex keeps ChatGPT credentials in its own CLI auth store. The web
+    // surface only starts/observes the device-code handshake and never sees
+    // access or refresh tokens.
+    if (method === "POST" && path === "/api/providers/codex/login") {
+      return json(res, 200, await startCodexDeviceLogin());
+    }
+    if (method === "GET" && path === "/api/providers/codex/login") {
+      return json(res, 200, await codexLoginStatus());
     }
 
     // The bug-report bundle: facts a public issue can hold. Built from
