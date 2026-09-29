@@ -301,7 +301,7 @@ export function NewAgentScreen() {
         <button
           onClick={() => setIdentity(randomIdentity())}
           className="group rounded-full outline-none transition-transform duration-150 ease-[var(--ease-out-quart)] hover:scale-105 active:scale-95"
-          title="Shuffle the look"
+          title="Acak tampilan"
         >
           {/* keyed so each new identity plays the landing pop */}
           <div key={`${identity.color}-${identity.shape}`} className="animate-pop">
@@ -318,18 +318,18 @@ export function NewAgentScreen() {
         <h1 className="mt-5 text-[26px] font-semibold tracking-tight text-foreground">
           {describing
             ? firstRun
-              ? "Who do you need first?"
-              : "Build a new agent"
-            : "What should we call it?"}
+              ? "Agen apa yang Anda butuhkan pertama?"
+              : "Buat agen baru"
+            : "Siapa nama agen ini?"}
         </h1>
         <p className="mt-1.5 h-5 text-[13.5px] text-muted-foreground">
           {describing
             ? firstRun
-              ? "Pick a role or describe the job. You can add more any time."
+              ? "Pilih peran atau jelaskan pekerjaannya. Anda dapat menambah agen lain kapan saja."
               : "Describe the job. It'll come with the skills to do it."
             : matched.current
               ? `Set up as a ${matched.current.name.toLowerCase()}, with ${matched.current.skills.length} skills included.`
-              : "We picked one from your description. Change it if you like."}
+              : "Kami memilih satu dari deskripsi Anda. Ubah jika diperlukan."}
         </p>
 
         {/* The one field, flipping between the two beats */}
@@ -351,7 +351,7 @@ export function NewAgentScreen() {
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && goToNaming()}
-                  placeholder="Describe what it should do"
+                  placeholder="Jelaskan apa yang harus dilakukan"
                   className="w-full min-w-0 bg-transparent text-[14.5px] text-foreground outline-none placeholder:text-muted-foreground"
                 />
               ) : (
@@ -362,7 +362,7 @@ export function NewAgentScreen() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && createFromDescription()}
-                    placeholder="Name your agent"
+                    placeholder="Beri nama agen Anda"
                     className="w-full min-w-0 bg-transparent text-[14.5px] font-medium text-foreground outline-none placeholder:text-muted-foreground"
                   />
                   {naming && (
@@ -401,7 +401,7 @@ export function NewAgentScreen() {
                   <button
                     onClick={() => setDraft(null)}
                     className="text-[11.5px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                    title="Create the agent without any of this"
+                    title="Buat agen tanpa pengaturan ini"
                   >
                     Start it blank
                   </button>
@@ -409,13 +409,13 @@ export function NewAgentScreen() {
                 <Input
                   value={draft.title}
                   onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                  placeholder="What they do"
+                  placeholder="Apa yang mereka lakukan"
                   className="h-8 text-[13px]"
                 />
                 <textarea
                   value={draft.description}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  placeholder="How they work"
+                  placeholder="Cara mereka bekerja"
                   rows={4}
                   className="mt-1.5 w-full resize-none rounded-lg border bg-background px-2.5 py-1.5 text-[12.5px] leading-relaxed text-foreground outline-none focus:border-ring/50"
                 />
@@ -438,7 +438,7 @@ export function NewAgentScreen() {
                             setDraft({ ...draft, skills: draft.skills.filter((_, j) => j !== i) })
                           }
                           className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
-                          title="Drop this skill"
+                          title="Hapus skill ini"
                         >
                           <X size={11} />
                         </button>
@@ -464,7 +464,7 @@ export function NewAgentScreen() {
               <button
                 onClick={() => setRotation((r) => r + 1)}
                 className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-                title="Show other roles"
+                title="Tampilkan peran lain"
               >
                 <RefreshCw size={12} />
                 Shuffle
