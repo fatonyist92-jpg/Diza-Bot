@@ -9,4 +9,10 @@ if [ ! -x "$CODEX_BIN" ]; then
 fi
 
 "$CODEX_BIN" --version
+
+node deploy/codex-ipv4-proxy.mjs &
+export HTTPS_PROXY="http://127.0.0.1:3129"
+export HTTP_PROXY="http://127.0.0.1:3129"
+export NO_PROXY="127.0.0.1,localhost"
+
 exec node deploy/web.mjs
