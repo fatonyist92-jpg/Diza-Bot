@@ -29,6 +29,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "start": "node deploy/web.mjs",
     "dev": "vite",
     "dev:server": "node --experimental-strip-types server/index.ts",
     "dev:desktop": "node scripts/bundle-updater.mjs && electron .",
