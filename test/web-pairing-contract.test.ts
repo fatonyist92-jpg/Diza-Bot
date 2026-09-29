@@ -18,6 +18,14 @@ test("successful web pairing sets a secure HttpOnly same-site cookie", () => {
 test("one-time hash credential is claimed before app render and then removed from the URL", () => {
   assert.match(bootstrap, /hash\.get\("pair"\)/);
   assert.match(bootstrap, /fetch\("\/api\/pair\/claim"/);
-  assert.match(bootstrap, /hash\.delete\("pair"\)/);
+  assert.match(bootstrap, /hash\.delete\(access \? "access" : "pair"\)/);
   assert.match(main, /await claimWebPairing\(\)/);
+});
+
+test("pre-registered live access token can only exchange an existing device token for a cookie", () => {
+  assert.match(server, /path === "\/api\/web\/session"/);
+  assert.match(server, /if \(!deviceForToken\(token\)\) return json\(res, 401/);
+  assert.match(bootstrap, /hash\.get\("access"\)/);
+  assert.match(bootstrap, /fetch\("\/api\/web\/session"/);
+  assert.match(bootstrap, /hash\.delete\(access \? "access" : "pair"\)/);
 });
