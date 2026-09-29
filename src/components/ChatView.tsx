@@ -382,10 +382,10 @@ function Bubble({
       )}
       {/* A column, so reactions hang under the bubble they belong to
           rather than beside it where they would push the text around. */}
-      <div className={cn("flex max-w-[82%] flex-col sm:max-w-[68%]", user && "items-end")}>
+      <div className={cn("flex flex-col", user ? "max-w-[88%] items-end sm:max-w-[68%]" : "w-full max-w-full sm:w-auto sm:max-w-[68%]")}>
         <div
           className={cn(
-            "px-3.5 py-2 text-[14.5px] leading-relaxed",
+            "max-w-full px-3.5 py-2 text-[14.5px] leading-relaxed break-words [overflow-wrap:anywhere]",
             user
               ? "whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary text-primary-foreground"
               : "rounded-2xl rounded-bl-md bg-muted text-foreground",
@@ -582,7 +582,7 @@ function LiveBrowser({ botId, frame }: { botId: string; frame: { png: string; mi
 function StreamingBubble({ text }: { text: string }) {
   return (
     <div className="flex w-full justify-start">
-      <div className="max-w-[82%] rounded-2xl rounded-bl-md bg-muted px-3.5 py-2 text-[14.5px] leading-relaxed text-foreground sm:max-w-[68%]">
+      <div className="w-full max-w-full rounded-2xl rounded-bl-md bg-muted px-3.5 py-2 text-[14.5px] leading-relaxed break-words [overflow-wrap:anywhere] text-foreground sm:w-auto sm:max-w-[68%]">
         <Markdownish text={text} />
         <span className="ml-0.5 inline-block h-[14px] w-[2px] animate-pulse bg-muted-foreground align-middle" />
       </div>

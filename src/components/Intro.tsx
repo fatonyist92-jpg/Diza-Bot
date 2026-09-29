@@ -18,21 +18,26 @@ export function Intro({ onDone }: { onDone: () => void }) {
         localStorage.setItem(INTRO_KEY, String(Date.now()));
       } catch {}
       onDone();
-    }, 2200);
+    }, 2400);
     return () => window.clearTimeout(timer);
   }, [onDone]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#08080a] text-white">
-      <div className="relative flex flex-col items-center">
-        <div className="absolute -inset-24 rounded-full bg-white/[0.035] blur-3xl" />
-        <div className="relative select-none text-[54px] font-semibold tracking-[-0.075em] sm:text-[68px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#070708] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(255,255,255,0.07),transparent_34%)]" />
+      <div className="relative flex -translate-y-3 flex-col items-center">
+        <div className="mb-5 h-px w-8 bg-white/35" />
+        <div className="select-none text-[58px] font-[650] leading-none tracking-[-0.08em] sm:text-[72px]">
           DIZA
         </div>
-        <div className="relative mt-3 h-px w-16 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-        <div className="relative mt-3 text-[10px] font-medium uppercase tracking-[0.34em] text-white/45">
-          Personal AI
+        <div className="mt-5 flex items-center gap-3">
+          <span className="h-px w-7 bg-white/15" />
+          <span className="text-[9px] font-medium uppercase tracking-[0.42em] text-white/42">
+            Personal AI
+          </span>
+          <span className="h-px w-7 bg-white/15" />
         </div>
+        <div className="mt-8 size-1 rounded-full bg-white/65 shadow-[0_0_14px_rgba(255,255,255,0.55)] animate-pulse" />
       </div>
     </div>
   );
