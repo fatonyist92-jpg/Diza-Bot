@@ -370,6 +370,7 @@ function Bubble({
     >
       {user && (
         <MessageActionBar
+          className="hidden sm:flex"
           message={message}
           author={author}
           onReply={onReply}
@@ -452,6 +453,7 @@ function Bubble({
       </div>
       {!user && (
         <MessageActionBar
+          className="hidden sm:flex"
           message={message}
           author={author}
           onReply={onReply}
