@@ -537,9 +537,10 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         );
       });
       if (!version) return { state: "unavailable", reason: `\`${config.cli}\` CLI not found` };
-      // No cheap way to tell whether `codex login` has been run, so this
-      // reports installed and lets a real turn surface the rest.
-      return { state: "available", version };
+      const authenticated = await new Promise<boolean>((resolve) => {
+        execFile(config.cli, ["login", "status"], { timeout: 8_000 }, (error) => resolve(!error));
+      });
+      return { state: "available", version, authenticated };
     };
 
     return {
