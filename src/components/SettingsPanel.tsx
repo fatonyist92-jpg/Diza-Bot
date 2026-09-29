@@ -168,7 +168,7 @@ function SkillsEditor({ bot }: { bot: Bot }) {
               <button
                 onClick={() => setSkills(skills.filter((_, j) => j !== i))}
                 className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity duration-150 hover:text-destructive group-hover:opacity-100"
-                title="Remove skill"
+                title="Hapus skill"
               >
                 <X size={13} />
               </button>
@@ -182,10 +182,10 @@ function SkillsEditor({ bot }: { bot: Bot }) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="Add a skill: when to use it, and what to return"
+          placeholder="Tambahkan skill: kapan digunakan dan hasil yang harus diberikan"
           className="h-8 text-[12.5px]"
         />
-        <Button variant="secondary" size="icon-sm" onClick={add} disabled={!draft.trim()} title="Add">
+        <Button variant="secondary" size="icon-sm" onClick={add} disabled={!draft.trim()} title="Tambah">
           <Plus size={14} />
         </Button>
       </div>
@@ -277,7 +277,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
             <div className="flex shrink-0 flex-col items-center gap-2 pt-1 sm:w-[116px]">
               <button
                 onClick={shuffleLook}
-                title="Shuffle the look"
+                title="Acak tampilan"
                 className="rounded-full outline-none transition-transform duration-150 hover:scale-105 active:scale-95"
               >
                 <div key={`${bot.color}-${bot.shape}`} className="animate-pop">
@@ -287,7 +287,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
               <div className="text-[11px] text-muted-foreground/70">click to shuffle</div>
               <div className="flex flex-col items-center">
                 <label className="cursor-pointer rounded-lg px-2 py-0.5 text-[11.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                  {bot.avatarAt ? "Change photo" : "Use a photo"}
+                  {bot.avatarAt ? "Ganti foto" : "Gunakan foto"}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -316,9 +316,9 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
               <div className="mb-3 flex items-center gap-1">
                 {(
                   [
-                    ["shape", "Shape"],
-                    ["color", "Color"],
-                    ["face", "Face"],
+                    ["shape", "Bentuk"],
+                    ["color", "Warna"],
+                    ["face", "Wajah"],
                   ] as const
                 ).map(([key, label]) => (
                   <button
@@ -355,7 +355,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
                         activeShape === shape && "bg-accent ring-2 ring-ring",
                       )}
                       title={shape}
-                      aria-label={`Use ${shape} shape`}
+                      aria-label={`Gunakan bentuk ${shape}`}
                     >
                       <BlokAvatar color={bot.color} shape={shape} expression="deadpan" size={30} />
                     </button>
@@ -375,7 +375,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
                       )}
                       style={{ backgroundColor: BLOK_COLORS[color] }}
                       title={color}
-                      aria-label={`Use ${color} color`}
+                      aria-label={`Gunakan warna ${color}`}
                     />
                   ))}
                 </div>
@@ -392,7 +392,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
                         activeExpression === expression && "bg-accent ring-2 ring-ring",
                       )}
                       title={expression}
-                      aria-label={`Use ${expression} expression`}
+                      aria-label={`Gunakan ekspresi ${expression}`}
                     >
                       <BlokAvatar
                         color={bot.color}
@@ -409,20 +409,20 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
         </div>
 
         <div className="mt-4 flex flex-col gap-3.5">
-          <Field label="Name">
+          <Field label="Nama">
             <Input value={bot.name} onChange={(e) => patch({ name: e.target.value })} />
           </Field>
-          <Field label="Title">
+          <Field label="Judul">
             <Input
-              placeholder="What this agent does, in a line"
+              placeholder="Apa tugas agen ini, dalam satu kalimat"
               value={bot.title}
               onChange={(e) => patch({ title: e.target.value })}
             />
           </Field>
-          <Field label="Instructions">
+          <Field label="Instruksi">
             <Textarea
               className="min-h-[96px] resize-none"
-              placeholder="What this agent is for, how it should behave"
+              placeholder="Untuk apa agen ini dan bagaimana harus berperilaku"
               value={bot.description}
               onChange={(e) => patch({ description: e.target.value })}
             />
@@ -444,8 +444,8 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
               {(
                 [
                   [1, "Junior"],
-                  [3, "Mid"],
-                  [5, "Lead"],
+                  [3, "Menengah"],
+                  [5, "Pemimpin"],
                 ] as const
               ).map(([level, label]) => {
                 const current = bot.seniority ?? 1;
@@ -476,10 +476,10 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
             <div className="mt-3 flex gap-1 rounded-xl bg-muted p-1">
               {(
                 [
-                  [undefined, "Default"],
-                  ["low", "Low"],
-                  ["medium", "Medium"],
-                  ["high", "High"],
+                  [undefined, "Bawaan"],
+                  ["low", "Rendah"],
+                  ["medium", "Sedang"],
+                  ["high", "Tinggi"],
                 ] as const
               ).map(([level, label]) => (
                 <button
@@ -550,9 +550,9 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
             >
                           {(
                 [
-                  ["cloud", "Cloud box"],
-                  ["sandbox", "Local VM"],
-                  ["local", "This computer"],
+                  ["cloud", "Box cloud"],
+                  ["sandbox", "VM lokal"],
+                  ["local", "Komputer ini"],
                   ["off", "Off"],
                 ] as const
               ).map(([mode, label]) => (
@@ -623,8 +623,8 @@ function ApprovalsCard({ bot }: { bot: Bot }) {
   const mode = bot.approvals ?? "ask";
   const [refused, setRefused] = useState(false);
   const OPTIONS = [
-    { id: "ask" as const, label: "Ask", hint: "Every consequential action cards" },
-    { id: "edits" as const, label: "Accept edits", hint: "File changes go ahead; the rest asks" },
+    { id: "ask" as const, label: "Ask", hint: "Kartu untuk setiap tindakan penting" },
+    { id: "edits" as const, label: "Terima edit", hint: "File changes go ahead; the rest asks" },
     { id: "auto" as const, label: "Auto", hint: "Everything goes ahead; deny rules still refuse" },
   ];
 
@@ -806,7 +806,7 @@ function ConnectedAppsCard({
         <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
           {configured
             ? allowed
-              ? "This agent can use your connected apps (Slack, Gmail, and the rest)."
+              ? "Agen ini dapat menggunakan aplikasi terhubung Anda (Slack, Gmail, dan lainnya)."
               : "Blocked from your connected apps; it works with its own tools only."
             : "No connector key yet. Add one in Settings → Apps."}
         </div>
@@ -857,7 +857,7 @@ function BrowserCard({ bot, patch }: { bot: Bot; patch: (p: { browser: boolean }
         setResult(
           r.imported
             ? `Signed in for ${wanted.join(", ")}.`
-            : (r.note ?? "Nothing found for those sites."),
+            : (r.note ?? "Tidak ditemukan apa pun untuk situs tersebut."),
         ),
       )
       .catch((e) => setResult(e.message))
@@ -871,8 +871,8 @@ function BrowserCard({ bot, patch }: { bot: Bot; patch: (p: { browser: boolean }
           <div className="text-[13.5px] font-semibold text-foreground">Its own browser</div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
             {on
-              ? "Opens pages, reads them and clicks, in a browser of its own. Signed in separately from yours."
-              : "Off. Turn this on for work on the web: comparing prices, filling a form, reading a page that needs a session."}
+              ? "Membuka halaman, membacanya, dan mengeklik menggunakan browser miliknya sendiri. Login terpisah dari browser Anda."
+              : "Nonaktif. Aktifkan untuk pekerjaan web: membandingkan harga, mengisi formulir, atau membaca halaman yang memerlukan sesi login."}
           </div>
         </div>
         <Switch checked={on} onCheckedChange={(next) => patch({ browser: next })} />
@@ -917,7 +917,7 @@ const COMPONENTS: Array<[string, string]> = [
   ["chart", "Charts"],
   ["table", "Tables"],
   ["decision", "Decisions"],
-  ["steps", "Step lists"],
+  ["steps", "Daftar langkah"],
   ["quote", "Quotes"],
   ["refused", "Refusals"],
 ];
@@ -989,7 +989,7 @@ function IdentityCard({ bot }: { bot: Bot }) {
       </div>
       <button
         onClick={() => setFull((v) => !v)}
-        title={full ? "Show it short" : "Show all of it"}
+        title={full ? "Tampilkan ringkas" : "Tampilkan semuanya"}
         className="mt-2.5 w-full rounded-xl bg-muted/60 px-3 py-2 text-left font-mono text-[12px] leading-relaxed text-foreground transition-colors duration-150 hover:bg-muted"
       >
         {full ? <span className="break-all">{print}</span> : short}
@@ -1139,7 +1139,7 @@ function MemoryCard({ bot }: { bot: Bot }) {
                   setText(e.target.value);
                   setDirty(true);
                 }}
-                placeholder="Nothing remembered yet. The agent writes here as it learns; you can too."
+                placeholder="Belum ada yang diingat. Agen akan menulis di sini saat belajar; Anda juga bisa menambahkannya."
                 className="min-h-[150px] font-mono text-[12px]"
               />
               {truncated && (
