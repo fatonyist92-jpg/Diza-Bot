@@ -655,7 +655,7 @@ function ApprovalsCard({ bot }: { bot: Bot }) {
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-foreground">
         Approvals
-        <InfoTip text="A mode only widens what is allowed. Anything you have forbidden under Settings > Rules stays refused in every mode, and answers you chose to remember from approval cards keep working too." />
+        <InfoTip text="Mode hanya memperluas hal yang diizinkan. Apa pun yang Anda larang di Pengaturan > Aturan tetap ditolak di semua mode, dan jawaban yang Anda pilih untuk diingat dari kartu persetujuan tetap berlaku." />
       </div>
       <div className="mt-0.5 text-[12.5px] text-muted-foreground">
         {OPTIONS.find((o) => o.id === mode)?.hint}
@@ -715,7 +715,7 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
       </div>
       <div className="mt-0.5 flex items-center gap-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
         Where new tasks run.
-        <InfoTip text="Point it at a project to work in that repo; leave it empty and the agent uses its own workspace. Running tasks keep the folder they started in." />
+        <InfoTip text="Arahkan ke sebuah proyek untuk bekerja di repositori tersebut; biarkan kosong agar agen menggunakan workspace miliknya sendiri. Tugas yang sedang berjalan tetap memakai folder tempat tugas dimulai." />
       </div>
       <div className="mt-3 flex gap-2">
         <Input
