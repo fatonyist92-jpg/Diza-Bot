@@ -89,11 +89,11 @@ function useAutoSize(value: string) {
 /** What the helper's error words mean to a person. */
 const SPEECH_TROUBLE: Record<string, string> = {
   "speech-not-authorized":
-    "Bloks needs Speech Recognition access to turn your voice into text. It is a separate permission from the microphone.",
+    "Bloks memerlukan akses Pengenalan Suara untuk mengubah suara Anda menjadi teks. Izin ini terpisah dari izin mikrofon.",
   "recognizer-unavailable":
     "macOS has no speech recognizer available for English on this Mac right now.",
-  "mic-failed": "The microphone could not be opened. Another app may be holding it.",
-  "recognition-error": "Recognition stopped. Try again, and check your input device if it repeats.",
+  "mic-failed": "Mikrofon tidak dapat dibuka. Aplikasi lain mungkin sedang menggunakannya.",
+  "recognition-error": "Pengenalan suara berhenti. Coba lagi, dan periksa perangkat input jika masalah berulang.",
 };
 
 /**
@@ -213,19 +213,19 @@ export function Composer({
         if (browserCode) {
           setSpeechError(
             browserCode === "not-allowed" || browserCode === "service-not-allowed"
-              ? "This browser was not allowed to use speech recognition. Check microphone/site permissions."
+              ? "Browser ini tidak diizinkan menggunakan pengenalan suara. Periksa izin mikrofon/situs."
               : `Voice recognition stopped (${browserCode}). Try again.`,
           );
           return;
         }
-        setSpeechError(SPEECH_TROUBLE[code] ?? "Dictation stopped unexpectedly.");
+        setSpeechError(SPEECH_TROUBLE[code] ?? "Dikte berhenti secara tidak terduga.");
         setSpeechPane(code === "speech-not-authorized" ? "speech" : "mic");
       },
     });
     recognitionRef.current = session;
     if (!session) {
       setRecording(false);
-      setSpeechError("No free speech recognition is available on this device/browser.");
+      setSpeechError("Tidak ada pengenalan suara gratis yang tersedia di perangkat/browser ini.");
     }
     return () => {
       recognitionRef.current?.stop();
@@ -263,7 +263,7 @@ export function Composer({
       }
       if (mic === "denied" || mic === "restricted") {
         setMicDenied(true);
-        setSpeechError("DIZA does not have access to your microphone, so dictation cannot start.");
+        setSpeechError("DIZA tidak memiliki akses ke mikrofon Anda, sehingga dikte tidak dapat dimulai.");
         return;
       }
       setRecording(true);
@@ -274,7 +274,7 @@ export function Composer({
       setRecording(true);
       return;
     }
-    setSpeechError("This browser does not expose free speech recognition. You can still type or attach audio/video files.");
+    setSpeechError("Browser ini tidak menyediakan pengenalan suara gratis. Anda tetap dapat mengetik atau melampirkan file audio/video.");
   };
 
   const canSend = !submitting && (Boolean(text.trim()) || attachments.length > 0);
@@ -364,7 +364,7 @@ export function Composer({
           <button
             onClick={() => setAttachNotice(null)}
             className="shrink-0 rounded-lg px-1.5 py-1 opacity-60 transition-opacity hover:opacity-100"
-            aria-label="Dismiss"
+            aria-label="Tutup"
           >
             ✕
           </button>
@@ -417,13 +417,13 @@ export function Composer({
           <button
             onClick={() => setSpeechError(null)}
             className="shrink-0 rounded-lg px-1.5 py-1 opacity-60 transition-opacity hover:opacity-100"
-            aria-label="Dismiss"
+            aria-label="Tutup"
           >
             ✕
           </button>
         </div>
       )}
-      <div className="mx-auto mb-1.5 flex max-w-[760px] gap-1 px-1" aria-label="Intelligence mode">
+      <div className="mx-auto mb-1.5 flex max-w-[760px] gap-1 px-1" aria-label="Mode kecerdasan">
         {(["fast", "auto", "expert"] as const).map((mode) => (
           <button
             key={mode}
@@ -436,7 +436,7 @@ export function Composer({
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
             aria-pressed={intelligenceMode === mode}
-            title={mode === "fast" ? "Fast response" : mode === "expert" ? "Deeper reasoning" : "Diza chooses automatically"}
+            title={mode === "fast" ? "Respons cepat" : mode === "expert" ? "Penalaran lebih mendalam" : "Diza memilih otomatis"}
           >
             {mode}
           </button>
@@ -484,7 +484,7 @@ export function Composer({
         <button
           type="button"
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-          title="Attach a file, image or video"
+          title="Lampirkan file, gambar, atau video"
           disabled={submitting}
           onClick={() => pickerRef.current?.click()}
         >
@@ -493,8 +493,8 @@ export function Composer({
         <button
           type="button"
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-          title="Take a photo"
-          aria-label="Take a photo"
+          title="Ambil foto"
+          aria-label="Ambil foto"
           disabled={submitting}
           onClick={() => photoPickerRef.current?.click()}
         >
@@ -503,8 +503,8 @@ export function Composer({
         <button
           type="button"
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-          title="Record a video"
-          aria-label="Record a video"
+          title="Rekam video"
+          aria-label="Rekam video"
           disabled={submitting}
           onClick={() => videoPickerRef.current?.click()}
         >
@@ -571,7 +571,7 @@ export function Composer({
                 ? "animate-pulse bg-destructive/15 text-destructive"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
-            title={recording ? "Stop dictation (Esc)" : "Dictate"}
+            title={recording ? "Hentikan dikte (Esc)" : "Dictate"}
           >
             {recording ? <VoiceMeter level={level} /> : <Mic size={17} />}
           </button>
