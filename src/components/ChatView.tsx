@@ -10,6 +10,7 @@ import SquareTerminal from "lucide-react/dist/esm/icons/square-terminal.mjs";
 import Square from "lucide-react/dist/esm/icons/square.mjs";
 import Video from "lucide-react/dist/esm/icons/video.mjs";
 import X from "lucide-react/dist/esm/icons/x.mjs";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import { api, useStore, formatTime, type Bot, type Message } from "@/state/store";
 import { AgentAvatar } from "./Avatar";
 import { OptionCard } from "./OptionCard";
@@ -654,7 +655,7 @@ function reactTo(threadId: string, messageId: string, emoji: string) {
   }).catch(() => {});
 }
 
-export function ChatView({ bot }: { bot: Bot }) {
+export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () => void }) {
   const { state, dispatch } = useStore();
   // Only a frame that arrived during this turn is live. The one held from
   // the last turn is already in the transcript, and showing it again as
@@ -802,6 +803,17 @@ export function ChatView({ bot }: { bot: Bot }) {
     <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       {/* Header */}
       <div data-chat-header className="titlebar-drag flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-border/50 bg-background/90 px-3 backdrop-blur-md md:px-4">
+        <div className="flex min-w-0 items-center gap-1">
+          {onMobileBack && (
+            <button
+              onClick={onMobileBack}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title="Kembali ke chat"
+              aria-label="Kembali ke chat"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
         <button
           onClick={() => dispatch({ type: "toggleSettings" })}
           className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors duration-150 hover:bg-accent"
@@ -817,6 +829,7 @@ export function ChatView({ bot }: { bot: Bot }) {
             )}
           </span>
         </button>
+        </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {bot.busy && (
             <Button
