@@ -958,7 +958,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
         onScroll={onScroll}
         className="flex-1 overflow-y-auto px-4 md:px-6 [overflow-anchor:none]"
       >
-        <div className="mx-auto flex max-w-[760px] flex-col gap-2.5 pb-4 pt-2">
+        <div className="mx-auto flex w-full max-w-[760px] flex-col gap-2.5 pb-4 pt-2">
           {start > 0 ? (
             <button
               onClick={showEarlier}
