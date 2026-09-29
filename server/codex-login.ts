@@ -65,6 +65,8 @@ export async function startCodexDeviceLogin(cli = "codex"): Promise<CodexLoginVi
   // Codex must authenticate with the user's ChatGPT login, not an inherited
   // Platform API key that could move inference onto metered API billing.
   delete env.OPENAI_API_KEY;
+  // Temporary, login-only diagnostics. Keep provider/core behavior unchanged.
+  env.RUST_LOG = "codex_login=debug,codex_http_client=debug";
 
   const child = spawn(cli, ["app-server"], {
     cwd: homedir(),
@@ -151,6 +153,14 @@ export async function startCodexDeviceLogin(cli = "codex"): Promise<CodexLoginVi
   } catch (error) {
     stop(child);
     const message = error instanceof Error ? error.message : String(error);
+    const safeStderr = stderr
+      .replace(/(authorization|bearer)\\s+[^\\s]+/gi, "$1 [redacted]")
+      .replace(/("(?:access_token|refresh_token|id_token)"\\s*:\\s*")[^"]+(")/gi, "$1[redacted]$2")
+      .trim()
+      .slice(-4_000);
+    if (safeStderr) {
+      console.error("[diza-codex-login] app-server stderr tail:\\n" + safeStderr);
+    }
     active = null;
     return { status: "failed", error: message };
   }
