@@ -362,7 +362,7 @@ function Bubble({
   return (
     <div
       className={cn(
-        "group flex w-full items-center gap-1.5",
+        "group flex w-full min-w-0 gap-1.5",
         user ? "justify-end" : "justify-start",
         // arriving messages rise into place from the side they belong to
         fresh && (user ? "animate-send-in" : "animate-receive-in"),
@@ -382,11 +382,11 @@ function Bubble({
       )}
       {/* A column, so reactions hang under the bubble they belong to
           rather than beside it where they would push the text around. */}
-      <div className={cn("flex flex-col", user ? "max-w-[88%] items-end sm:max-w-[68%]" : "w-full min-w-0 max-w-full sm:w-auto sm:max-w-[68%]")}>
+      <div className={cn("flex min-w-0 flex-col", user ? "max-w-[88%] items-end sm:max-w-[68%]" : "flex-1 sm:max-w-[68%] sm:flex-none")}>
         <div
           className={cn(
             "max-w-full px-3.5 py-2 text-[14.5px] leading-relaxed break-words [overflow-wrap:anywhere]",
-            !user && "w-full",
+            !user && "w-full min-w-0",
             user
               ? "whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary text-primary-foreground"
               : "rounded-2xl rounded-bl-md bg-muted text-foreground",
