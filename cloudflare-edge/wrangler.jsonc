@@ -1,0 +1,8 @@
+{
+  "name": "diza-bot",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-09-29",
+  "vars": {
+    "DIZA_BACKEND_ORIGIN": "https://diza-bot-5eoll.faable.link"
+  }
+}
