@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import Search from "lucide-react/dist/esm/icons/search.mjs";
 import Settings from "lucide-react/dist/esm/icons/settings-2.mjs";
@@ -10,6 +11,7 @@ type ChatRow = { bot: Bot; task: TaskSummary | null; updatedAt: number; preview:
 
 export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
   const { state, dispatch } = useStore();
+  const [query, setQuery] = useState("");
 
   const rows: ChatRow[] = state.bots
     .filter((bot) => !bot.hidden)
@@ -29,6 +31,13 @@ export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
           preview: active && last ? previewLine(last) : bot.title || "Percakapan DIZA",
         };
       });
+    })
+    .filter((row) => {
+      const needle = query.trim().toLowerCase();
+      if (!needle) return true;
+      return `${row.task?.title ?? ""} ${row.bot.name} ${row.bot.title} ${row.preview}`
+        .toLowerCase()
+        .includes(needle);
     })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -67,9 +76,14 @@ export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
             </button>
           </div>
         </div>
-        <div className="mt-4 flex h-10 items-center gap-2 rounded-xl bg-accent/70 px-3">
-          <Search size={16} className="text-muted-foreground" />
-          <span className="text-[13.5px] text-muted-foreground">Cari chat</span>
+        <div className="mt-4 flex h-10 items-center gap-2 rounded-xl bg-accent/70 px-3 focus-within:bg-accent">
+          <Search size={16} className="shrink-0 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Cari chat"
+            className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground"
+          />
         </div>
       </header>
 

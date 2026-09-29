@@ -49,7 +49,13 @@ function Shell() {
     window.bloks?.badgeSet?.(waiting);
   }, [waiting]);
   if (mobile && mobileHome) {
-    return <MobileChatHome onOpenChat={() => setMobileHome(false)} />;
+    return (
+      <>
+        <MobileChatHome onOpenChat={() => setMobileHome(false)} />
+        {state.appSettingsOpen && <AppSettingsPanel />}
+        {state.newAgentOpen && <NewAgentScreen />}
+      </>
+    );
   }
 
   return (
