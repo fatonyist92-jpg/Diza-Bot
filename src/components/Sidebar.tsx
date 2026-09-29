@@ -127,7 +127,7 @@ function SectionPicker({ filing, onClose }: { filing: FilingState; onClose: () =
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="New section"
+            placeholder="Bagian baru"
             maxLength={60}
             className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-ring/60"
           />
@@ -695,7 +695,7 @@ export function Sidebar() {
             <DropdownMenuTrigger asChild>
               <button
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-                title="New…"
+                title="Baru…"
               >
                 <Plus size={17} strokeWidth={2} />
               </button>
@@ -757,7 +757,7 @@ export function Sidebar() {
             onMouseLeave={() => setLogoHover(false)}
             onClick={toggleCollapsed}
             title="Buka sidebar"
-            aria-label="Open sidebar"
+            aria-label="Buka sidebar"
             className="flex size-8 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-accent" 
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
           >
@@ -773,7 +773,7 @@ export function Sidebar() {
               <button
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                title="New…"
+                title="Baru…"
               >
                 <Plus size={17} strokeWidth={2} />
               </button>
@@ -796,7 +796,7 @@ export function Sidebar() {
               <DropdownMenuTrigger asChild>
                 <button
                   className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-                  title="New…"
+                  title="Baru…"
                 >
                   <Plus size={17} strokeWidth={2} />
                 </button>
