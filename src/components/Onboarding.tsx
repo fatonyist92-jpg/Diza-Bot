@@ -45,7 +45,7 @@ function CommandRow({ command }: { command: string }) {
         setTimeout(() => setCopied(false), 1600);
       }}
       className="mt-2 flex w-full items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5 text-left transition-colors duration-150 hover:bg-accent active:scale-[0.99]"
-      title="Copy to clipboard"
+      title="Salin ke papan klip"
     >
       <code className="min-w-0 flex-1 truncate font-mono text-[12px] text-foreground">
         {command}
@@ -265,43 +265,43 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       kind: "claudeAgent",
       name: "Claude Code",
       command: "npm i -g @anthropic-ai/claude-code",
-      have: "Installed and ready to power agents.",
-      want: "Not found. Install it, then this turns green on its own.",
+      have: "Terpasang dan siap digunakan agen.",
+      want: "Tidak ditemukan. Pasang terlebih dahulu, lalu status ini akan berubah hijau otomatis.",
     },
     {
       kind: "codex",
       name: "Codex",
       command: "npm i -g @openai/codex",
-      have: "Installed. Agents can run on Codex too.",
-      want: "Optional. Adds a second engine your agents can use.",
+      have: "Terpasang. Agen juga dapat berjalan dengan Codex.",
+      want: "Opsional. Menambahkan engine kedua yang dapat digunakan agen.",
     },
     {
       kind: "pi",
       name: "Pi",
       command: "npm i -g --ignore-scripts @earendil-works/pi-coding-agent && npm i -g pi-acp",
-      have: "Installed. Agents can run on Pi too.",
-      want: "Optional. Install Pi and pi-acp to add a tool-running engine.",
+      have: "Terpasang. Agen juga dapat berjalan dengan Pi.",
+      want: "Opsional. Pasang Pi dan pi-acp untuk menambahkan engine yang dapat menjalankan tool.",
     },
     {
       kind: "antigravity",
       name: "Antigravity",
       command: "curl -fsSL https://antigravity.google/cli/install.sh | bash",
-      have: "Installed. Signs in with your Google account.",
+      have: "Terpasang. Login menggunakan akun Google Anda.",
       want: "Optional. Google's agent CLI, free with a Google account.",
     },
     {
       kind: "grokCli",
       name: "Grok CLI",
       command: "curl -fsSL https://x.ai/cli/install.sh | bash",
-      have: "Installed. Binds to your grok.com subscription.",
-      want: "Optional. Runs on an existing Grok subscription.",
+      have: "Terpasang. Terhubung ke langganan grok.com Anda.",
+      want: "Opsional. Berjalan dengan langganan Grok yang sudah ada.",
     },
     {
       kind: "kimi",
       name: "Kimi",
       byKey: true,
-      have: "Connected. Ready for agents to think with.",
-      want: "Optional. Paste a Kimi key in Settings to switch it on.",
+      have: "Terhubung. Siap digunakan agen untuk berpikir.",
+      want: "Opsional. Tempel kunci Kimi di Pengaturan untuk mengaktifkannya.",
     },
   ];
 
@@ -523,8 +523,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <div className="mt-4 flex flex-col gap-2">
               <PermissionRow
                 icon={<Mic size={17} />}
-                title="Microphone & speech"
-                detail="Voice dictation into the composer, transcribed on-device."
+                title="Mikrofon & suara"
+                detail="Dikte suara ke kolom pesan, ditranskripsikan di perangkat."
                 status={perms?.mic}
                 onEnable={() =>
                   window.bloks?.permRequestMic?.().then(() => window.bloks?.permStatus?.().then(setPerms))
@@ -533,7 +533,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               />
               <PermissionRow
                 icon={<Monitor size={17} />}
-                title="Screen preview"
+                title="Pratinjau layar"
                 detail={`Shows ${thisComputer()}'s screen in the Computer panel when an agent works locally.`}
                 status={perms?.screen}
                 onEnable={() =>
