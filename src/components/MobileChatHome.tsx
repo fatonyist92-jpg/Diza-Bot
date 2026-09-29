@@ -3,15 +3,17 @@ import Search from "lucide-react/dist/esm/icons/search.mjs";
 import Settings from "lucide-react/dist/esm/icons/settings-2.mjs";
 import MessageCircle from "lucide-react/dist/esm/icons/message-circle.mjs";
 import { AgentAvatar } from "./Avatar";
-import { useStore, formatWhen } from "@/state/store";
+import { useStore, formatWhen, type Bot, type TaskSummary } from "@/state/store";
 import { previewLine } from "@/lib/preview";
+
+type ChatRow = { bot: Bot; task: TaskSummary | null; updatedAt: number; preview: string };
 
 export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
   const { state, dispatch } = useStore();
 
-  const rows = state.bots
+  const rows: ChatRow[] = state.bots
     .filter((bot) => !bot.hidden)
-    .flatMap((bot) => {
+    .flatMap<ChatRow>((bot) => {
       const tasks = (bot.tasks ?? []).filter((task) => !task.archivedAt);
       if (!tasks.length) {
         const last = bot.messages.at(-1);
@@ -30,7 +32,7 @@ export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
     })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  const open = (row: (typeof rows)[number]) => {
+  const open = (row: ChatRow) => {
     dispatch({ type: "select", id: row.bot.id });
     if (row.task && row.bot.activeTaskId !== row.task.id) {
       dispatch({ type: "selectTask", botId: row.bot.id, taskId: row.task.id });
