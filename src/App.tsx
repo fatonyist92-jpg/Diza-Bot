@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import Loader2 from "lucide-react/dist/esm/icons/loader-2.mjs";
 import { StoreProvider, useStore } from "@/state/store";
-import { Onboarding } from "@/components/Onboarding";
 import { Intro, introPending } from "@/components/Intro";
 import { initAnalytics, setupDone, workspaceSetupDone } from "@/lib/analytics";
 import { unreadCount } from "@/lib/unread";
@@ -112,7 +111,6 @@ export default function App() {
     // intro existed; ?intro forces a showing for design review
     () => (introPending() && !setupDone()) || forced,
   );
-  const [setupOpen, setSetupOpen] = useState(() => !setupDone());
   // Until the workspace answers, showing the dashboard would be a guess,
   // and a wrong guess flashes the whole app for a moment before the
   // welcome covers it. A workspace that has clearly never been set up
@@ -130,7 +128,6 @@ export default function App() {
       .then((done) => {
         if (forced) return;
         setIntroOpen(done ? false : introPending());
-        setSetupOpen(!done);
       })
       .finally(() => setSettled(true));
   }, [forced]);
@@ -138,7 +135,6 @@ export default function App() {
   return (
     <StoreProvider>
       <Shell />
-      {setupOpen && !introOpen && <Onboarding onDone={() => setSetupOpen(false)} />}
       {introOpen && <Intro onDone={() => setIntroOpen(false)} />}
     </StoreProvider>
   );
