@@ -421,7 +421,7 @@ function Bubble({
                   Save
                 </button>
                 <button onClick={() => setEditing(null)}>Batal</button>
-                <span className="opacity-70">Enter menyimpan, Escape membatalkan</span>
+                <span className="opacity-70">Enter saves, Escape cancels</span>
               </div>
             </div>
           ) : user ? (
@@ -429,7 +429,7 @@ function Bubble({
           ) : (
             <Markdownish text={message.text ?? ""} highlight={highlight} />
           )}
-          {message.dieditAt && editing === null && (
+          {message.editedAt && editing === null && (
             <span className="ml-1.5 align-baseline text-[10.5px] opacity-60">diedit</span>
           )}
           {user && message.queued && (
@@ -521,14 +521,14 @@ function ScreenFrame({ png, mime }: { png: string; mime?: string }) {
     <div className="flex animate-rise-in justify-start">
       <img
         src={`data:${safeMime};base64,${png}`}
-        alt="Layar agen"
+        alt="Agent screen"
         className="max-w-[82%] rounded-xl border sm:max-w-[68%]"
       />
     </div>
   );
 }
 
-/** Browser agen while it works: the latest frame, and a way in.
+/** The agent's browser while it works: the latest frame, and a way in.
  * A click on the picture clicks the page at the same spot, and the line
  * under it types into whatever has focus. For the logins and cookie
  * walls an agent cannot get past on its own. */
@@ -549,7 +549,7 @@ function LiveBrowser({ botId, frame }: { botId: string; frame: { png: string; mi
         </div>
         <img
           src={`data:${safeMime};base64,${frame.png}`}
-          alt="Browser agen"
+          alt="The agent's browser"
           className="block w-full cursor-pointer"
           onClick={(e) => {
             const box = e.currentTarget.getBoundingClientRect();
@@ -568,7 +568,7 @@ function LiveBrowser({ botId, frame }: { botId: string; frame: { png: string; mi
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Ketik di halaman, Enter untuk mengirim"
-            aria-label="Ketik di browser agen"
+            aria-label="Type into the agent's browser"
             className="w-full bg-transparent px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-muted-foreground"
           />
         </form>
@@ -906,7 +906,7 @@ export function ChatView({ bot }: { bot: Bot }) {
             {query.trim().length < 2
               ? ""
               : hits.length === 0
-                ? "Tidak ada hasil"
+                ? "No matches"
                 : `${Math.min(hitAt, hits.length - 1) + 1} of ${hits.length}`}
           </span>
           <div className="flex shrink-0 items-center gap-0.5">
@@ -1004,7 +1004,7 @@ export function ChatView({ bot }: { bot: Bot }) {
                     onReply={setReplyTo}
                     onForward={(message, author) => setForwarding({ message, author })}
                     onReact={(messageId, emoji) => reactTo(bot.threadId, messageId, emoji)}
-                    onEdit={(messageId, next) => branchAndSend(messageId, next, "diedit")}
+                    onEdit={(messageId, next) => branchAndSend(messageId, next, "edited")}
                     onDelete={(messageId) => deleteMessage(bot.threadId, messageId)}
                     onBranch={branchHere}
                     onRetry={m.role === "bot" ? () => {
@@ -1047,7 +1047,7 @@ export function ChatView({ bot }: { bot: Bot }) {
               so a fast drag that leaves the strip keeps working. */}
           <div
             role="separator"
-            aria-label="Ubah ukuran terminal"
+            aria-label="Resize the terminal"
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId);
               const startY = e.clientY;
