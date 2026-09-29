@@ -1,0 +1,3 @@
+{
+  "startCommand": "node deploy/web.mjs"
+}
