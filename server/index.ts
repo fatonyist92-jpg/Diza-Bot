@@ -683,6 +683,18 @@ const teamLibrary = new TeamLibrary();
   if (shouldAdopt(cfg, found)) {
     saveConfig({ providers: { ...(cfg.providers ?? {}), ollama: { url: `${OLLAMA_URL}/v1` } } });
     Object.assign(cfg, loadConfig());
+
+    // The registry was built before this boot-time discovery. Register only
+    // the newly adopted Ollama instance now; rebuilding the whole fleet would
+    // disturb unrelated CLI/provider sessions during startup.
+    const adopted = Object.entries(instanceConfigs(cfg)).find(([, entry]) => entry.driver === "ollama");
+    if (adopted) {
+      const [instanceId, entry] = adopted;
+      await registry.load({ [instanceId]: entry });
+      const instance = registry.get(instanceId);
+      if (instance) bus.attach([instance]);
+    }
+
     console.log(`[bloks] found Ollama running here with ${found.models.length} model(s); connected it`);
   }
 }
