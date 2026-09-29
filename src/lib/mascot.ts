@@ -14,16 +14,16 @@ export const BLOK_COLOR_NAMES = [
 export type BlokColor = (typeof BLOK_COLOR_NAMES)[number];
 
 export const BLOK_COLORS: Record<BlokColor, string> = {
-  green: "#71717a",
-  blue: "#d4d4d8",
-  red: "#52525b",
-  orange: "#a1a1aa",
-  purple: "#71717a",
-  cyan: "#d4d4d8",
-  pink: "#a1a1aa",
-  yellow: "#d4d4d8",
-  teal: "#71717a",
-  coral: "#a1a1aa",
+  green: "#22c55e",
+  blue: "#3b82f6",
+  red: "#ef4444",
+  orange: "#f97316",
+  purple: "#a855f7",
+  cyan: "#06b6d4",
+  pink: "#ec4899",
+  yellow: "#eab308",
+  teal: "#14b8a6",
+  coral: "#fb7185",
 };
 
 export const BLOK_SHAPES = [
