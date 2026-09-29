@@ -17,9 +17,9 @@ import FolderKanban from "lucide-react/dist/esm/icons/folder-kanban.mjs";
 import Activity from "lucide-react/dist/esm/icons/activity.mjs";
 import BotIcon from "lucide-react/dist/esm/icons/bot.mjs";
 import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock.mjs";
-import Search from "lucide-react/dist/esm/icons/search.mjs";
+import Cari from "lucide-react/dist/esm/icons/search.mjs";
 import Share2 from "lucide-react/dist/esm/icons/share-2.mjs";
-import SettingsIcon from "lucide-react/dist/esm/icons/settings-2.mjs";
+import PengaturanIcon from "lucide-react/dist/esm/icons/settings-2.mjs";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles.mjs";
 import Users from "lucide-react/dist/esm/icons/users.mjs";
 import Sun from "lucide-react/dist/esm/icons/sun.mjs";
@@ -127,7 +127,7 @@ function SectionPicker({ filing, onClose }: { filing: FilingState; onClose: () =
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="New section"
+            placeholder="Bagian baru"
             maxLength={60}
             className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-ring/60"
           />
@@ -221,21 +221,21 @@ function BotContextMenu({
           bot.pinned ? "Unpin" : "Pin",
           () => dispatch({ type: "updateBot", botId: bot.id, patch: { pinned: !bot.pinned } }),
         ),
-        item(<BellDot size={15} className="text-muted-foreground" />, "Mark as unread", () =>
+        item(<BellDot size={15} className="text-muted-foreground" />, "Tandai belum dibaca", () =>
           dispatch({ type: "markUnread", botId: bot.id }),
         ),
         item(<Folder size={15} className="text-muted-foreground" />, "Move to section…", () =>
           onFile({ kind: "bot", id: bot.id, name: bot.name, current: bot.section ?? null }),
         ),
         divider("d1"),
-        item(<Pencil size={15} className="text-muted-foreground" />, "Edit profile", () => {
+        item(<Pencil size={15} className="text-muted-foreground" />, "Edit profil", () => {
           dispatch({ type: "select", id: bot.id });
-          dispatch({ type: "toggleSettings", open: true });
+          dispatch({ type: "togglePengaturan", open: true });
         }),
         item(<Copy size={15} className="text-muted-foreground" />, "Duplicate", () =>
           dispatch({ type: "duplicateBot", botId: bot.id }),
         ),
-        item(<ClipboardCopy size={15} className="text-muted-foreground" />, "Copy conversation ID", () => {
+        item(<ClipboardCopy size={15} className="text-muted-foreground" />, "Salin ID percakapan", () => {
           void navigator.clipboard?.writeText(bot.threadId);
         }),
         divider("d2"),
@@ -589,7 +589,7 @@ export function Sidebar() {
   };
 
   const renameConversation = (taskId: string, current: string) => {
-    const next = window.prompt("Rename chat", current)?.trim();
+    const next = window.prompt("Ganti nama chat", current)?.trim();
     if (!next || next === current) return;
     patchConversation(taskId, { title: next });
   };
@@ -666,7 +666,7 @@ export function Sidebar() {
       {(selectedBot?.tasks ?? []).some((task) => task.archivedAt) && (
         <DropdownMenuItem onClick={() => setShowArchivedChats(true)}>
           <Archive size={15} />
-          Archived chats
+          Chat diarsipkan
           <span className="ml-auto pl-3 text-[11px] text-muted-foreground">
             {(selectedBot?.tasks ?? []).filter((task) => task.archivedAt).length}
           </span>
@@ -675,7 +675,7 @@ export function Sidebar() {
       {state.bots.some((b) => b.hidden) && (
         <DropdownMenuItem onClick={() => setShowArchived(true)}>
           <Archive size={15} />
-          Archived agents
+          Agen diarsipkan
           <span className="ml-auto pl-3 text-[11px] text-muted-foreground">
             {state.bots.filter((b) => b.hidden).length}
           </span>
@@ -695,7 +695,7 @@ export function Sidebar() {
             <DropdownMenuTrigger asChild>
               <button
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-                title="New…"
+                title="Baru…"
               >
                 <Plus size={17} strokeWidth={2} />
               </button>
@@ -711,11 +711,11 @@ export function Sidebar() {
             ))}
           </div>
           <button
-            onClick={() => dispatch({ type: "toggleAppSettings" })}
-            title="Settings"
+            onClick={() => dispatch({ type: "toggleAppPengaturan" })}
+            title="Pengaturan"
             className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
           >
-            <SettingsIcon size={16} />
+            <PengaturanIcon size={16} />
           </button>
         </header>
         {menu && <BotContextMenu menu={menu} onClose={() => setMenu(null)} onFile={setFiling} />}
@@ -756,8 +756,8 @@ export function Sidebar() {
             onMouseEnter={() => setLogoHover(true)}
             onMouseLeave={() => setLogoHover(false)}
             onClick={toggleCollapsed}
-            title="Open sidebar"
-            aria-label="Open sidebar"
+            title="Buka sidebar"
+            aria-label="Buka sidebar"
             className="flex size-8 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-accent" 
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
           >
@@ -773,7 +773,7 @@ export function Sidebar() {
               <button
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                title="New…"
+                title="Baru…"
               >
                 <Plus size={17} strokeWidth={2} />
               </button>
@@ -796,7 +796,7 @@ export function Sidebar() {
               <DropdownMenuTrigger asChild>
                 <button
                   className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-                  title="New…"
+                  title="Baru…"
                 >
                   <Plus size={17} strokeWidth={2} />
                 </button>
@@ -805,7 +805,7 @@ export function Sidebar() {
             </DropdownMenu>
             <button
               onClick={toggleCollapsed}
-              title="Close sidebar"
+              title="Tutup sidebar"
               className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
             >
               <PanelLeftClose size={16} />
@@ -814,17 +814,17 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Search */}
+      {/* Cari */}
       {!rail && (
         <div className="px-3 pb-2 pt-1">
           <div className="flex items-center gap-2 rounded-xl bg-accent/70 px-3 py-[7px] transition-colors duration-150 focus-within:bg-accent">
-            <Search size={15} className="shrink-0 text-muted-foreground" />
+            <Cari size={15} className="shrink-0 text-muted-foreground" />
             <input
               ref={searchRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && (setQuery(""), e.currentTarget.blur())}
-              placeholder="Search"
+              placeholder="Cari"
               className="w-full bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -867,7 +867,7 @@ export function Sidebar() {
                 <button
                   onClick={() => dispatch({ type: "newTask", botId: selectedBot.id })}
                   className="rounded p-0.5 transition-colors hover:text-foreground"
-                  title="New chat"
+                  title="Chat baru"
                 >
                   <Plus size={12} />
                 </button>
@@ -943,7 +943,7 @@ export function Sidebar() {
                   <button
                     onClick={() => dispatch({ type: "toggleNewRoom", open: true })}
                     className="rounded p-0.5 transition-colors hover:text-foreground"
-                    title="New room"
+                    title="Ruang baru"
                   >
                     <Plus size={12} />
                   </button>
@@ -986,7 +986,7 @@ export function Sidebar() {
             })}
           {visibleBots.length === 0 && !rail && (
             <div className="px-3 py-8 text-center text-[13px] text-muted-foreground">
-              {query ? "No agents match" : "No agents yet. Create one with +"}
+              {query ? "Tidak ada agen yang cocok" : "Belum ada agen. Buat dengan tombol +"}
             </div>
           )}
         </div>
@@ -1036,21 +1036,21 @@ export function Sidebar() {
         ))}
         <div className={cn("mt-0.5 flex items-center", rail ? "flex-col gap-0.5" : "gap-0.5")}>
           <button
-            onClick={() => dispatch({ type: "toggleAppSettings" })}
-            title="Settings"
+            onClick={() => dispatch({ type: "toggleAppPengaturan" })}
+            title="Pengaturan"
             className={cn(
               "flex items-center gap-2.5 rounded-lg py-1.5 text-left text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground",
               rail ? "px-1.5" : "min-w-0 flex-1 px-2.5",
             )}
           >
-            <SettingsIcon size={16} />
-            {!rail && "Settings"}
+            <PengaturanIcon size={16} />
+            {!rail && "Pengaturan"}
           </button>
           {!rail && (
             <button
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={resolvedTheme === "dark" ? "Beralih ke mode terang" : "Beralih ke mode gelap"}
             >
               {resolvedTheme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
@@ -1104,9 +1104,9 @@ function ArchivedChats({ botId, onClose }: { botId: string; onClose: () => void 
         className="w-[420px] max-w-[92vw] animate-pop-in rounded-2xl border bg-popover p-4 shadow-2xl sm:p-5"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="text-[16px] font-semibold text-foreground">Archived chats</div>
+        <div className="text-[16px] font-semibold text-foreground">Chat diarsipkan</div>
         <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-          Archived chats keep their full conversation and can be restored.
+          Chat diarsipkan keep their full conversation and can be restored.
         </div>
         <div className="mt-3 flex max-h-[48vh] flex-col gap-1 overflow-y-auto">
           {archived.map((task) => (
@@ -1146,7 +1146,7 @@ function ArchivedAgents({ onClose }: { onClose: () => void }) {
         className="w-[420px] max-w-[92vw] animate-pop-in rounded-2xl border bg-popover p-4 shadow-2xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-[16px] font-semibold text-foreground">Archived agents</div>
+        <div className="text-[16px] font-semibold text-foreground">Agen diarsipkan</div>
         <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
           Their conversations, rules and rooms are kept, and so is the key they sign with. Restoring
           puts one back in the sidebar and back to work.
