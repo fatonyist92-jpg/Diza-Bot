@@ -420,8 +420,8 @@ function Bubble({
                 >
                   Save
                 </button>
-                <button onClick={() => setEditing(null)}>Cancel</button>
-                <span className="opacity-70">Enter saves, Escape cancels</span>
+                <button onClick={() => setEditing(null)}>Batal</button>
+                <span className="opacity-70">Enter menyimpan, Escape membatalkan</span>
               </div>
             </div>
           ) : user ? (
@@ -429,8 +429,8 @@ function Bubble({
           ) : (
             <Markdownish text={message.text ?? ""} highlight={highlight} />
           )}
-          {message.editedAt && editing === null && (
-            <span className="ml-1.5 align-baseline text-[10.5px] opacity-60">edited</span>
+          {message.dieditAt && editing === null && (
+            <span className="ml-1.5 align-baseline text-[10.5px] opacity-60">diedit</span>
           )}
           {user && message.queued && (
             <div className="mt-1 flex items-center gap-1 text-[10.5px] font-medium opacity-70">
@@ -521,14 +521,14 @@ function ScreenFrame({ png, mime }: { png: string; mime?: string }) {
     <div className="flex animate-rise-in justify-start">
       <img
         src={`data:${safeMime};base64,${png}`}
-        alt="Agent screen"
+        alt="Layar agen"
         className="max-w-[82%] rounded-xl border sm:max-w-[68%]"
       />
     </div>
   );
 }
 
-/** The agent's browser while it works: the latest frame, and a way in.
+/** Browser agen while it works: the latest frame, and a way in.
  * A click on the picture clicks the page at the same spot, and the line
  * under it types into whatever has focus. For the logins and cookie
  * walls an agent cannot get past on its own. */
@@ -549,7 +549,7 @@ function LiveBrowser({ botId, frame }: { botId: string; frame: { png: string; mi
         </div>
         <img
           src={`data:${safeMime};base64,${frame.png}`}
-          alt="The agent's browser"
+          alt="Browser agen"
           className="block w-full cursor-pointer"
           onClick={(e) => {
             const box = e.currentTarget.getBoundingClientRect();
@@ -567,8 +567,8 @@ function LiveBrowser({ botId, frame }: { botId: string; frame: { png: string; mi
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Type into the page, Enter to send"
-            aria-label="Type into the agent's browser"
+            placeholder="Ketik di halaman, Enter untuk mengirim"
+            aria-label="Ketik di browser agen"
             className="w-full bg-transparent px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-muted-foreground"
           />
         </form>
@@ -598,7 +598,7 @@ function TypingIndicator() {
           <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
           <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
         </span>
-        <span>Thinking…</span>
+        <span>Sedang berpikir…</span>
       </div>
     </div>
   );
@@ -805,7 +805,7 @@ export function ChatView({ bot }: { bot: Bot }) {
         <button
           onClick={() => dispatch({ type: "toggleSettings" })}
           className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors duration-150 hover:bg-accent"
-          title="Agent settings"
+          title="Pengaturan agen"
         >
           <AgentAvatar bot={bot} size={28} />
           <span className="flex min-w-0 items-baseline gap-2 text-left">
@@ -823,7 +823,7 @@ export function ChatView({ bot }: { bot: Bot }) {
               variant="secondary"
               size="sm"
               onClick={() => dispatch({ type: "interrupt", botId: bot.id })}
-              title="Stop this turn"
+              title="Hentikan respons ini"
             >
               <Square size={11} className="fill-current" />
               Stop
@@ -845,7 +845,7 @@ export function ChatView({ bot }: { bot: Bot }) {
             size="icon"
             onClick={() => dispatch({ type: "toggleComputer" })}
             className={cn(state.computerOpen && "bg-accent text-foreground")}
-            title="Agent computer"
+            title="Komputer agen"
           >
             <Monitor size={17} />
           </Button>
@@ -899,21 +899,21 @@ export function ChatView({ bot }: { bot: Bot }) {
                 setHitAt((at) => stepHit(at, hits.length, e.shiftKey ? -1 : 1));
               }
             }}
-            placeholder={`Find in this conversation`}
+            placeholder={`Cari dalam percakapan ini`}
             className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground"
           />
           <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">
             {query.trim().length < 2
               ? ""
               : hits.length === 0
-                ? "No matches"
+                ? "Tidak ada hasil"
                 : `${Math.min(hitAt, hits.length - 1) + 1} of ${hits.length}`}
           </span>
           <div className="flex shrink-0 items-center gap-0.5">
             <button
               onClick={() => setHitAt((at) => stepHit(at, hits.length, -1))}
               disabled={hits.length === 0}
-              aria-label="Previous match"
+              aria-label="Hasil sebelumnya"
               className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
             >
               <ChevronUp size={15} />
@@ -921,7 +921,7 @@ export function ChatView({ bot }: { bot: Bot }) {
             <button
               onClick={() => setHitAt((at) => stepHit(at, hits.length, 1))}
               disabled={hits.length === 0}
-              aria-label="Next match"
+              aria-label="Hasil berikutnya"
               className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
             >
               <ChevronDown size={15} />
@@ -931,7 +931,7 @@ export function ChatView({ bot }: { bot: Bot }) {
                 setFinding(false);
                 setQuery("");
               }}
-              aria-label="Close find"
+              aria-label="Tutup pencarian"
               className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <X size={15} />
@@ -1004,7 +1004,7 @@ export function ChatView({ bot }: { bot: Bot }) {
                     onReply={setReplyTo}
                     onForward={(message, author) => setForwarding({ message, author })}
                     onReact={(messageId, emoji) => reactTo(bot.threadId, messageId, emoji)}
-                    onEdit={(messageId, next) => branchAndSend(messageId, next, "edited")}
+                    onEdit={(messageId, next) => branchAndSend(messageId, next, "diedit")}
                     onDelete={(messageId) => deleteMessage(bot.threadId, messageId)}
                     onBranch={branchHere}
                     onRetry={m.role === "bot" ? () => {
@@ -1047,7 +1047,7 @@ export function ChatView({ bot }: { bot: Bot }) {
               so a fast drag that leaves the strip keeps working. */}
           <div
             role="separator"
-            aria-label="Resize the terminal"
+            aria-label="Ubah ukuran terminal"
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId);
               const startY = e.clientY;
