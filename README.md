@@ -315,3 +315,5 @@ Every release converts to plain MIT two years after it ships, and that
 conversion cannot be withdrawn.
 
 [LICENSING.md](LICENSING.md) explains it in plain English.
+
+<!-- Faable live deploy trigger: 2026-09-29 -->
