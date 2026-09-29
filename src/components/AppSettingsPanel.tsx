@@ -67,7 +67,7 @@ function Compaction() {
             Fold the conversation a little after each turn instead of all at once when it fills up.
           </div>
         </div>
-        <Switch aria-label="Summarise as you go" checked={on} disabled={saving} onCheckedChange={set} />
+        <Switch aria-label="Ringkas sambil berjalan" checked={on} disabled={saving} onCheckedChange={set} />
       </div>
     </div>
   );
@@ -107,7 +107,7 @@ function ProposeSkills() {
             down as a skill. Most conversations teach nothing and nothing is suggested for them.
           </div>
         </div>
-        <Switch aria-label="Suggest skills" checked={on} disabled={saving} onCheckedChange={set} />
+        <Switch aria-label="Sarankan skill" checked={on} disabled={saving} onCheckedChange={set} />
       </div>
     </div>
   );
@@ -139,13 +139,13 @@ function AboutCard() {
       : update.state === "downloading"
         ? `Downloading ${update.version ?? "the update"}${update.percent ? ` (${update.percent}%)` : ""}…`
         : update.state === "current"
-          ? "You are on the latest version."
+          ? "Anda menggunakan versi terbaru."
           : update.state === "ready"
-            ? `${update.version ?? "An update"} is downloaded and ready.`
+            ? `${update.version ?? "Pembaruan"} is downloaded and ready.`
             : update.state === "error"
               ? "The update check didn't reach the server. It will retry on next launch."
               : update.state === "dev"
-                ? "Updates apply to the installed app, not a dev build."
+                ? "Pembaruan berlaku untuk aplikasi terpasang, bukan build pengembangan."
                 : null;
 
   return (
@@ -222,7 +222,7 @@ function Diagnostics() {
         onClick={() => void copy()}
         className="mt-3 rounded-xl border bg-background px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-accent"
       >
-        {copied ? "Copied" : "Copy diagnostics"}
+        {copied ? "Copied" : "Salin diagnostik"}
       </button>
       {failed && (
         <div className="mt-2 text-[12px] text-destructive">
@@ -268,7 +268,7 @@ function AboutYou() {
   return (
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center justify-between">
-        <div className="text-[13.5px] font-semibold text-foreground">About you</div>
+        <div className="text-[13.5px] font-semibold text-foreground">Tentang Anda</div>
         {justSaved && (
           <span className="flex items-center gap-1 text-[11.5px] text-success">
             <Check size={12} /> Saved
@@ -322,14 +322,14 @@ function DizaPreferences() {
   return (
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center justify-between">
-        <div className="text-[13.5px] font-semibold text-foreground">How Diza should respond</div>
+        <div className="text-[13.5px] font-semibold text-foreground">Cara Diza merespons</div>
         {justSaved && <span className="flex items-center gap-1 text-[11.5px] text-success"><Check size={12} /> Saved</span>}
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
         Response preferences that stay the same when the AI provider changes.
       </div>
       <Textarea value={value} onChange={(e) => save(e.target.value)}
-        placeholder="e.g. Use Bahasa Indonesia, explain technical terms simply, keep answers compact."
+        placeholder="mis. Gunakan Bahasa Indonesia, jelaskan istilah teknis dengan sederhana, dan buat jawaban ringkas."
         className="mt-3 min-h-[88px] resize-none text-[13px]" />
     </div>
   );
@@ -338,14 +338,14 @@ function DizaPreferences() {
 
 
 const SETTINGS_TABS = [
-  ["general", "General"],
-  ["engines", "Engines"],
-  ["apps", "Apps"],
-  ["localvm", "Local VM"],
-  ["voices", "Voices"],
-  ["devices", "Devices"],
-  ["rules", "Rules"],
-  ["record", "Record"],
+  ["general", "Umum"],
+  ["engines", "Engine"],
+  ["apps", "Aplikasi"],
+  ["localvm", "VM Lokal"],
+  ["voices", "Suara"],
+  ["devices", "Perangkat"],
+  ["rules", "Aturan"],
+  ["record", "Rekam"],
 ] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number][0];
 
@@ -374,7 +374,7 @@ function QuickAskShortcut() {
     setProblem(null);
     const took = (await window.bloks?.shortcutApply(next)) ?? null;
     if (next && !took) {
-      setProblem("Another app already owns those keys. Try a different combination.");
+      setProblem("Kombinasi tombol itu sudah digunakan aplikasi lain. Coba kombinasi berbeda.");
       return;
     }
     setAccelerator(took);
@@ -398,7 +398,7 @@ function QuickAskShortcut() {
     if (e.altKey) parts.push("Alt");
     if (e.shiftKey) parts.push("Shift");
     if (parts.length === 0) {
-      setProblem("A global shortcut needs at least one modifier, or it would fire while you type.");
+      setProblem("Pintasan global memerlukan setidaknya satu tombol modifier agar tidak aktif saat Anda mengetik.");
       return;
     }
     parts.push(key.length === 1 ? key.toUpperCase() : key);
@@ -410,7 +410,7 @@ function QuickAskShortcut() {
 
   return (
     <div className="mt-4 rounded-2xl border bg-card p-4">
-      <div className="text-[13.5px] font-semibold text-foreground">Quick ask</div>
+      <div className="text-[13.5px] font-semibold text-foreground">Tanya cepat</div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
         A shortcut that works anywhere on {thisComputer()}. It opens one line over whatever
         you are doing, sends it to an agent, and gets out of the way.
@@ -429,7 +429,7 @@ function QuickAskShortcut() {
               : "border-input text-foreground hover:border-foreground/25",
           )}
         >
-          {capturing ? "Press the keys…" : (accelerator ?? "Not set")}
+          {capturing ? "Tekan kombinasi tombol…" : (accelerator ?? "Belum diatur")}
         </button>
         {accelerator && !capturing && (
           <button
@@ -460,7 +460,7 @@ export function AppSettingsPanel() {
     >
       <DialogContent className="flex h-[85vh] max-h-[640px] w-full max-w-[720px] flex-col gap-0 overflow-hidden p-0">
         <div className="flex h-[52px] shrink-0 items-center border-b px-5">
-          <DialogTitle className="text-[14.5px]">Settings</DialogTitle>
+          <DialogTitle className="text-[14.5px]">Pengaturan</DialogTitle>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
@@ -498,7 +498,7 @@ export function AppSettingsPanel() {
             {tab === "general" && (
               <>
                 <div className="mt-4 rounded-2xl border bg-card p-4">
-                  <div className="text-[13.5px] font-semibold text-foreground">Appearance</div>
+                  <div className="text-[13.5px] font-semibold text-foreground">Tampilan</div>
                   <div className="mt-0.5 text-[12.5px] text-muted-foreground">
                     How Bloks looks on {thisComputer()}
                   </div>
@@ -535,7 +535,7 @@ export function AppSettingsPanel() {
             {tab === "apps" && (
               <>
               <div className="mt-4 rounded-2xl border bg-card p-4">
-                <div className="text-[13.5px] font-semibold text-foreground">Apps and computers</div>
+                <div className="text-[13.5px] font-semibold text-foreground">Aplikasi dan komputer</div>
                 <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
                   Shared by all agents. Keys stay on {thisComputer()}.
                 </div>
@@ -546,14 +546,14 @@ export function AppSettingsPanel() {
                     placeholder="ck_…"
                     info={{
                       text: "Composio issues two different keys. This is the Connect key (starts with ck_), the one that links accounts like Slack and Gmail. The key is checked with Composio when you save it.",
-                      linkLabel: "Get a Connect key at composio.dev",
+                      linkLabel: "Dapatkan Connect key di composio.dev",
                       linkHref: "https://composio.dev",
                     }}
                   />
                   <ApiKeyRow
                     section="composioApi"
-                    label="Composio API key (optional)"
-                    placeholder="ak_…  unlocks the full app catalog"
+                    label="Kunci API Composio (opsional)"
+                    placeholder="ak_…  membuka seluruh katalog aplikasi"
                     info={{
                       text: "The other Composio key: a project API key (starts with ak_), separate from the Connect key above. Only used to browse the full app catalog; connections work without it.",
                     }}
@@ -561,10 +561,10 @@ export function AppSettingsPanel() {
                   <ApiKeyRow
                     section="box"
                     label="Box API key"
-                    placeholder="Paste your Box API key"
+                    placeholder="Tempel kunci API Box Anda"
                     info={{
-                      text: "Gives agents an isolated remote Linux computer with a desktop and a terminal. Box is a paid service after its trial, so usage can incur charges.",
-                      linkLabel: "Open the Box API key guide",
+                      text: "Memberikan komputer Linux jarak jauh yang terisolasi kepada agen, lengkap dengan desktop dan terminal. Box menjadi layanan berbayar setelah masa uji coba, sehingga penggunaan dapat dikenai biaya.",
+                      linkLabel: "Buka panduan kunci API Box",
                       linkHref: "https://docs.ascii.dev/box/api-keys",
                     }}
                   />
@@ -592,7 +592,7 @@ export function AppSettingsPanel() {
 
             {tab === "voices" && (
               <div className="mt-4 rounded-2xl border bg-card p-4">
-                <div className="text-[13.5px] font-semibold text-foreground">Voices</div>
+                <div className="text-[13.5px] font-semibold text-foreground">Suara</div>
                 <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
                   DIZA Voice is FREE_ONLY. Speech output uses voices exposed by this device/browser; voice input uses the native desktop recognizer or browser speech recognition when available. No ElevenLabs/OpenAI speech API is called. The browser/OS may still use its own speech service depending on platform implementation; DIZA does not send raw microphone audio to the LLM provider.
                 </div>
