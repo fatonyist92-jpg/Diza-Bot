@@ -108,6 +108,20 @@ test("a bearer token is read, and anything else is not", () => {
   assert.equal(bearerToken(req({ authorization: "Bearer " })), null);
 });
 
+test("the Web/PWA paired-device cookie authenticates without exposing it to JavaScript", () => {
+  assert.equal(bearerToken(req({ cookie: "diza_pair=web-token" })), "web-token");
+  assert.equal(
+    bearerToken(req({ cookie: "theme=dark; diza_pair=web-token; other=1" })),
+    "web-token",
+  );
+  assert.equal(bearerToken(req({ cookie: "diza_pair=" })), null);
+  assert.equal(bearerToken(req({ cookie: "not_diza_pair=wrong" })), null);
+  assert.equal(
+    bearerToken(req({ authorization: "Bearer native-token", cookie: "diza_pair=web-token" })),
+    "native-token",
+  );
+});
+
 test("same origin means the page we served, or no page at all", () => {
   // a native client sends no Origin
   assert.equal(isSameOrigin(req({ host: "192.168.1.20:8799" })), true);
