@@ -68,14 +68,31 @@ export function isLocalRequest(req: IncomingMessage): boolean {
   }
 }
 
-/** The bearer token a request carries, if it carries a well formed one. */
+const WEB_PAIR_COOKIE = "diza_pair";
+
+/** The bearer token a request carries. Native clients use Authorization;
+ * the Web/PWA uses an HttpOnly same-site cookie after its one-time pairing
+ * credential is claimed. Authorization wins when both are present. */
 export function bearerToken(req: IncomingMessage): string | null {
   const header = req.headers.authorization;
-  if (!header) return null;
-  const space = header.indexOf(" ");
-  if (space === -1) return null;
-  if (header.slice(0, space).toLowerCase() !== "bearer") return null;
-  return header.slice(space + 1).trim() || null;
+  if (header) {
+    const space = header.indexOf(" ");
+    if (space !== -1 && header.slice(0, space).toLowerCase() === "bearer") {
+      const token = header.slice(space + 1).trim();
+      if (token) return token;
+    }
+  }
+
+  const cookie = req.headers.cookie;
+  if (!cookie) return null;
+  for (const part of cookie.split(";")) {
+    const trimmed = part.trim();
+    const eq = trimmed.indexOf("=");
+    if (eq === -1 || trimmed.slice(0, eq) !== WEB_PAIR_COOKIE) continue;
+    const token = trimmed.slice(eq + 1).trim();
+    return token || null;
+  }
+  return null;
 }
 
 /**
