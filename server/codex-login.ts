@@ -48,21 +48,13 @@ export async function codexLoginStatus(cli = "codex"): Promise<CodexLoginView> {
   if (!active) return { status: "idle" };
   if (active.status === "failed") return { status: "failed", ...(active.error ? { error: active.error } : {}) };
   if (active.status === "connected") return { status: "connected" };
-  return {
-    status: "pending",
-    verificationUrl: active.verificationUrl,
-    userCode: active.userCode,
-  };
+  return { status: "pending" };
 }
 
 export async function startCodexDeviceLogin(cli = "codex"): Promise<CodexLoginView> {
   if (await codexLoggedIn(cli)) return { status: "connected" };
   if (active?.status === "pending") {
-    return {
-      status: "pending",
-      verificationUrl: active.verificationUrl,
-      userCode: active.userCode,
-    };
+    return { status: "failed", error: "A Codex sign-in is already in progress. Finish it in the open browser tab." };
   }
   if (active) {
     stop(active.child);
