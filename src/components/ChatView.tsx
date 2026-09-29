@@ -1010,7 +1010,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
                 return <SecretCard key={m.id} botId={bot.id} message={m} />;
               default:
                 return (
-                  <div key={m.id} data-msg-index={absolute}>
+                  <div key={m.id} data-msg-index={absolute} className="w-full min-w-0">
                   <Bubble
                     message={m}
                     fresh={fresh}
