@@ -123,5 +123,6 @@ function probeAuthThroughProxy() {
 
 server.listen(port, "127.0.0.1", () => {
   console.error(`[diza-codex-proxy] listening on 127.0.0.1:${port}`);
+  console.error(`[diza-codex-env] CODEX_CA_CERTIFICATE=${process.env.CODEX_CA_CERTIFICATE ? "set" : "unset"} SSL_CERT_FILE=${process.env.SSL_CERT_FILE ? "set" : "unset"} NODE_EXTRA_CA_CERTS=${process.env.NODE_EXTRA_CA_CERTS ? "set" : "unset"}`);
   setTimeout(probeAuthThroughProxy, 100).unref?.();
 });
