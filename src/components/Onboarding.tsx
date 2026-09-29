@@ -340,7 +340,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 Continue where I left off
               </Button>
               <Button variant="secondary" onClick={startFresh} disabled={resetting}>
-                {resetting ? "Setting up…" : "Start fresh"}
+                {resetting ? "Menyiapkan…" : "Mulai baru"}
               </Button>
             </div>
             <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
@@ -390,7 +390,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     // a CLI is the best engine, not the only one: without
                     // either of them there is still a way in
                     <p className="px-1 pt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-                      Neither one installed? Continue anyway and connect Gemini, Grok, Kimi, Llama or
+                      Belum ada yang terpasang? Tetap lanjutkan lalu hubungkan Gemini, Grok, Kimi, Llama atau
                       OpenRouter from Settings. Those chat but cannot run commands.
                     </p>
                   )}
@@ -407,7 +407,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 Check again
               </button>
               {instances && !ready && (
-                <span className="text-[12px] text-warning">No engine yet, agents can't reply</span>
+                <span className="text-[12px] text-warning">Belum ada engine, agen belum bisa membalas</span>
               )}
             </div>
 
@@ -416,7 +416,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               onClick={() => setStep(1)}
               className="mt-4 w-full"
             >
-              {ready ? "Continue" : "Continue anyway"}
+              {ready ? "Lanjutkan" : "Tetap lanjutkan"}
             </Button>
           </div>
         ) : null}
@@ -458,7 +458,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               })}
             </div>
             <Button size="lg" className="mt-5 w-full" onClick={() => setStep(2)}>
-              {work.length ? "Continue" : "Skip this"}
+              {work.length ? "Lanjutkan" : "Lewati ini"}
             </Button>
           </div>
         )}
@@ -509,14 +509,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               })}
             </div>
             <Button size="lg" className="mt-5 w-full" onClick={() => (isElectron ? setStep(3) : finish())}>
-              {hired.length ? "Continue" : "Skip for now"}
+              {hired.length ? "Lanjutkan" : "Lewati sementara"}
             </Button>
           </div>
         )}
 
         {step === 3 && (
           <div className="flex flex-col">
-            <h1 className="text-[17px] font-semibold tracking-tight text-foreground">Permissions</h1>
+            <h1 className="text-[17px] font-semibold tracking-tight text-foreground">Izin</h1>
             <p className="mt-1 text-[13px] text-muted-foreground">
               Nothing here is required, and nothing is used until you ask for the feature that needs it.
             </p>
