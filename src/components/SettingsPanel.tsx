@@ -72,7 +72,7 @@ function AttachedSkills({ bot }: { bot: Bot }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Library size={14} className="text-muted-foreground" />
-          <span className="text-[13.5px] font-semibold text-foreground">From the library</span>
+          <span className="text-[13.5px] font-semibold text-foreground">Dari pustaka</span>
           <span className="text-[12px] text-muted-foreground">{attached.length}</span>
         </div>
         <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "toggleSkills", open: true })}>
@@ -85,9 +85,9 @@ function AttachedSkills({ bot }: { bot: Bot }) {
 
       <div className="mt-3 flex flex-col gap-1">
         {library === null ? (
-          <div className="py-3 text-[12.5px] text-muted-foreground">Loading…</div>
+          <div className="py-3 text-[12.5px] text-muted-foreground">Memuat…</div>
         ) : library.length === 0 ? (
-          <div className="py-3 text-[12.5px] text-muted-foreground">No skills installed yet.</div>
+          <div className="py-3 text-[12.5px] text-muted-foreground">Belum ada skill terpasang.</div>
         ) : (
           library.map((skill) => {
             const on = attached.includes(skill.id);
@@ -148,7 +148,7 @@ function SkillsEditor({ bot }: { bot: Bot }) {
     <div className="rounded-2xl border bg-card p-4">
       <div className="flex items-center gap-2">
         <Sparkles size={14} className="text-muted-foreground" />
-        <span className="text-[13.5px] font-semibold text-foreground">Skills</span>
+        <span className="text-[13.5px] font-semibold text-foreground">Skill</span>
         <span className="text-[12px] text-muted-foreground">{skills.length}</span>
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
@@ -260,7 +260,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
     <Dialog open onOpenChange={(open) => !open && dispatch({ type: "toggleSettings", open: false })}>
       <DialogContent className="flex max-h-[85vh] w-full max-w-[560px] flex-col gap-0 overflow-hidden p-0">
         <div className="flex h-[52px] shrink-0 items-center border-b px-5">
-          <DialogTitle className="text-[14.5px]">Agent settings</DialogTitle>
+          <DialogTitle className="text-[14.5px]">Pengaturan agen</DialogTitle>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-6">
@@ -284,7 +284,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
                   <AgentAvatar bot={bot} size={88} />
                 </div>
               </button>
-              <div className="text-[11px] text-muted-foreground/70">click to shuffle</div>
+              <div className="text-[11px] text-muted-foreground/70">ketuk untuk mengacak</div>
               <div className="flex flex-col items-center">
                 <label className="cursor-pointer rounded-lg px-2 py-0.5 text-[11.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                   {bot.avatarAt ? "Ganti foto" : "Gunakan foto"}
@@ -434,7 +434,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
           <div className="rounded-2xl border bg-card p-4">
             <div className="flex items-center gap-2">
               <Crown size={14} className="text-muted-foreground" />
-              <span className="text-[13.5px] font-semibold text-foreground">Seniority</span>
+              <span className="text-[13.5px] font-semibold text-foreground">Tingkat senioritas</span>
             </div>
             <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
               In a room the most senior agent speaks last, reviews everyone else's work, and makes
@@ -469,7 +469,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
           </div>
 
           <div className="rounded-2xl border bg-card p-4">
-            <div className="text-[13.5px] font-semibold text-foreground">Reasoning effort</div>
+            <div className="text-[13.5px] font-semibold text-foreground">Tingkat penalaran</div>
             <div className="mt-0.5 text-[12.5px] text-muted-foreground">
               How hard the engine thinks, where the engine has the dial
             </div>
@@ -509,7 +509,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
           </div>
 
           <div className="rounded-2xl border bg-card p-4">
-            <div className="text-[13.5px] font-semibold text-foreground">Computer</div>
+            <div className="text-[13.5px] font-semibold text-foreground">Komputer</div>
             <div className="mt-0.5 text-[12.5px] text-muted-foreground">
               Where this agent's computer runs{bot.computer ? "" : " (currently: auto)"}
             </div>
@@ -518,7 +518,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
                 readable. */}
             <div className="mt-3 flex items-center justify-between gap-3">
               <div>
-                <div className="text-[13px] text-foreground">Automatic</div>
+                <div className="text-[13px] text-foreground">Otomatis</div>
                 <div className="text-[12px] text-muted-foreground">
                   The cloud box when one exists, else this computer
                 </div>
@@ -585,7 +585,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
 
           <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border bg-card p-4">
             <div>
-              <div className="text-[13.5px] font-semibold text-foreground">Notifications</div>
+              <div className="text-[13.5px] font-semibold text-foreground">Notifikasi</div>
               <div className="mt-0.5 text-[12.5px] text-muted-foreground">
                 Let {bot.name} interrupt you when a reply lands
               </div>
@@ -706,7 +706,7 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
   return (
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center justify-between">
-        <div className="text-[13.5px] font-semibold text-foreground">Working folder</div>
+        <div className="text-[13.5px] font-semibold text-foreground">Folder kerja</div>
         {saved && (
           <span className="flex items-center gap-1 text-[11.5px] text-success">
             <Check size={12} /> Saved
@@ -751,7 +751,7 @@ function McpAttachCard({ bot }: { bot: Bot }) {
 
   return (
     <div className="rounded-2xl border bg-card p-4">
-      <div className="text-[13.5px] font-semibold text-foreground">MCP servers</div>
+      <div className="text-[13.5px] font-semibold text-foreground">Server MCP</div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
         Which of your registered servers this agent may use.
       </div>
@@ -802,7 +802,7 @@ function ConnectedAppsCard({
   return (
     <div className="mt-4 flex items-center justify-between rounded-2xl border bg-card p-4">
       <div className="min-w-0 pr-3">
-        <div className="text-[13.5px] font-semibold text-foreground">Connected apps</div>
+        <div className="text-[13.5px] font-semibold text-foreground">Aplikasi terhubung</div>
         <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
           {configured
             ? allowed
@@ -868,7 +868,7 @@ function BrowserCard({ bot, patch }: { bot: Bot; patch: (p: { browser: boolean }
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center justify-between">
         <div className="min-w-0 pr-3">
-          <div className="text-[13.5px] font-semibold text-foreground">Its own browser</div>
+          <div className="text-[13.5px] font-semibold text-foreground">Browser sendiri</div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
             {on
               ? "Membuka halaman, membacanya, dan mengeklik menggunakan browser miliknya sendiri. Login terpisah dari browser Anda."
@@ -882,7 +882,7 @@ function BrowserCard({ bot, patch }: { bot: Bot; patch: (p: { browser: boolean }
           that checks a delivery has no business holding the bank. */}
       {on && sources.length > 0 && (
         <div className="mt-3 border-t pt-3">
-          <div className="text-[12.5px] font-medium text-foreground">Borrow a sign-in</div>
+          <div className="text-[12.5px] font-medium text-foreground">Gunakan sesi login</div>
           <div className="mt-0.5 text-[11.5px] leading-relaxed text-muted-foreground">
             Name the sites this agent needs, and only those move across. Your browser asks your
             keychain first.
@@ -934,7 +934,7 @@ function AnswersCard({ bot, patch }: { bot: Bot; patch: (p: { withoutComponents:
   const without = bot.withoutComponents ?? [];
   return (
     <div className="mt-4 rounded-2xl border bg-card p-4">
-      <div className="text-[13.5px] font-semibold text-foreground">Answers</div>
+      <div className="text-[13.5px] font-semibold text-foreground">Jawaban</div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
         {bot.name} can answer with these instead of describing them in prose. Switch one off and it
         will write that kind of answer out in words instead.
@@ -981,7 +981,7 @@ function IdentityCard({ bot }: { bot: Bot }) {
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center gap-2">
         <Fingerprint size={14} className="text-muted-foreground" />
-        <span className="text-[13.5px] font-semibold text-foreground">Signature</span>
+        <span className="text-[13.5px] font-semibold text-foreground">Tanda tangan</span>
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
         {bot.name} signs what it does in the record, so afterwards you can tell what it really did
@@ -1107,7 +1107,7 @@ function MemoryCard({ bot }: { bot: Bot }) {
         }}
       >
         <div>
-          <div className="text-[13.5px] font-semibold text-foreground">Memory</div>
+          <div className="text-[13.5px] font-semibold text-foreground">Memori</div>
           <div className="mt-0.5 text-[12.5px] text-muted-foreground">
             What this agent remembers between conversations. Yours to read and correct.
           </div>
