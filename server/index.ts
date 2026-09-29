@@ -251,7 +251,7 @@ import * as workspace from "./workspace.ts";
 import * as speech from "./speech.ts";
 import { speakable } from "./speech-text.ts";
 
-const PORT = Number(process.env.BLOKS_PORT || 8799);
+const PORT = Number(process.env.BLOKS_PORT || process.env.PORT || 8799);
 const STATIC_DIR = process.env.BLOKS_STATIC_DIR || null;
 const MIME: Record<string, string> = {
   ".html": "text/html",
@@ -8817,7 +8817,7 @@ function redactSecrets(message: string): string {
 
 // Read once, here, and never again while the process lives: see the
 // header of server/pairing.ts for why this is not a live toggle.
-const BIND = bindHost();
+const BIND = process.env.BLOKS_BIND_HOST || bindHost();
 noteBound(BIND);
 server.listen(PORT, BIND, () => {
   console.log(`bloks server on http://127.0.0.1:${PORT}`);
