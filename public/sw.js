@@ -1,4 +1,4 @@
-const CACHE = "diza-shell-v1";
+const CACHE = "diza-shell-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/app-icon.svg", "/theme.js"];
 
 self.addEventListener("install", (event) => {
@@ -20,5 +20,16 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(request).catch(() => caches.match("/")));
     return;
   }
-  event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          event.waitUntil(caches.open(CACHE).then((cache) => cache.put(request, copy)));
+        }
+        return response;
+      });
+    }),
+  );
 });
