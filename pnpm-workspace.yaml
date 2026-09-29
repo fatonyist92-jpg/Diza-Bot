@@ -1,3 +1,6 @@
+packages:
+  - "."
+
 # Which dependencies may run install scripts. pnpm blocks them by default,
 # and this list used to live in package.json under "pnpm", where current
 # pnpm no longer reads it: the keys were ignored and the file left behind
