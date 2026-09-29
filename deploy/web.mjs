@@ -12,7 +12,7 @@ const username = process.env.DIZA_WEB_USERNAME || 'diza';
 const password = process.env.DIZA_WEB_PASSWORD;
 if (!password || password.length < 24) throw new Error('Set DIZA_WEB_PASSWORD to a random secret of at least 24 characters.');
 if (port === innerPort) throw new Error('PORT and BLOKS_PORT must be different.');
-const origin = new URL(process.env.DIZA_PUBLIC_ORIGIN || process.env.RENDER_EXTERNAL_URL || `http://127.0.0.1:${port}`);
+const origin = new URL(process.env.DIZA_PUBLIC_ORIGIN || process.env.RENDER_EXTERNAL_URL || process.env.FAABLE_HOST || `http://127.0.0.1:${port}`);
 if (origin.protocol !== 'https:' && !['127.0.0.1', 'localhost', '[::1]'].includes(origin.hostname)) {
   throw new Error('The public origin must use HTTPS.');
 }
