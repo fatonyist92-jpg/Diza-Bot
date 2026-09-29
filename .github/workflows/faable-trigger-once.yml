@@ -1,0 +1,23 @@
+name: DIZA Faable trigger once
+
+on:
+  push:
+    branches:
+      - live-test-bab14
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+      - name: Trigger linked Faable app
+        run: faable deploy trigger
