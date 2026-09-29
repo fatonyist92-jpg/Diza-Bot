@@ -50,11 +50,20 @@ jobs:
           import fs from "node:fs";
           const x = JSON.parse(fs.readFileSync("/tmp/codex-login.json","utf8"));
           console.log("CODEX_LOGIN_STATUS=" + String(x.status ?? ""));
-          if (x.verificationUrl) console.log("CODEX_VERIFICATION_URL=" + x.verificationUrl);
-          if (x.userCode) console.log("CODEX_USER_CODE=" + x.userCode);
+          if (x.verificationUrl) console.log("CODEX_VERIFICATION_URL_AVAILABLE=1");
+          if (x.userCode) console.log("CODEX_USER_CODE_AVAILABLE=1");
           if (x.error) console.log("CODEX_LOGIN_ERROR=" + x.error);
           if (x.status !== "pending" && x.status !== "connected") process.exitCode = 2;
           NODE
+
+      - name: Store private login challenge
+        if: always() && hashFiles('/tmp/codex-login.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-login-challenge
+          path: /tmp/codex-login.json
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Poll Codex login completion
         if: success()
