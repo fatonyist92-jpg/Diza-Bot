@@ -1,6 +1,7 @@
 import net from "node:net";
 import tls from "node:tls";
 import dns from "node:dns/promises";
+import fs from "node:fs";
 
 const port = Number(process.env.CODEX_IPV4_PROXY_PORT || 3129);
 const authHost = "auth.openai.com";
@@ -124,5 +125,14 @@ function probeAuthThroughProxy() {
 server.listen(port, "127.0.0.1", () => {
   console.error(`[diza-codex-proxy] listening on 127.0.0.1:${port}`);
   console.error(`[diza-codex-env] CODEX_CA_CERTIFICATE=${process.env.CODEX_CA_CERTIFICATE ? "set" : "unset"} SSL_CERT_FILE=${process.env.SSL_CERT_FILE ? "set" : "unset"} NODE_EXTRA_CA_CERTS=${process.env.NODE_EXTRA_CA_CERTS ? "set" : "unset"}`);
+  const caCandidates = [
+    "/etc/ssl/certs/ca-certificates.crt",
+    "/etc/pki/tls/certs/ca-bundle.crt",
+    "/etc/ssl/cert.pem",
+  ];
+  console.error(
+    "[diza-codex-ca] nodeRoots=" + tls.rootCertificates.length +
+      " systemFiles=" + caCandidates.map((path) => path + ":" + (fs.existsSync(path) ? "yes" : "no")).join(","),
+  );
   setTimeout(probeAuthThroughProxy, 100).unref?.();
 });
