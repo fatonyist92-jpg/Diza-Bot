@@ -1,4 +1,4 @@
-const CACHE = "diza-shell-v2";
+const CACHE = "diza-shell-v3";
 const SHELL = ["/", "/manifest.webmanifest", "/app-icon.svg", "/theme.js"];
 
 self.addEventListener("install", (event) => {
@@ -20,16 +20,33 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(request).catch(() => caches.match("/")));
     return;
   }
+  // Hashed Vite assets must never be pinned cache-first. A newly deployed
+  // index.html can reference a new bundle immediately, so fetch assets from
+  // the network first and keep cache only as an offline fallback.
+  if (url.pathname.startsWith("/assets/")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(CACHE).then((cache) => cache.put(request, copy)));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request)),
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (response.ok) {
           const copy = response.clone();
           event.waitUntil(caches.open(CACHE).then((cache) => cache.put(request, copy)));
         }
         return response;
-      });
-    }),
+      })
+      .catch(() => caches.match(request)),
   );
 });
