@@ -5,13 +5,19 @@ import { ThemeProvider } from "./lib/theme";
 import "@fontsource-variable/inter";
 import "./styles.css";
 import { registerPwa } from "./lib/pwa";
+import { claimWebPairing } from "./lib/webPairing";
 
-registerPwa();
+async function start() {
+  await claimWebPairing().catch(() => {});
+  registerPwa();
 
-createRoot(document.getElementById("root")!).render(
+  createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <App />
     </ThemeProvider>
   </StrictMode>,
-);
+  );
+}
+
+void start();
