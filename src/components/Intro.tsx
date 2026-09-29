@@ -18,7 +18,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
         localStorage.setItem(INTRO_KEY, String(Date.now()));
       } catch {}
       onDone();
-    }, 2400);
+    }, 5000);
     return () => window.clearTimeout(timer);
   }, [onDone]);
 
