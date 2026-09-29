@@ -61,7 +61,7 @@ function Compaction() {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-foreground">
             Summarise as you go
-            <InfoTip text="A long conversation has to be summarised to keep fitting. Off, that happens once when it fills up, which is a pause before your next message. On, one message is folded in after each turn instead, so it never pauses. The cost: folding rewrites what was already sent, so the provider cannot reuse its cache, which on some providers costs more than the pause it removes. Your own messages are never summarised either way." />
+            <InfoTip text="Percakapan panjang perlu diringkas agar tetap muat dalam konteks. Jika nonaktif, peringkasan dilakukan sekali saat konteks penuh sehingga ada jeda sebelum pesan berikutnya. Jika aktif, satu pesan diringkas setelah setiap giliran sehingga tidak ada jeda. Konsekuensinya, ringkasan menulis ulang konteks yang sudah dikirim sehingga provider mungkin tidak dapat menggunakan cache. Pesan Anda sendiri tidak pernah diringkas dalam kedua mode." />
           </div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
             Fold the conversation a little after each turn instead of all at once when it fills up.
@@ -100,7 +100,7 @@ function ProposeSkills() {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-foreground">
             Suggest skills
-            <InfoTip text="Nothing is ever installed on its own. A suggestion waits in Skills with the words already written, and keeping it is one press. Reading a session back costs one cheap call, on your own key, for work you did not ask for, which is why this is off until you turn it on." />
+            <InfoTip text="Tidak ada yang dipasang otomatis. Saran akan menunggu di Skill dengan teks yang sudah disiapkan, dan Anda cukup sekali menekan untuk menyimpannya. Membaca ulang sesi membutuhkan satu panggilan ringan menggunakan kunci Anda sendiri, sehingga fitur ini nonaktif sampai Anda mengaktifkannya." />
           </div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
             After a conversation that worked something out, read it back and write the procedure
@@ -213,7 +213,7 @@ function Diagnostics() {
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-foreground">
         Diagnostics
-        <InfoTip text="The report holds versions, engine connection states, which keys are set as yes or no, and agent counts. Never the keys themselves, and the finished text is scrubbed for anything credential-shaped besides." />
+        <InfoTip text="Laporan berisi versi, status koneksi engine, status apakah kunci tersedia atau tidak, dan jumlah agen. Nilai kunci tidak pernah disertakan, dan teks akhir dibersihkan dari pola yang menyerupai kredensial." />
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
         Copies a short report about this install, ready to paste into a bug report.
@@ -271,7 +271,7 @@ function AboutYou() {
         <div className="text-[13.5px] font-semibold text-foreground">Tentang Anda</div>
         {justSaved && (
           <span className="flex items-center gap-1 text-[11.5px] text-success">
-            <Check size={12} /> Saved
+            <Check size={12} /> Tersimpan
           </span>
         )}
       </div>
@@ -281,7 +281,7 @@ function AboutYou() {
       <Textarea
         value={value}
         onChange={(e) => save(e.target.value)}
-        placeholder="e.g. I'm a founder building a local-first agent app. Keep replies short and skip the preamble."
+        placeholder="mis. Saya sedang membangun aplikasi agen local-first. Buat jawaban singkat dan langsung ke inti."
         className="mt-3 min-h-[88px] resize-none text-[13px]"
       />
     </div>
@@ -323,7 +323,7 @@ function DizaPreferences() {
     <div className="mt-4 rounded-2xl border bg-card p-4">
       <div className="flex items-center justify-between">
         <div className="text-[13.5px] font-semibold text-foreground">Cara Diza merespons</div>
-        {justSaved && <span className="flex items-center gap-1 text-[11.5px] text-success"><Check size={12} /> Saved</span>}
+        {justSaved && <span className="flex items-center gap-1 text-[11.5px] text-success"><Check size={12} /> Tersimpan</span>}
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
         Response preferences that stay the same when the AI provider changes.
