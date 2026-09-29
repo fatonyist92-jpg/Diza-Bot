@@ -252,7 +252,7 @@ export function NewAgentScreen() {
       {dragging && (
         <div className="pointer-events-none absolute inset-3 z-40 flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-primary/50 bg-background/80 backdrop-blur-sm">
           <Upload size={22} className="text-muted-foreground" />
-          <div className="text-[14px] font-medium text-foreground">Drop the agent here</div>
+          <div className="text-[14px] font-medium text-foreground">Letakkan agen di sini</div>
         </div>
       )}
 
@@ -313,7 +313,7 @@ export function NewAgentScreen() {
             />
           </div>
         </button>
-        <div className="mt-1.5 text-[11.5px] text-muted-foreground/70">click to shuffle</div>
+        <div className="mt-1.5 text-[11.5px] text-muted-foreground/70">ketuk untuk mengacak</div>
 
         <h1 className="mt-5 text-[26px] font-semibold tracking-tight text-foreground">
           {describing
@@ -379,7 +379,7 @@ export function NewAgentScreen() {
                     ? "bg-primary text-primary-foreground hover:opacity-90"
                     : "cursor-not-allowed bg-muted text-muted-foreground/60",
                 )}
-                title={describing ? "Continue" : "Create agent"}
+                title={describing ? "Lanjutkan" : "Buat agen"}
               >
                 {creating ? (
                   <Loader2 size={15} className="animate-spin" />
