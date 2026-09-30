@@ -26,6 +26,14 @@ function Shell() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   const [mobileHome, setMobileHome] = useState(() => window.innerWidth < 768);
   useEffect(() => {
+    if (!mobile || mobileHome) return;
+    history.pushState({ dizaMobileChat: true }, "", location.href);
+    const onPopState = () => setMobileHome(true);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [mobile, mobileHome]);
+
+  useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
     const sync = () => {
       setMobile(media.matches);
