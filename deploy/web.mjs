@@ -34,9 +34,14 @@ const gateway = createServer((req, res) => {
       return false;
     }
   })();
+  const crossSite = req.headers['sec-fetch-site'] === 'cross-site';
+  const topLevelGetNavigation =
+    req.method === 'GET' &&
+    req.headers['sec-fetch-mode'] === 'navigate';
+
   if (
     (suppliedOrigin && suppliedOrigin !== origin.origin && !sameRequestOrigin) ||
-    req.headers['sec-fetch-site'] === 'cross-site'
+    (crossSite && !topLevelGetNavigation)
   ) {
     res.writeHead(403, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     return res.end('{"error":"Request origin is not allowed"}');
