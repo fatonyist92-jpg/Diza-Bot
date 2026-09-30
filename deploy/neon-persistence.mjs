@@ -305,6 +305,7 @@ class NeonPersistence {
 const disabled = (reason, logger = console) => ({
   enabled: false,
   ready: false,
+  reason,
   start() {},
   async close() {},
   async sync() { return { synced: false, reason }; },
@@ -323,7 +324,7 @@ export async function initializeNeonPersistence(logger = console) {
     logger.error?.(`[diza-persist] restore failed; persistence disabled for this process: ${error?.message || error}`);
     return disabled('restore-failed', logger);
   }
-  return Object.assign(persistence, { enabled: true });
+  return Object.assign(persistence, { enabled: true, reason: null });
 }
 
 export const __test = { safeRelativePath, targetFor, endpointFor, sha256 };
