@@ -150,6 +150,28 @@ export function Composer({
   const pickerRef = useRef<HTMLInputElement>(null);
   const photoPickerRef = useRef<HTMLInputElement>(null);
   const videoPickerRef = useRef<HTMLInputElement>(null);
+  const composerRootRef = useRef<HTMLDivElement>(null);
+
+  // Mobile browsers expose the keyboard through the visual viewport. Keep
+  // the composer inside that visible viewport instead of letting the layout
+  // viewport park it behind the keyboard.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const root = composerRootRef.current;
+    if (!viewport || !root) return;
+    const sync = () => {
+      const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      root.style.transform = keyboardInset > 0 ? `translateY(-${keyboardInset}px)` : "";
+    };
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    sync();
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+      root.style.transform = "";
+    };
+  }, []);
 
   /** The one road in, whether the files came by picker, drop or paste. */
   const intake = (files: File[]) => {
@@ -343,7 +365,8 @@ export function Composer({
 
   return (
     <div
-      className="px-4 pb-4 pt-1 md:px-6 md:pb-5"
+      ref={composerRootRef}
+      className="relative z-20 shrink-0 px-4 pb-4 pt-1 md:px-6 md:pb-5"
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) e.preventDefault();
       }}
