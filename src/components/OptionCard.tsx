@@ -1,5 +1,6 @@
 import { useState } from "react";
 import X from "lucide-react/dist/esm/icons/x.mjs";
+import ShieldCheck from "lucide-react/dist/esm/icons/shield-check.mjs";
 import { useStore, type Message, type TeamPlan } from "@/state/store";
 import { BlokAvatar } from "@/components/Avatar";
 import { BLOK_COLOR_NAMES, shapeForBot, type BlokColor } from "@/lib/mascot";
@@ -41,103 +42,99 @@ export function OptionCard({
     );
   }
 
+  const approval = !!card.requestId;
+
   return (
-    <div className="w-full max-w-[560px] animate-rise-in rounded-2xl border bg-card p-4 shadow-[0_1px_3px_var(--shadow-color)]">
-      <div className="flex items-start justify-between gap-4">
-        {/* min-w-0 so the text column may shrink; anywhere-wrapping so a
-            title that is one long JSON blob folds instead of escaping
-            the card's right edge */}
+    <div className={cn(
+      "w-full max-w-[560px] animate-rise-in overflow-hidden border bg-card",
+      approval
+        ? "rounded-[20px] border-border/70 shadow-[0_10px_30px_var(--shadow-color)]"
+        : "rounded-2xl p-4 shadow-[0_1px_3px_var(--shadow-color)]",
+    )}>
+      <div className={cn("flex items-start justify-between gap-4", approval && "px-4 pb-3 pt-4")}>
         <div className="min-w-0 flex-1">
-          <div
-            className={cn(
-              "text-[11px] font-semibold uppercase tracking-[0.1em]",
-              card.requestId || card.runId ? "text-warning" : "text-brand-ink",
-            )}
-          >
-            {card.requestId ? "Approval" : card.runId ? "Workflow" : "Question"}
+          <div className={cn(
+            "flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em]",
+            approval ? "text-muted-foreground" : card.runId ? "text-warning" : "text-brand-ink",
+          )}>
+            {approval && <span className="flex size-7 items-center justify-center rounded-lg bg-foreground text-background"><ShieldCheck size={15} /></span>}
+            <span>{approval ? "Approval required" : card.runId ? "Workflow" : "Question"}</span>
           </div>
-          <div className="mt-1 break-words text-[14.5px] font-semibold text-foreground [overflow-wrap:anywhere]">
+          <div className={cn("break-words font-semibold text-foreground [overflow-wrap:anywhere]", approval ? "mt-3 text-[15px]" : "mt-1 text-[14.5px]")}>
             {card.title}
           </div>
           {card.subtitle && (
-            <div className="mt-0.5 break-words text-[13px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+            <div className={cn(
+              "break-words leading-relaxed text-muted-foreground [overflow-wrap:anywhere]",
+              approval ? "mt-1.5 rounded-xl bg-muted/45 px-3 py-2.5 font-mono text-[12px]" : "mt-0.5 text-[13px]",
+            )}>
               {card.subtitle}
             </div>
           )}
-          {card.answeredBy && (
-            <div className="mt-1 text-[12px] text-muted-foreground">Answered by {card.answeredBy}</div>
-          )}
+          {card.answeredBy && <div className="mt-1 text-[12px] text-muted-foreground">Answered by {card.answeredBy}</div>}
         </div>
         <button
           onClick={() => dispatch({ type: "dismissCard", botId, roomId, messageId: message.id })}
           aria-label="Put this question aside"
           title="Put this question aside"
-          className="rounded-md p-1 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
         >
-          <X size={15} />
+          <X size={16} />
         </button>
       </div>
 
-      <div className="mt-3 flex flex-col gap-1">
+      <div className={cn(
+        approval ? "grid grid-cols-2 gap-2 border-t bg-muted/20 p-3" : "mt-3 flex flex-col gap-1",
+      )}>
         {card.options.map((opt, i) => (
           <button
             key={opt}
             disabled={!!card.answered}
             onClick={() => answer(opt)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[14px] transition-colors duration-150",
+              approval
+                ? "flex min-h-10 items-center justify-center rounded-xl px-3 py-2 text-[13.5px] font-semibold transition-[background-color,transform] duration-150 active:scale-[0.98]"
+                : "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[14px] transition-colors duration-150",
               card.answered === opt
-                ? "bg-brand-soft text-brand-ink"
-                : "text-foreground hover:bg-accent disabled:hover:bg-transparent",
-              card.answered && card.answered !== opt && "opacity-45",
+                ? "bg-foreground text-background"
+                : approval
+                  ? i === 0
+                    ? "bg-foreground text-background hover:opacity-90 disabled:opacity-45"
+                    : "border bg-background text-foreground hover:bg-accent disabled:opacity-45"
+                  : "text-foreground hover:bg-accent disabled:hover:bg-transparent",
+              !approval && card.answered && card.answered !== opt && "opacity-45",
             )}
           >
-            <span
-              className={cn(
+            {!approval && (
+              <span className={cn(
                 "flex size-6 shrink-0 items-center justify-center rounded-lg text-[11.5px] font-semibold",
                 card.answered === opt ? "bg-brand-ink text-brand-foreground" : "bg-muted text-muted-foreground",
-              )}
-            >
-              {LETTERS[i]}
-            </span>
+              )}>
+                {LETTERS[i]}
+              </span>
+            )}
             {opt}
           </button>
         ))}
       </div>
 
-      {/* The answer worth remembering. One press writes an allow rule
-          scoped to this agent and this tool, then allows, so the
-          hundredth identical ask never arrives. Rules live in Settings
-          where they can be read and removed. */}
       {!card.answered && card.requestId && card.tool && (
         <button
           onClick={() => {
             void fetch("/api/rules", {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                effect: "allow",
-                field: "tool",
-                op: "equals",
-                value: card.tool,
-                botId,
-                enabled: true,
-              }),
+              body: JSON.stringify({ effect: "allow", field: "tool", op: "equals", value: card.tool, botId, enabled: true }),
             }).catch(() => {});
             answer("Allow");
           }}
-          className="mt-1 w-full rounded-xl px-2.5 py-1.5 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="w-full border-t px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
         >
           Always allow {card.tool} for this agent
         </button>
       )}
 
-      {/* A workflow gate has exactly two answers and each one decides
-          what happens next. Offering a text box beside them would invite
-          an answer nobody can act on, and anything unrecognised has to be
-          read as a decline, which is not what somebody typing a sentence
-          would expect. */}
-      {!card.answered && !card.runId && (
+      {!card.answered && !card.runId && !approval && (
         <input
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
