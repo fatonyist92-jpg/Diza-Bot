@@ -136,6 +136,7 @@ function RoomMessage({
 
   const verbs = (author: string) => (
     <MessageActionBar
+      className="hidden sm:flex"
       message={message}
       author={author}
       onReply={onReply}
