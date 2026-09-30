@@ -123,7 +123,7 @@ export default function App() {
     void workspaceSetupDone()
       .then((done) => {
         if (forced) return;
-        setIntroOpen(done ? false : introPending());
+        // DIZA Web intentionally shows its five-second identity intro on every app entry.\n        setIntroOpen(true);
       })
       .finally(() => setSettled(true));
   }, [forced]);
