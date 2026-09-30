@@ -77,7 +77,7 @@ function RoomLine({ line, names }: { line: string; names: string[] }) {
     );
   }
   if (!line.trim()) return <div className="h-2" />;
-  return <div>{withMentions(line, names)}</div>;
+  return <span>{withMentions(line, names)} </span>;
 }
 
 /** Highlight @mentions so it's obvious who a line was aimed at. */
