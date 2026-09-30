@@ -168,7 +168,7 @@ function RoomMessage({
             </div>
           )}
           <div className="group flex items-center gap-1.5">
-            <div className="min-w-0 rounded-2xl rounded-tl-md bg-muted px-3.5 py-2 text-[14.5px] leading-relaxed text-foreground">
+            <div className="w-full min-w-0 rounded-2xl rounded-tl-md bg-muted px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-foreground [overflow-wrap:anywhere]">
               {message.replyTo && <ReplyContext replyTo={message.replyTo} />}
               {(message.text ?? "").split("\n").map((line, i) => (
                 <RoomLine key={i} line={line} names={names} />
@@ -185,8 +185,8 @@ function RoomMessage({
     return (
       <div className="group flex items-center justify-end gap-1.5">
         {verbs("You")}
-        <div className="flex max-w-[76%] flex-col items-end">
-          <div className="whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[14.5px] leading-relaxed text-primary-foreground">
+        <div className="flex max-w-[88%] flex-col items-end sm:max-w-[68%]">
+          <div className="max-w-full whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-primary-foreground [overflow-wrap:anywhere]">
             {message.replyTo && <ReplyContext replyTo={message.replyTo} onDark />}
             {message.text}
             {message.queued && (
@@ -318,6 +318,25 @@ export function RoomView({ blok }: { blok: Blok }) {
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const composerRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const root = composerRootRef.current;
+    if (!viewport || !root) return;
+    const sync = () => {
+      const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      root.style.transform = keyboardInset > 0 ? `translateY(-${keyboardInset}px)` : "";
+    };
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    sync();
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+      root.style.transform = "";
+    };
+  }, []);
+
   const [sharingOpen, setSharingOpen] = useState(false);
   const [ownerName, setOwnerName] = useState<string | undefined>(undefined);
   const roomPeople = state.roomPeople[blok.id] ?? [];
@@ -750,7 +769,7 @@ export function RoomView({ blok }: { blok: Blok }) {
         )}
       </div>
 
-      <div className="relative px-4 pb-4 pt-1 md:px-6 md:pb-5">
+      <div ref={composerRootRef} className="relative z-20 shrink-0 px-4 pb-4 pt-1 md:px-6 md:pb-5">
         {replyTo && (
           <div className="mx-auto mb-2 max-w-[760px]">
             <ReplyChip draft={replyTo} onClear={() => setReplyTo(null)} />
