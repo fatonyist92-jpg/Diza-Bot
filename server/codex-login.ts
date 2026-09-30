@@ -53,8 +53,12 @@ export async function codexLoginStatus(cli = "codex"): Promise<CodexLoginView> {
 
 export async function startCodexDeviceLogin(cli = "codex"): Promise<CodexLoginView> {
   if (await codexLoggedIn(cli)) return { status: "connected" };
+  // A second explicit Sign in means the previous device challenge is stale or
+  // no longer visible to the user. Replace only that short-lived login process.
+  // Codex credentials, provider state, and DIZA core state are untouched.
   if (active?.status === "pending") {
-    return { status: "failed", error: "A Codex sign-in is already in progress. Finish it in the open browser tab." };
+    stop(active.child);
+    active = null;
   }
   if (active) {
     stop(active.child);
