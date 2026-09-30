@@ -3,6 +3,7 @@ import { createServer, request } from 'node:http';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { initializeNeonPersistence } from './neon-persistence.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const port = Number(process.env.PORT || 10000);
@@ -17,7 +18,13 @@ if (origin.protocol !== 'https:' && !['127.0.0.1', 'localhost', '[::1]'].include
 }
 const env = { ...process.env, BLOKS_PORT: String(innerPort), BLOKS_STATIC_DIR: resolve(root, 'dist'), BLOKS_LOOPBACK_ONLY: '1' };
 delete env.DIZA_WEB_PASSWORD;
+
+// Restore DIZA state before the core reads ~/.bloks or provider auth homes.
+// Failure is fail-safe for the live app: the core still starts, but persistence
+// stays disabled for this process rather than risking an empty-runtime overwrite.
+const persistence = await initializeNeonPersistence();
 const core = spawn(process.execPath, ['--experimental-strip-types', 'server/index.ts'], { cwd: root, env, stdio: 'inherit' });
+persistence.start();
 let closing = false;
 
 const gateway = createServer((req, res) => {
@@ -75,14 +82,21 @@ const gateway = createServer((req, res) => {
 });
 
 gateway.listen(port, '0.0.0.0', () => console.log(`[diza-web] listening on port ${port}`));
-function stop(code = 0) {
+async function stop(code = 0) {
   if (closing) return;
   closing = true;
   gateway.close();
   gateway.closeAllConnections();
   core.kill('SIGTERM');
-  setTimeout(() => process.exit(code), 3000).unref();
+  const forceExit = setTimeout(() => process.exit(code), 3000);
+  forceExit.unref?.();
+  try {
+    await persistence.close();
+  } finally {
+    clearTimeout(forceExit);
+    process.exit(code);
+  }
 }
-core.on('error', () => stop(1));
-core.on('exit', (code) => stop(code || 0));
-for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => stop());
+core.on('error', () => void stop(1));
+core.on('exit', (code) => void stop(code || 0));
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => void stop());
