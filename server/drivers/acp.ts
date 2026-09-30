@@ -590,17 +590,14 @@ export const ACP_SPECS: readonly AcpSpec[] = [
     kind: "grokCli",
     name: "Grok CLI",
     command: "grok",
-    // The permission mode is stated on every run: the CLI's own config
-    // file can flip it to auto-approve, and a session that never asks is
-    // something the user should have chosen in Bloks, not inherited from
-    // a dotfile.
+    // Grok's ACP options belong after the `agent` subcommand and before
+    // the stdio transport. Keep the normal mode interactive so permission
+    // requests still flow through DIZA's approval cards.
     args: [],
-    turnArgs: ({ fullAuto, model, effort }) => [
-      "--permission-mode",
-      fullAuto ? "bypassPermissions" : "default",
-      ...(model ? ["-m", model] : []),
-      ...(effort ? ["--reasoning-effort", effort] : []),
+    turnArgs: ({ fullAuto, model }) => [
       "agent",
+      ...(fullAuto ? ["--always-approve"] : []),
+      ...(model ? ["-m", model] : []),
       "stdio",
     ],
     install: "curl -fsSL https://x.ai/cli/install.sh | bash",
