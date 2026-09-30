@@ -38,10 +38,10 @@ const NATIVE_SOURCE = "codex.app-server";
 
 const MODELS = {
   default: "gpt-5.6-sol",
+  // Only advertise Codex models that this integration can actually request.
+  // Phantom labels leave the UI running while the provider never produces a reply.
   options: [
-    { id: "gpt-6-astra", label: "GPT-6 Astra" },
     { id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
-    { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
     { id: "gpt-5.4", label: "GPT-5.4" },
   ],
 };
