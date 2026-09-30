@@ -12,7 +12,7 @@ import { previewLine } from "@/lib/preview";
 
 type ChatRow = { bot: Bot; task: TaskSummary | null; updatedAt: number; preview: string };
 
-export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
+export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots }: { onOpenChat: () => void; onOpenRooms: () => void; onOpenBots: () => void }) {
   const { state, dispatch } = useStore();
   const [query, setQuery] = useState("");
 
@@ -91,8 +91,8 @@ export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
       </header>
 
       <nav className="grid grid-cols-3 gap-2 border-b border-border/55 px-4 py-3">
-        <button onClick={() => dispatch({ type: "toggleNewRoom", open: true })} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><DoorOpen size={15} /> Rooms</button>
-        <button onClick={() => dispatch({ type: "toggleNewAgent", open: true })} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><BotIcon size={15} /> Bots</button>
+        <button onClick={onOpenRooms} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><DoorOpen size={15} /> Rooms</button>
+        <button onClick={onOpenBots} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><BotIcon size={15} /> Bots</button>
         <button onClick={() => dispatch({ type: "toggleAppSettings" })} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><UserRound size={15} /> Account</button>
       </nav>
 
