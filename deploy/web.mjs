@@ -63,7 +63,15 @@ const gateway = createServer((req, res) => {
     if (health) {
       incoming.resume();
       res.writeHead(incoming.statusCode === 200 ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      return res.end(JSON.stringify({ ok: incoming.statusCode === 200 }));
+      const ok = incoming.statusCode === 200;
+      return res.end(JSON.stringify({
+        ok,
+        persistence: {
+          enabled: Boolean(persistence.enabled),
+          ready: Boolean(persistence.ready),
+          ...(persistence.reason ? { reason: persistence.reason } : {}),
+        },
+      }));
     }
     const responseHeaders = { ...incoming.headers };
     if (url.pathname.startsWith('/api/') || url.pathname === '/sw.js') responseHeaders['cache-control'] = 'no-store';
