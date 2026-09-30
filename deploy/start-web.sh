@@ -14,7 +14,7 @@ fi
 
 GROK_BIN="$HOME/.local/bin/grok"
 if [ ! -x "$GROK_BIN" ]; then
-  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@xai-official/grok@latest"
+  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@xai-official/grok@1.0.44"
 fi
 "$GROK_BIN" --version
 
