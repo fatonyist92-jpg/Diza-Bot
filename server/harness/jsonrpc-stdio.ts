@@ -86,7 +86,17 @@ export function attachRpc(options: RpcOptions): RpcLink {
         if (!waiting) continue;
         pending.delete(frame.id);
         if (frame.error) {
-          waiting.reject(new Error(frame.error.message ?? JSON.stringify(frame.error)));
+          const headline = String(frame.error.message ?? "JSON-RPC error");
+          const detail =
+            typeof frame.error.data?.message === "string"
+              ? frame.error.data.message
+              : null;
+          const status =
+            typeof frame.error.data?.http_status === "number"
+              ? `HTTP ${frame.error.data.http_status}`
+              : null;
+          const suffix = [status, detail].filter(Boolean).join(": ");
+          waiting.reject(new Error(suffix ? `${headline}: ${suffix}` : headline));
         } else {
           waiting.resolve(frame.result);
         }
