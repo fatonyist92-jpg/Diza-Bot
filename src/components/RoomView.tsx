@@ -32,6 +32,7 @@ import {
   type ReplyDraft,
 } from "./MessageActions";
 import { OptionCard } from "./OptionCard";
+import { Markdownish } from "./ChatView";
 import { Button } from "@/components/ui/button";
 import { BrowseFolderButton } from "@/components/ui/browse-folder";
 import { ForumLens } from "./ForumLens";
@@ -274,9 +275,7 @@ function RoomMessage({
           <div className="group flex min-w-0 items-center gap-1.5">
             <div className="w-full min-w-0 text-[14.5px] leading-relaxed break-words text-foreground [overflow-wrap:anywhere]">
               {message.replyTo && <ReplyContext replyTo={message.replyTo} />}
-              {(message.text ?? "").split("\n").map((line, i) => (
-                <RoomLine key={i} line={line} names={names} />
-              ))}
+              <Markdownish text={message.text ?? ""} />
               <Reactions
                 reactions={message.reactions}
                 onToggle={(emoji: string) => reactTo(roomId, message.id, emoji)}
