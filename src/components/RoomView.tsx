@@ -160,9 +160,9 @@ function RoomMessage({
   if (message.role === "user" && message.author) {
     const who = people.find((p) => p.id === message.author)?.name ?? "A former member";
     return (
-      <div className="flex w-full min-w-0 gap-2.5">
+      <div className="flex gap-2.5">
         <div className="w-8 shrink-0 pt-0.5">{showSpeaker && <PersonDot name={who} />}</div>
-        <div className="w-full min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
           {showSpeaker && (
             <div className="mb-0.5 flex items-baseline gap-1.5">
               <span className="text-[13px] font-semibold text-foreground">{who}</span>
@@ -185,7 +185,7 @@ function RoomMessage({
 
   if (message.role === "user") {
     return (
-      <div className="group flex w-full min-w-0 items-center justify-end gap-1.5">
+      <div className="group flex items-center justify-end gap-1.5">
         {verbs("You")}
         <div className="flex max-w-full flex-col items-end sm:max-w-[68%]">
           <div className="max-w-full whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-primary-foreground [overflow-wrap:anywhere]">
@@ -254,13 +254,13 @@ function RoomMessage({
   }
 
   return (
-    <div className="flex w-full min-w-0 gap-2.5">
+    <div className="flex gap-2.5">
       <div className="w-8 shrink-0 pt-0.5">
         {showSpeaker && (
           <AgentAvatar bot={speaker} size={30} />
         )}
       </div>
-      <div className="w-full min-w-0 flex-1">
+      <div className="min-w-0 flex-1">
         {showSpeaker && (
           <div className="mb-0.5 flex items-baseline gap-1.5">
             <span className="text-[13px] font-semibold text-foreground">{speaker.name}</span>
@@ -273,7 +273,7 @@ function RoomMessage({
           // an agent can need you mid-room; the ask has to be answerable here
           <OptionCard botId={speaker.id} roomId={roomId} message={message} />
         ) : (
-          <div className="group flex w-full min-w-0 items-center gap-1.5">
+          <div className="group flex min-w-0 items-center gap-1.5">
             <div className="w-full min-w-0 text-[14.5px] leading-relaxed break-words text-foreground [overflow-wrap:anywhere]">
               {message.replyTo && <ReplyContext replyTo={message.replyTo} />}
               <Markdownish text={message.text ?? ""} />
@@ -710,7 +710,7 @@ export function RoomView({ blok }: { blok: Blok }) {
             }}
           />
         ) : (
-        <div className="mx-auto flex w-full max-w-[760px] min-w-0 flex-col gap-2 pb-4 pt-3">
+        <div className="mx-auto flex max-w-[760px] flex-col gap-2 pb-4 pt-3">
           {start > 0 && (
             <button
               onClick={showEarlier}
@@ -728,7 +728,7 @@ export function RoomView({ blok }: { blok: Blok }) {
                 key={m.id}
                 data-room-msg={m.id}
                 className={cn(
-                  "w-full min-w-0 rounded-2xl transition-colors duration-700",
+                  "rounded-2xl transition-colors duration-700",
                   highlightId === m.id && "bg-brand/10",
                 )}
               >
