@@ -204,7 +204,7 @@ function MarkdownTable({ block, highlight }: { block: TableBlock; highlight: str
   );
 }
 
-function Markdownish({ text, highlight = "" }: { text: string; highlight?: string }) {
+export function Markdownish({ text, highlight = "" }: { text: string; highlight?: string }) {
   const blocks = splitBlocks(text);
   if (blocks.some((block) => block.kind === "table")) {
     return (
