@@ -187,7 +187,7 @@ function RoomMessage({
     return (
       <div className="group flex items-center justify-end gap-1.5">
         {verbs("You")}
-        <div className="flex max-w-[88%] flex-col items-end sm:max-w-[68%]">
+        <div className="flex max-w-full flex-col items-end sm:max-w-[68%]">
           <div className="max-w-full whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-primary-foreground [overflow-wrap:anywhere]">
             {message.replyTo && <ReplyContext replyTo={message.replyTo} onDark />}
             {message.text}
