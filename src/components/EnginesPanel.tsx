@@ -138,7 +138,7 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
     const poll = () => {
       api("/api/providers/codex/login")
         .then((login) => {
-          setCodexLogin((current) => ({ ...(current ?? { status: "idle" }), ...login }));
+          // Status polling intentionally omits the one-time challenge. Preserve it\n          // while login is pending so switching to the OpenAI tab cannot erase\n          // the 9-character code from DIZA.\n          setCodexLogin((current) =>\n            login.status === "pending" && current?.status === "pending"\n              ? { ...current, ...login, userCode: login.userCode ?? current.userCode, verificationUrl: login.verificationUrl ?? current.verificationUrl }\n              : login,\n          );
           if (login.status === "connected") void refreshEngines();
         })
         .catch(() => {});
