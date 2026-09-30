@@ -2,6 +2,9 @@ import { useState } from "react";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import Search from "lucide-react/dist/esm/icons/search.mjs";
 import Settings from "lucide-react/dist/esm/icons/settings-2.mjs";
+import BotIcon from "lucide-react/dist/esm/icons/bot.mjs";
+import DoorOpen from "lucide-react/dist/esm/icons/door-open.mjs";
+import UserRound from "lucide-react/dist/esm/icons/user-round.mjs";
 import MessageCircle from "lucide-react/dist/esm/icons/message-circle.mjs";
 import { AgentAvatar } from "./Avatar";
 import { useStore, formatWhen, type Bot, type TaskSummary } from "@/state/store";
@@ -87,7 +90,13 @@ export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
         </div>
       </header>
 
-      <section className="min-h-0 flex-1 overflow-y-auto">
+      <nav className="grid grid-cols-3 gap-2 border-b border-border/55 px-4 py-3">
+        <button onClick={() => dispatch({ type: "toggleNewRoom", open: true })} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><DoorOpen size={15} /> Rooms</button>
+        <button onClick={() => dispatch({ type: "toggleNewAgent", open: true })} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><BotIcon size={15} /> Bots</button>
+        <button onClick={() => dispatch({ type: "toggleAppSettings" })} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><UserRound size={15} /> Account</button>
+      </nav>
+
+      <section className="min-h-0 flex-1 overflow-y-auto animate-fade-in">
         {rows.length ? (
           rows.map((row) => (
             <button
@@ -99,7 +108,7 @@ export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
               <div className="min-w-0 flex-1 border-b border-border/55 pb-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="truncate text-[15.5px] font-semibold">
-                    {row.task?.title || row.bot.name}
+                    {row.bot.name}
                   </span>
                   {row.updatedAt > 0 && (
                     <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">
@@ -109,7 +118,7 @@ export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
-                    {row.task ? `${row.bot.name} · ${row.preview}` : row.preview}
+                    {row.task ? `${row.task.title} · ${row.preview}` : row.preview}
                   </span>
                   {row.bot.unread && <span className="size-2.5 shrink-0 rounded-full bg-foreground" />}
                 </div>
