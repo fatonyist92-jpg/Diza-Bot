@@ -121,9 +121,10 @@ export default function App() {
     // has been set up closes both; one that has not opens them, which is
     // what makes a fresh install reliably show the welcome.
     void workspaceSetupDone()
-      .then((done) => {
+      .then(() => {
         if (forced) return;
-        // DIZA Web intentionally shows its five-second identity intro on every app entry.\n        setIntroOpen(true);
+        // DIZA Web intentionally shows its five-second identity intro on every app entry.
+        setIntroOpen(true);
       })
       .finally(() => setSettled(true));
   }, [forced]);
