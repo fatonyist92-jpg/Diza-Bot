@@ -846,18 +846,18 @@ export class Store {
   /** First-run seed: one agent so the app never opens empty.
    *
    *  Deliberately not called "your first agent". Setup ends at the agent
-   *  picker, so by the time anyone reads this Nova may well be the
+   *  picker, so by the time anyone reads this Diza may well be the
    *  second agent in the list, sitting under a role the user chose. The
    *  copy has to be true either way. */
   seedIfEmpty() {
     if (this.bots.length) return;
     this.createBot({
-      name: "Nova",
-      title: "Generalist",
+      name: "Diza",
+      title: "Personal AI",
       color: "blue",
       shape: "star",
       greeting:
-        "I'm Nova, and I'll take anything you throw at me. Tell me what you need, or make more of us, each with its own job.",
+        "I'm Diza, your Personal AI. Tell me what you need, or make more bots, each with its own job.",
     });
   }
 }
