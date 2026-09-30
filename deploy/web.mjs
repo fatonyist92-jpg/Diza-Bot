@@ -24,7 +24,20 @@ const gateway = createServer((req, res) => {
   const url = new URL(req.url || '/', origin);
   const health = req.method === 'GET' && url.pathname === '/healthz';
   const suppliedOrigin = req.headers.origin;
-  if ((suppliedOrigin && suppliedOrigin !== origin.origin) || req.headers['sec-fetch-site'] === 'cross-site') {
+  const requestHost = req.headers.host;
+  const sameRequestOrigin = (() => {
+    if (!suppliedOrigin || !requestHost) return !suppliedOrigin;
+    try {
+      const candidate = new URL(suppliedOrigin);
+      return candidate.host === requestHost && candidate.protocol === origin.protocol;
+    } catch {
+      return false;
+    }
+  })();
+  if (
+    (suppliedOrigin && suppliedOrigin !== origin.origin && !sameRequestOrigin) ||
+    req.headers['sec-fetch-site'] === 'cross-site'
+  ) {
     res.writeHead(403, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     return res.end('{"error":"Request origin is not allowed"}');
   }
