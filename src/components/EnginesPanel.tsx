@@ -83,6 +83,12 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
     userCode?: string;
     error?: string;
   } | null>(null);
+  const [grokLogin, setGrokLogin] = useState<{
+    status: "idle" | "pending" | "connected" | "failed";
+    verificationUrl?: string;
+    userCode?: string;
+    error?: string;
+  } | null>(null);
 
   // an engine can be connected and still be down: no CLI on PATH, a key
   // the provider rejected, a local server that is not running
@@ -133,6 +139,21 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
       .finally(() => setSigningIn(false));
   };
 
+  const signInGrok = () => {
+    setSigningIn(true);
+    setError(null);
+    api("/api/providers/grokCli/login", { method: "POST" })
+      .then((login) => {
+        setGrokLogin(login);
+        if (login.status === "connected") return refreshEngines();
+        if (login.status === "pending" && login.verificationUrl) {
+          window.open(login.verificationUrl, "_blank", "noopener");
+        }
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setSigningIn(false));
+  };
+
   useEffect(() => {
     if (provider.kind !== "codex" || codexLogin?.status !== "pending") return;
     const poll = () => {
@@ -149,6 +170,24 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
     // provider row and whether a Codex login attempt is active.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider.kind, codexLogin?.status]);
+
+  useEffect(() => {
+    if (provider.kind !== "grokCli" || grokLogin?.status !== "pending") return;
+    const poll = () => {
+      api("/api/providers/grokCli/login")
+        .then((login) => {
+          setGrokLogin((current) =>
+            login.status === "pending" && current?.status === "pending"
+              ? { ...current, ...login, userCode: login.userCode ?? current.userCode, verificationUrl: login.verificationUrl ?? current.verificationUrl }
+              : login,
+          );
+          if (login.status === "connected") void refreshEngines();
+        })
+        .catch(() => {});
+    };
+    const timer = setInterval(poll, 2_000);
+    return () => clearInterval(timer);
+  }, [provider.kind, grokLogin?.status]);
 
   const act = () => {
     if (provider.auth === "oauth") return signIn();
@@ -181,8 +220,8 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
         </div>
 
         {provider.auth === "cli" ? (
-          provider.kind === "codex" && provider.connected && provider.needsSignIn ? (
-            <Button variant="secondary" size="sm" onClick={signInCodex} disabled={signingIn} className="shrink-0">
+          (provider.kind === "codex" || provider.kind === "grokCli") && provider.connected && provider.needsSignIn ? (
+            <Button variant="secondary" size="sm" onClick={provider.kind === "codex" ? signInCodex : signInGrok} disabled={signingIn} className="shrink-0">
               {signingIn ? <Loader2 size={13} className="animate-spin" /> : "Sign in"}
             </Button>
           ) : (
@@ -228,7 +267,9 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
           {provider.connected
             ? provider.kind === "codex"
               ? "Codex is installed. Sign in with ChatGPT to use it."
-              : `No sign-in detected. ${provider.signInHint ?? provider.keyHint}`
+              : provider.kind === "grokCli"
+                ? "Grok CLI is installed. Sign in with your Grok account to use it."
+                : `No sign-in detected. ${provider.signInHint ?? provider.keyHint}`
             : provider.keyHint}
         </div>
       )}
@@ -257,6 +298,19 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
         <div className="mt-1.5 pl-10 text-[12px] text-destructive">
           {codexLogin.error ?? "ChatGPT sign-in failed."}
         </div>
+      )}
+      {provider.kind === "grokCli" && grokLogin?.status === "pending" && (
+        <div className="mt-2 ml-10 rounded-xl border bg-muted/40 px-3 py-2 text-[12px]">
+          <div className="text-muted-foreground">Enter this one-time code on the xAI page:</div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <code className="select-all text-[14px] font-semibold tracking-[0.08em] text-foreground">{grokLogin.userCode ?? "Waiting…"}</code>
+            {grokLogin.verificationUrl && <a href={grokLogin.verificationUrl} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-1 font-medium text-foreground">Open xAI <ExternalLink size={11} /></a>}
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Waiting for approval…</div>
+        </div>
+      )}
+      {provider.kind === "grokCli" && grokLogin?.status === "failed" && (
+        <div className="mt-1.5 pl-10 text-[12px] text-destructive">{grokLogin.error ?? "Grok sign-in failed."}</div>
       )}
       {error && <div className="mt-1.5 pl-10 text-[12px] text-destructive">{error}</div>}
     </div>
