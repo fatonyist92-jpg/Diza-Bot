@@ -12,6 +12,12 @@ fi
 
 "$CODEX_BIN" --version
 
+GROK_BIN="$HOME/.local/bin/grok"
+if [ ! -x "$GROK_BIN" ]; then
+  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@xai-official/grok@latest"
+fi
+"$GROK_BIN" --version
+
 node deploy/codex-ipv4-proxy.mjs &
 
 export CODEX_HOME
