@@ -59,6 +59,7 @@ import { houseStyle, HOUSE_STYLE } from "./house-style.ts";
 import { composeDizaIdentity } from "./diza-identity.ts";
 import { captureFrame, clickAt, typeText } from "./browser-view.ts";
 import { codexLoginStatus, startCodexDeviceLogin } from "./codex-login.ts";
+import { grokLoginStatus, startGrokDeviceLogin } from "./grok-login.ts";
 import { bearerToken, isLocalRequest, isSameOrigin } from "./http-guard.ts";
 import {
   bindHost,
@@ -6523,6 +6524,15 @@ const server = createServer(async (req, res) => {
     }
     if (method === "GET" && path === "/api/providers/codex/login") {
       return json(res, 200, await codexLoginStatus());
+    }
+
+    // Grok CLI uses the user's grok.com subscription session. As with Codex,
+    // DIZA only starts/observes the public device challenge and never reads tokens.
+    if (method === "POST" && path === "/api/providers/grokCli/login") {
+      return json(res, 200, await startGrokDeviceLogin());
+    }
+    if (method === "GET" && path === "/api/providers/grokCli/login") {
+      return json(res, 200, await grokLoginStatus());
     }
 
     // The bug-report bundle: facts a public issue can hold. Built from
