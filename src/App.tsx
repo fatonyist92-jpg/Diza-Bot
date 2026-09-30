@@ -25,6 +25,7 @@ function Shell() {
   const { state, dispatch } = useStore();
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   const [mobileHome, setMobileHome] = useState(() => window.innerWidth < 768);
+  const [mobileList, setMobileList] = useState<"rooms" | "bots" | null>(null);
   useEffect(() => {
     if (!mobile || mobileHome) return;
     history.pushState({ dizaMobileChat: true }, "", location.href);
@@ -58,7 +59,11 @@ function Shell() {
   if (mobile && mobileHome) {
     return (
       <>
-        <MobileChatHome onOpenChat={() => setMobileHome(false)} />
+        <MobileChatHome
+          onOpenChat={() => setMobileHome(false)}
+          onOpenRooms={() => setMobileList("rooms")}
+          onOpenBots={() => setMobileList("bots")}
+        />
         {state.appSettingsOpen && <AppSettingsPanel />}
         {state.newAgentOpen && <NewAgentScreen />}
       </>
