@@ -271,8 +271,8 @@ function RoomMessage({
           // an agent can need you mid-room; the ask has to be answerable here
           <OptionCard botId={speaker.id} roomId={roomId} message={message} />
         ) : (
-          <div className="group flex items-center gap-1.5">
-            <div className="min-w-0 text-[14.5px] leading-relaxed text-foreground">
+          <div className="group flex min-w-0 items-center gap-1.5">
+            <div className="w-full min-w-0 text-[14.5px] leading-relaxed break-words text-foreground [overflow-wrap:anywhere]">
               {message.replyTo && <ReplyContext replyTo={message.replyTo} />}
               {(message.text ?? "").split("\n").map((line, i) => (
                 <RoomLine key={i} line={line} names={names} />
