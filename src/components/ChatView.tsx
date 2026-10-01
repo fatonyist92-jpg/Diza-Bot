@@ -10,7 +10,7 @@ import SquareTerminal from "lucide-react/dist/esm/icons/square-terminal.mjs";
 import Square from "lucide-react/dist/esm/icons/square.mjs";
 import X from "lucide-react/dist/esm/icons/x.mjs";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
-import { api, useStore, formatTime, type Bot, type Message } from "@/state/store";
+import { api, isPermissionCard, isQuestionCard, useStore, formatTime, type Bot, type Message } from "@/state/store";
 import { AgentAvatar } from "./Avatar";
 import { OptionCard } from "./OptionCard";
 import { MessageComponent } from "./Gallery";
@@ -637,7 +637,7 @@ function StreamingBubble({ text }: { text: string }) {
   );
 }
 
-function TypingIndicator() {
+function TypingIndicator({ waitingOnUser = false }: { waitingOnUser?: boolean }) {
   return (
     <div className="flex animate-rise-in justify-start">
       <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5 text-[12px] text-muted-foreground">
@@ -646,7 +646,7 @@ function TypingIndicator() {
           <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
           <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
         </span>
-        <span>Sedang berpikir…</span>
+        <span>{waitingOnUser ? "Menunggu jawaban Anda…" : "Sedang berpikir…"}</span>
       </div>
     </div>
   );
@@ -777,14 +777,21 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
   const [hitAt, setHitAt] = useState(0);
   const hits = useMemo(() => findHits(bot.messages, query), [bot.messages, query]);
 
-  // Approvals stacked up while the user was away. One or two are a
-  // conversation; several are a queue, and a queue deserves queue
-  // controls rather than a scroll of identical presses.
+  // Permission gates can be bulk-decided. Human questions cannot: answering
+  // all of them with "Allow" would corrupt the conversation.
   const pendingApprovals = useMemo(
     () =>
       bot.messages.filter(
         (m) =>
-          m.kind === "options" && m.card?.requestId && !m.card.answered && !m.card.dismissed,
+          m.kind === "options" && isPermissionCard(m.card) && !m.card?.answered && !m.card?.dismissed,
+      ),
+    [bot.messages],
+  );
+  const waitingOnQuestion = useMemo(
+    () =>
+      bot.messages.some(
+        (m) =>
+          m.kind === "options" && isQuestionCard(m.card) && !m.card?.answered && !m.card?.dismissed,
       ),
     [bot.messages],
   );
@@ -1091,7 +1098,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             <StreamingBubble text={streaming} />
           ) : (
             showTypingDots(bot.busy, streaming, bot.messages[bot.messages.length - 1]) && (
-              <TypingIndicator />
+              <TypingIndicator waitingOnUser={waitingOnQuestion} />
             )
           )}
         </div>
@@ -1134,7 +1141,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
       {pendingApprovals.length > 1 && (
         <div className="flex items-center justify-center gap-2 px-4 pb-1">
           <span className="text-[12px] text-muted-foreground">
-            {pendingApprovals.length} approvals waiting
+            {pendingApprovals.length} persetujuan menunggu
           </span>
           <button
             onClick={() => {
@@ -1144,7 +1151,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             }}
             className="rounded-lg bg-brand-soft px-2.5 py-1 text-[12px] font-medium text-brand-ink transition-colors hover:opacity-90"
           >
-            Allow all
+            Izinkan semua
           </button>
           <button
             onClick={() => {
@@ -1154,7 +1161,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             }}
             className="rounded-lg px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            Deny all
+            Tolak semua
           </button>
         </div>
       )}
