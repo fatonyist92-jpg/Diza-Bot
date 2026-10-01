@@ -415,6 +415,10 @@ class NeonPersistence {
           delete task.lastInstanceId;
           changed = true;
         }
+        if (task.lastModel !== undefined) {
+          delete task.lastModel;
+          changed = true;
+        }
         if ((task.lastInput ?? 0) !== 0) {
           task.lastInput = 0;
           changed = true;
