@@ -59,6 +59,13 @@ test("dismissing a question answers it as skipped rather than denying permission
   assert.match(server, /body\.dismissed === true/);
 });
 
+test("serverless request answers and dismissals reconcile durable bot state", () => {
+  const client = fs.readFileSync("src/state/store.tsx", "utf8");
+  const requestSettles = client.match(/then\(\(\) => reconcileServerlessTurn\(action\.botId\)\)/g) ?? [];
+  assert.ok(requestSettles.length >= 2, "answer and dismiss request paths must both reconcile");
+  assert.match(client, /showError\(error\);[\s\S]{0,120}reconcileServerlessTurn\(action\.botId\)/);
+});
+
 test("Indonesian UI translates live request titles", () => {
   assert.equal(simpleIndonesianText("Your agent has a question"), "Agen Anda punya pertanyaan");
   assert.equal(simpleIndonesianText("Approval needed"), "Perlu persetujuan");
