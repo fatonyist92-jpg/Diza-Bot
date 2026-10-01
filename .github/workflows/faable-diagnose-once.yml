@@ -1,4 +1,5 @@
 name: DIZA Faable runtime diagnose once
+# Recovery diagnostic refresh: 2026-10-01
 
 on:
   push:
