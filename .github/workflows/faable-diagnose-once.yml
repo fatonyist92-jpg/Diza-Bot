@@ -71,10 +71,17 @@ jobs:
             bot?.modelSelection?.model !== engine.model
           );
           if (mismatches.length) throw new Error("global engine mismatch on " + mismatches.length + " bot(s)");
+          const providerPayload = await get("/api/providers");
+          const instancePayload = await get("/api/instances");
+          const providers = Array.isArray(providerPayload?.providers) ? providerPayload.providers : [];
+          const instances = Array.isArray(instancePayload?.instances) ? instancePayload.instances : [];
           console.log(JSON.stringify({
             health_ok: true,
             persistence_ready: true,
+            workspace: health.workspace ?? null,
             bot_count: bots.length,
+            provider_count: providers.length,
+            instance_count: instances.length,
             engine,
             all_bots_follow_global_engine: true
           }));
