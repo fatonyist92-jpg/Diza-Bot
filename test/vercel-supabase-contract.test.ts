@@ -20,6 +20,14 @@ test("Vercel adapter validates the public origin before entering the loopback co
   assert.match(adapter, /delete headers\.origin/);
 });
 
+test("Vercel retries transient persistence failures before giving up", () => {
+  assert.match(adapter, /async function syncDurably\(reason\)/);
+  assert.match(adapter, /attempt < 3/);
+  assert.match(adapter, /await wait\(150 \* \(attempt \+ 1\)\)/);
+  assert.match(adapter, /await syncDurably\('vercel-bootstrap'\)/);
+  assert.match(adapter, /await syncDurably\(\`vercel-\$\{req\.method\.toLowerCase\(\)\}\`\)/);
+});
+
 test("mutating requests sync before their streamed response completes", () => {
   const proxyAt = adapter.indexOf("await proxy(req, res, path)");
   const syncAt = adapter.indexOf("await persistence.sync(`vercel-");
