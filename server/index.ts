@@ -432,23 +432,6 @@ function adoptImagineAttachments(botId: string, taskId: string, projectId: strin
   return made;
 }
 
-const TEMPORARY_VIDEO_UNAVAILABLE = "Maaf, layanan pembuatan video sementara belum tersedia.";
-const TEMPORARY_IMAGE_HANDOFF = "DIZA Imagine untuk gambar sementara dialihkan ke ChatGPT. Buka https://chatgpt.com/ lalu kirim prompt gambar di atas. Prompt tetap tersimpan di percakapan DIZA.";
-
-function temporaryImagineNotice(operation: ImagineOperation): string | null {
-  if (operation === "image-generate" || operation === "image-edit" || operation === "variation") return TEMPORARY_IMAGE_HANDOFF;
-  if (operation === "image-to-video" || operation === "text-to-video" || operation === "video-extend") return TEMPORARY_VIDEO_UNAVAILABLE;
-  return null;
-}
-
-function publishTemporaryImagineNotice(taskId: string, operation: ImagineOperation) {
-  const text = temporaryImagineNotice(operation);
-  if (!text) return false;
-  const message = store.appendMessage(taskId, { role: "bot", kind: "notice", text });
-  broadcast({ kind: "message", threadId: taskId, message });
-  return true;
-}
-
 function createImagineJob(input: {
   botId: string; taskId: string; operation: ImagineOperation; prompt: string;
   inputAssetIds?: string[]; parentAssetId?: string; continuity?: ImagineContinuity; retryOf?: string;
@@ -5509,8 +5492,6 @@ const server = createServer(async (req, res) => {
       const parentAssetId = typeof body.parentAssetId === "string" ? body.parentAssetId : undefined;
       const continuity = body.continuity && typeof body.continuity === "object" ? body.continuity as ImagineContinuity : undefined;
       try {
-        const temporary = temporaryImagineNotice(operation);
-        if (temporary) return json(res, 503, { error: temporary, temporary: true, operation });
         const job = createImagineJob({ botId, taskId, operation, prompt, inputAssetIds, parentAssetId, continuity });
         return json(res, 201, { job, assets: job.resultAssetIds.map((id) => imagine.asset(id)).filter((asset): asset is ImagineAsset => asset !== null).map(publicImagineAsset) });
       } catch (error) {
