@@ -562,7 +562,7 @@ export function Composer({
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               if ((e.metaKey || e.ctrlKey) && bot.busy) {
-                dispatch({ type: "interrupt", botId: bot.id, taskId: bot.threadId });
+                dispatch({ type: "interrupt", botId: bot.id });
               }
               send();
             }
@@ -579,7 +579,7 @@ export function Composer({
         />
         {bot.busy ? (
           <button
-            onClick={() => dispatch({ type: "interrupt", botId: bot.id, taskId: bot.threadId })}
+            onClick={() => dispatch({ type: "interrupt", botId: bot.id })}
             className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
             title="Hentikan"
           >

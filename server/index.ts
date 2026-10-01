@@ -1969,38 +1969,8 @@ async function startTurn(
   // limit would never fire, because trimming is what makes it fit, and
   // the trimming is exactly the silent forgetting this replaces.
   let built = buildTranscript();
-  // Native provider sessions can grow far beyond the visible transcript:
-  // tool calls, reasoning and provider-side state all count toward their
-  // window. So a transcript that still "fits" locally is not enough to
-  // prove the resumed provider session is healthy. When the provider's
-  // last reported input is already near the model limit, compact/roll it
-  // before sending the next user message.
-  const providerSessionFull =
-    !blok &&
-    (task.lastInput ?? 0) > 0 &&
-    shouldCompact(task.lastInput ?? 0, contextLimit);
-
-  if (!blok && (built.dropped > 0 || providerSessionFull)) {
-    const folded = await foldContext(bot.id, task.id, providerSessionFull).catch(() => false);
-    if (folded) {
-      built = buildTranscript();
-    } else {
-      // Availability beats a silent dead chat. If an internal summary
-      // call fails, retire only the oversized provider session and replay
-      // the bounded recent transcript into a fresh one. The complete
-      // history remains on disk/Neon and visible in the conversation.
-      const ownerId = task.lastInstanceId ?? bot.modelSelection.instanceId;
-      const owner = registry.get(ownerId);
-      if (owner && !owner.adapter.capabilities.replaysNatively && task.resumeCursors[ownerId] !== undefined) {
-        store.resetTaskSession(task.id, ownerId);
-        const notice = store.appendMessage(task.id, {
-          role: "bot",
-          kind: "notice",
-          text: "Percakapan ini sudah sangat panjang. Session AI direfresh agar tetap bisa menjawab; history chat tetap tersimpan.",
-        });
-        broadcast({ kind: "message", threadId: task.id, message: notice });
-      }
-    }
+  if (!blok && built.dropped > 0) {
+    if (await foldContext(bot.id, task.id).catch(() => false)) built = buildTranscript();
   }
   const transcript = built.turns;
 
@@ -2816,11 +2786,12 @@ function isSharedLane(laneId: string): boolean {
 }
 
 /** waitForIdle, for one shared room's lane rather than the whole agent. */
-function waitForLaneIdle(botId: string, roomId: string): Promise<void> {
+function waitForLaneIdle(botId: string, roomId: string, timeoutMs = 120_000): Promise<void> {
   return new Promise((resolve) => {
+    const started = Date.now();
     const tick = () => {
       const bot = store.bot(botId);
-      if (!bot || !laneBusy(bot, roomId)) return resolve();
+      if (!bot || !laneBusy(bot, roomId) || Date.now() - started > timeoutMs) return resolve();
       setTimeout(tick, 250);
     };
     setTimeout(tick, 250);
@@ -2903,12 +2874,11 @@ function unresume(threadId: string, error: unknown): boolean {
 }
 
 /** Resolves once an agent's turn has settled, so the next speaker sees it. */
-function waitForIdle(botId: string, timeoutMs?: number): Promise<void> {
+function waitForIdle(botId: string, timeoutMs = 120_000): Promise<void> {
   return new Promise((resolve) => {
     const started = Date.now();
     const tick = () => {
-      if (!store.bot(botId)?.busy) return resolve();
-      if (timeoutMs !== undefined && Date.now() - started > timeoutMs) return resolve();
+      if (!store.bot(botId)?.busy || Date.now() - started > timeoutMs) return resolve();
       setTimeout(tick, 250);
     };
     setTimeout(tick, 250);
@@ -3109,11 +3079,7 @@ async function foldContext(botId: string, threadId: string, force = false): Prom
   const bot = store.bot(botId);
   const task = bot?.tasks.find((t) => t.id === threadId);
   if (!bot || !task) return false;
-  // Compact with the engine that actually owns this lane when possible.
-  // Native-session engines (notably Codex) must be able to summarise
-  // themselves without depending on a second provider being connected.
-  const instanceId = task.lastInstanceId ?? bot.modelSelection.instanceId;
-  const instance = registry.get(instanceId) ?? registry.get(bot.modelSelection.instanceId);
+  const instance = registry.get(bot.modelSelection.instanceId);
   if (!instance?.generateText) return false;
 
   const settled = store
@@ -3147,10 +3113,6 @@ async function foldContext(botId: string, threadId: string, force = false): Prom
     through: already + plan.fold.length,
     at: Date.now(),
   });
-  // The old native session still contains the oversized conversation.
-  // Drop only its provider cursor so the next turn starts a fresh session
-  // and replays this summary + the recent turns. Chat history stays intact.
-  store.resetTaskSession(threadId, instance.instanceId);
   // a normal state, said plainly, in the thread it happened in
   const notice = store.appendMessage(threadId, {
     role: "bot",
@@ -6500,36 +6462,14 @@ const server = createServer(async (req, res) => {
       const bot = store.bot(m[1]);
       if (!bot) return json(res, 404, { error: "no such agent" });
       const body = await readBody(req).catch(() => ({}) as Record<string, unknown>);
-      // Stop the exact lane visible to the user. Falling back to threadId
-      // keeps older clients working, but current clients always send taskId.
+      // a named lane is interruptible even when another lane is on screen
       const laneId =
         typeof body.taskId === "string" && bot.tasks.some((t) => t.id === body.taskId)
           ? body.taskId
           : bot.threadId;
-      const lane = bot.tasks.find((t) => t.id === laneId);
-      if (!lane?.busy) return json(res, 200, { ok: true, alreadyStopped: true });
-
       const instance = instanceForTask(bot, laneId);
-      await instance?.adapter.interruptTurn(laneId).catch(() => {});
-
-      // Drivers normally emit turn.completed. If a dead transport has
-      // already forgotten the session, clear only that stale busy flag so
-      // Stop still recovers the composer instead of becoming a no-op.
-      setTimeout(() => {
-        const fresh = store.bot(bot.id);
-        const task = fresh?.tasks.find((t) => t.id === laneId);
-        if (!task?.busy) return;
-        if (instance?.adapter.hasSession?.(laneId)) return;
-        store.setTaskBusy(laneId, false);
-        turnStarted.delete(laneId);
-        agentTokens.revokeTask(laneId);
-        laneRequester.delete(laneId);
-        activeRoom.delete(laneId);
-        broadcast({ kind: "bot", bot: clientBot(store.bot(bot.id)) });
-        drainSteer(laneId);
-      }, 750).unref?.();
-
-      return json(res, 200, { ok: true, stopping: true, taskId: laneId });
+      await instance?.adapter.interruptTurn(laneId);
+      return json(res, 200, { ok: true });
     }
 
     // How the desktop shell recognises the server it just started. A

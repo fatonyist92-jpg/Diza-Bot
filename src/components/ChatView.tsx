@@ -402,8 +402,7 @@ function Bubble({
   // Editing happens where the message already is. Sending it back to
   // the composer would lose your place and pretend it is a new message.
   const [editing, setEditing] = useState<string | null>(null);
-  const [mobileActions, setMobileActions] = useState(false);
-  const [mobileCopied, setMobileCopied] = useState(false);
+
 
   return (
     <div
@@ -431,12 +430,6 @@ function Bubble({
           rather than beside it where they would push the text around. */}
       <div className={cn("flex min-w-0 flex-col", user ? "max-w-[88%] items-end sm:max-w-[68%]" : "flex-1 sm:max-w-[68%] sm:flex-none")}>
         <div
-          onClick={(event) => {
-            if (user || editing !== null || !window.matchMedia("(max-width: 639px)").matches) return;
-            const target = event.target as HTMLElement;
-            if (target.closest("a,button,input,textarea,video")) return;
-            setMobileActions((open) => !open);
-          }}
           className={cn(
             "max-w-full px-3.5 py-2 text-[14.5px] leading-relaxed break-words [overflow-wrap:anywhere]",
             !user && "w-full min-w-0",
@@ -497,44 +490,6 @@ function Bubble({
         {!user && message.research?.sources?.length ? (
           <ResearchSources sources={message.research.sources} />
         ) : null}
-        {!user && mobileActions && (
-          <div
-            className="mt-1 flex items-center gap-1 rounded-xl border border-border/70 bg-popover/95 p-1 shadow-sm backdrop-blur-md sm:hidden"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                const excerpt = (message.text ?? "").replace(/\s+/g, " ").trim().slice(0, 180);
-                onReply({ id: message.id, author, excerpt });
-                setMobileActions(false);
-              }}
-              className="rounded-lg px-3 py-1.5 text-[12px] font-medium active:bg-accent"
-            >
-              Balas
-            </button>
-            <button
-              onClick={() => {
-                void navigator.clipboard.writeText(message.text ?? "");
-                setMobileCopied(true);
-                setTimeout(() => setMobileCopied(false), 1200);
-              }}
-              className="rounded-lg px-3 py-1.5 text-[12px] font-medium active:bg-accent"
-            >
-              {mobileCopied ? "Tersalin" : "Salin"}
-            </button>
-            {onDelete && (
-              <button
-                onClick={() => {
-                  if (window.confirm("Hapus balasan ini?")) onDelete(message.id);
-                  setMobileActions(false);
-                }}
-                className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-destructive active:bg-destructive/10"
-              >
-                Hapus
-              </button>
-            )}
-          </div>
-        )}
         <Reactions
           reactions={message.reactions}
           onToggle={(emoji: string) => onReact?.(message.id, emoji)}
@@ -928,7 +883,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => dispatch({ type: "interrupt", botId: bot.id, taskId: bot.threadId })}
+              onClick={() => dispatch({ type: "interrupt", botId: bot.id })}
               title="Hentikan respons ini"
             >
               <Square size={11} className="fill-current" />
@@ -1070,10 +1025,6 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
           {visibleMessages.map((m, offset) => {
             const fresh = arrivals.has(m.id);
             const absolute = visibleStart + offset;
-            // While the stream pump is revealing the just-arrived final
-            // answer, hide its settled duplicate. It appears seamlessly
-            // once the progressive reveal reaches the end.
-            if (streaming && fresh && m.role === "bot" && m.kind === "text") return null;
             if (m.deleted) return <TakenBack key={m.id} user={m.role === "user"} />;
             switch (m.kind) {
               case "options":

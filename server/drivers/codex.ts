@@ -136,7 +136,6 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
     interface RunningTurn {
       turnId: string;
       abort: () => void;
-      interrupt: () => void;
       asks: Map<string, Answer>;
     }
     const running = new Map<string, RunningTurn>();
@@ -217,9 +216,14 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         onNotify: (msg) => onAgentNotification(msg),
       });
 
+      let turnWatchdog: ReturnType<typeof setTimeout> | null = null;
       const finish = (ok: boolean, stopReason: string | null) => {
         if (finished) return;
         finished = true;
+        if (turnWatchdog) {
+          clearTimeout(turnWatchdog);
+          turnWatchdog = null;
+        }
         for (const answer of [...asks.values()]) answer("deny", "Bloks: the turn ended", "turn-ended");
         rpc.failPending(new Error("turn settled"));
         running.delete(threadId);
@@ -455,13 +459,26 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         finish(false, "exit_before_result");
       });
 
-      // No fixed turn watchdog. Long reasoning/tool turns are allowed to
-      // keep running until the provider finishes or the user presses Stop.
-      // Interrupt settles locally immediately as well as terminating the
-      // child process, so the UI cannot remain stuck on "busy".
-      const interrupt = () => finish(false, "interrupted");
-      running.set(threadId, { turnId, abort, interrupt, asks });
+      running.set(threadId, { turnId, abort, asks });
       emit({ ...envelope(threadId, turnId), type: "turn.started" });
+
+      // A remote Codex turn can lose its transport without ever sending
+      // turn/completed. Do not leave the lane locked forever in that case:
+      // settle through the driver's normal completion path, which removes
+      // the running session and lets the harness drain queued messages.
+      // This is deliberately Codex-only so other engines keep their
+      // existing long-running behaviour.
+      const TURN_WATCHDOG_MS = 120_000;
+      turnWatchdog = setTimeout(() => {
+        if (finished || !running.has(threadId)) return;
+        emit({
+          ...envelope(threadId, turnId),
+          type: "runtime.error",
+          message: "Codex did not finish this turn within 120 seconds. The stuck turn was stopped so queued messages can continue.",
+        });
+        finish(false, "turn_timeout");
+      }, TURN_WATCHDOG_MS);
+      turnWatchdog.unref?.();
 
       // Handshake and kickoff. Anything that goes wrong in here has to end
       // the turn: a refused handshake would otherwise leave the composer
@@ -536,119 +553,6 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       return { turnId };
     };
 
-    const generateText = async (prompt: string): Promise<string> => {
-      const env: Record<string, string | undefined> = {
-        ...process.env,
-        NPM_CONFIG_LOGLEVEL: "error",
-      };
-      // Keep one-shot compaction on the user's existing Codex login.
-      delete env.OPENAI_API_KEY;
-
-      return new Promise<string>((resolve, reject) => {
-        const child = spawn(config.cli, ["app-server"], {
-          cwd: homedir(),
-          env,
-          stdio: ["pipe", "pipe", "pipe"],
-          detached: true,
-        });
-        let settled = false;
-        let finalText = "";
-        let streamed = "";
-        let rpc: ReturnType<typeof attachRpc>;
-
-        const kill = () => {
-          try {
-            process.kill(-child.pid!, "SIGTERM");
-          } catch {
-            try { child.kill("SIGTERM"); } catch {}
-          }
-        };
-        const finish = (error?: Error) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          rpc?.failPending(error ?? new Error("one-shot complete"));
-          kill();
-          if (error) reject(error);
-          else {
-            const text = (finalText || streamed).trim();
-            text ? resolve(text) : reject(new Error("Codex returned no text"));
-          }
-        };
-
-        const timer = setTimeout(() => finish(new Error("Codex one-shot compaction timed out")), 180_000);
-        timer.unref?.();
-
-        rpc = attachRpc({
-          stdin: child.stdin,
-          stdout: child.stdout,
-          onRequest: (msg) => {
-            // Compaction is text-only. Never let an internal summary call
-            // stop for permissions or act on the workspace.
-            rpc.replyError(msg.id, -32601, "tools are disabled for compaction");
-          },
-          onNotify: (msg) => {
-            const method = String(msg.method ?? "");
-            const params = msg.params ?? {};
-            if (method === "item/agentMessage/delta") {
-              const delta = typeof params.delta === "string" ? params.delta : "";
-              streamed += delta;
-              return;
-            }
-            if (method === "item/completed") {
-              const item = params.item ?? {};
-              if (item.type === "agentMessage" && typeof item.text === "string" && item.text.trim()) {
-                finalText = item.text;
-              }
-              return;
-            }
-            if (method === "turn/completed") {
-              const status = params.turn?.status;
-              if (status === "completed") finish();
-              else finish(new Error(params.turn?.error?.message ?? status ?? "Codex compaction failed"));
-              return;
-            }
-            if (method === "error" && params.message) {
-              finish(new Error(String(params.message)));
-            }
-          },
-        });
-
-        let stderr = "";
-        child.stderr.on("data", (chunk) => {
-          stderr += String(chunk);
-          if (stderr.length > 4096) stderr = stderr.slice(-4096);
-        });
-        child.on("error", (error) => finish(error));
-        child.on("close", (code) => {
-          if (settled) return;
-          finish(new Error(describeEarlyExit(code, stderr, { name: "Codex", signIn: "run `codex login`" })));
-        });
-
-        void (async () => {
-          try {
-            await rpc.request("initialize", { clientInfo: { name: "bloks-compaction", version: "1" } });
-            rpc.notify("initialized", {});
-            const started = await rpc.request("thread/start", {
-              cwd: homedir(),
-              model: MODELS.default,
-              sandbox: "workspace-write",
-              approvalPolicy: "never",
-              ephemeral: true,
-            });
-            const threadId = started?.thread?.id;
-            if (!threadId) throw new Error("Codex did not return a compaction thread");
-            await rpc.request("turn/start", {
-              threadId,
-              input: [{ type: "text", text: prompt }],
-            });
-          } catch (error) {
-            finish(error as Error);
-          }
-        })();
-      });
-    };
-
     const snapshot = async (): Promise<ProviderSnapshot> => {
       const version = await new Promise<string | null>((resolve) => {
         execFile(config.cli, ["--version"], { timeout: 8_000 }, (error, stdout) =>
@@ -670,14 +574,12 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       models: MODELS,
       snapshot,
 
-      generateText,
-
       adapter: {
         provider: DRIVER_KIND,
         capabilities: { sessionModelSwitch: "unsupported" },
         sendTurn,
 
-        interruptTurn: async (threadId) => running.get(threadId)?.interrupt(),
+        interruptTurn: async (threadId) => running.get(threadId)?.abort(),
 
         respondToRequest: async (threadId, requestId, decision) => {
           const answer = running.get(threadId)?.asks.get(requestId);
