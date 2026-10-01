@@ -44,6 +44,9 @@ export function workspaceDir(botId: string): string {
 export function ensureWorkspace(botId: string): string {
   const dir = workspaceDir(botId);
   mkdirSync(join(dir, "memory"), { recursive: true, mode: 0o700 });
+  // A bot-owned durable file area. It lives under DIZA_DATA_DIR, so the
+  // existing Neon persistence mirrors it together with memory/history.
+  mkdirSync(join(dir, "library"), { recursive: true, mode: 0o700 });
   const memoryFile = join(dir, "MEMORY.md");
   if (!existsSync(memoryFile)) writeFileSync(memoryFile, SEED, { mode: 0o600 });
   return dir;
@@ -143,6 +146,18 @@ export function writeMemoryTopic(botId: string, name: string, text: string): boo
   ensureWorkspace(botId);
   writeFileSync(join(workspaceDir(botId), "memory", name), text, { mode: 0o600 });
   return true;
+}
+
+export function writableWorkspacePrompt(botId: string): string {
+  const dir = ensureWorkspace(botId);
+  const library = join(dir, "library");
+  return [
+    `Your private DIZA workspace is ${dir}. It is writable, not read-only.`,
+    "You may create, edit, rename and save files there with your ordinary file/shell tools whenever the user's task needs durable work.",
+    `Keep reusable reference documents and research under ${library} when no more specific project folder was chosen.`,
+    "There is no separate 'Allow write access' or 'Edit Workspace' button for this workspace. Do not tell the user to enable one.",
+    "Do not write outside your own workspace or an explicitly assigned working folder unless the user has intentionally granted that location.",
+  ].join(" ");
 }
 
 export function memoryPrompt(botId: string): string {
