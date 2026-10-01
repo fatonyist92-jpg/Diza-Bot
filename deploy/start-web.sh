@@ -18,6 +18,13 @@ if [ ! -x "$GROK_BIN" ]; then
 fi
 "$GROK_BIN" --version
 
+GEMINI_VERSION="0.61.0"
+GEMINI_BIN="$HOME/.local/bin/gemini"
+if [ ! -x "$GEMINI_BIN" ]; then
+  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@google/gemini-cli@$GEMINI_VERSION"
+fi
+"$GEMINI_BIN" --version
+
 node deploy/codex-ipv4-proxy.mjs &
 
 export CODEX_HOME
