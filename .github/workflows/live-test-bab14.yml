@@ -133,7 +133,7 @@ jobs:
           cat /tmp/diza.log
           exit 1
 
-      - name: Verify real local AI and temporary Imagine fallback
+      - name: Verify real local AI and normal web media routing
         run: |
           node --input-type=module <<'NODE'
           import assert from "node:assert/strict";
@@ -144,49 +144,67 @@ jobs:
             try { body = await r.json(); } catch {}
             return { status: r.status, body };
           };
-          let data = await j("/api/bots?messages=20");
+
+          let data = await j("/api/bots?messages=100");
           assert.equal(data.status, 200);
           const bot = data.body.bots[0];
           assert.ok(bot?.id);
 
-          const image = await j(`/api/bots/${bot.id}/messages`, {
+          const directImagine = await j("/api/imagine/jobs", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ text: "Bikin gambar kucing astronaut" }),
+            body: JSON.stringify({
+              botId: bot.id,
+              taskId: bot.activeTaskId,
+              operation: "image-generate",
+              prompt: "must stay disabled",
+            }),
           });
-          assert.equal(image.status, 202);
-          assert.equal(image.body.imagineTemporary, "image-generate");
-          assert.equal(image.body.imagineJobId, undefined);
+          assert.equal(directImagine.status, 404);
+          assert.match(String(directImagine.body?.error ?? ""), /temporarily disabled/i);
 
-          const video = await j(`/api/bots/${bot.id}/messages`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ text: "Buat video seekor kucing berjalan 5 detik" }),
-          });
-          assert.equal(video.status, 202);
-          assert.equal(video.body.imagineTemporary, "text-to-video");
-          assert.equal(video.body.imagineJobId, undefined);
+          const sendAndWait = async (prompt) => {
+            const beforeData = await j("/api/bots?messages=120");
+            const current = beforeData.body.bots[0];
+            const before = new Set((current.messages ?? []).map((message) => message.id));
+            const sent = await j(`/api/bots/${bot.id}/messages`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ text: prompt }),
+            });
+            assert.equal(sent.status, 202, prompt);
+            assert.equal(sent.body?.imagineTemporary, undefined, prompt);
+            assert.equal(sent.body?.imagineJobId, undefined, prompt);
 
-          data = await j("/api/bots?messages=40");
-          const before = new Set(data.body.bots[0].messages.map((m) => m.id));
-          const sent = await j(`/api/bots/${bot.id}/messages`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ text: "Balas singkat dengan teks: DIZA LIVE OK" }),
-          });
-          assert.equal(sent.status, 202);
+            const until = Date.now() + 150000;
+            let reply = null;
+            while (Date.now() < until) {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+              const latest = await j("/api/bots?messages=140");
+              const found = latest.body.bots[0];
+              reply = (found.messages ?? []).find(
+                (message) =>
+                  !before.has(message.id) &&
+                  message.role === "bot" &&
+                  message.kind === "text" &&
+                  String(message.text ?? "").trim(),
+              );
+              const busy = (found.tasks ?? []).some((task) => task.state === "working");
+              if (reply && !busy) break;
+            }
+            assert.ok(reply?.text, `normal bot turn produced no reply for: ${prompt}`);
+            return reply;
+          };
 
-          const until = Date.now() + 150000;
-          let reply = null;
-          while (Date.now() < until) {
-            await new Promise((r) => setTimeout(r, 2000));
-            const latest = await j("/api/bots?messages=60");
-            const found = latest.body.bots[0];
-            reply = found.messages.find((m) => !before.has(m.id) && m.role === "bot" && m.kind === "text" && String(m.text ?? "").trim());
-            if (reply && !found.tasks.some((t) => t.state === "working")) break;
-          }
-          assert.ok(reply?.text, "Ollama produced no reply");
-          console.log("LOCAL_REAL_AI_PASS", String(reply.text).slice(0, 160));
+          const imageReply = await sendAndWait("Bikin gambar kucing astronaut. Kalau alat pembuat gambar tidak tersedia, jelaskan singkat.");
+          const videoReply = await sendAndWait("Buat video seekor kucing berjalan 5 detik. Kalau alat pembuat video tidak tersedia, jelaskan singkat.");
+          const liveReply = await sendAndWait("Balas singkat dengan teks: DIZA LIVE OK");
+
+          console.log("NORMAL_MEDIA_ROUTE_PASS", JSON.stringify({
+            imageReply: String(imageReply.text).slice(0, 100),
+            videoReply: String(videoReply.text).slice(0, 100),
+            liveReply: String(liveReply.text).slice(0, 100),
+          }));
           NODE
 
       - name: Start HTTPS Quick Tunnel
