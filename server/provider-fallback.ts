@@ -28,7 +28,9 @@ export function usableSnapshot(snapshot: ProviderSnapshot | null | undefined): b
 }
 
 /** Explicit order beats registry insertion order. Keep this intentionally
- * short: the first fallback added for Codex is Gemini CLI. */
+ * short: Codex prefers the agentic Gemini CLI, then the Gemini API instance
+ * if a key is connected. The API path is a second rail, not a substitute
+ * for CLI tools. */
 export function fallbackOrder(primaryInstanceId: string): string[] {
-  return primaryInstanceId === "codex" ? ["gemini_cli"] : [];
+  return primaryInstanceId === "codex" ? ["gemini_cli", "gemini"] : [];
 }
