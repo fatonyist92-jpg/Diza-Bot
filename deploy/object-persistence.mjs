@@ -1,4 +1,4 @@
-import { createDecipheriv, createHash } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { chmod, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -11,6 +11,10 @@ const DEFAULT_INTERVAL_MS = 30_000;
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 const BOOTSTRAP_FILE = fileURLToPath(new URL('./diza-storage-bootstrap.enc.json', import.meta.url));
+const PUBLIC_BOOTSTRAP_BUCKET = 'diza-bootstrap';
+const PUBLIC_BOOTSTRAP_KEY = 'object-storage-v1.json';
+const PUBLIC_BOOTSTRAP_URL = 'https://br-dark-dew-b4qozre5.storage.c-6.us-east-2.aws.neon.tech/diza-bootstrap/object-storage-v1.json';
+const PUBLIC_BOOTSTRAP_AAD = 'diza-object-public-bootstrap-v1';
 
 const safeMode = (value) => {
   const parsed = Number(value);
@@ -70,6 +74,64 @@ function decryptBootstrap(databaseUrl) {
   decipher.setAuthTag(tag);
   const plain = Buffer.concat([decipher.update(encrypted), decipher.final()]);
   return JSON.parse(gunzipSync(plain).toString('utf8'));
+}
+
+function decryptBootstrapWithRawKey(rawKey) {
+  if (!Buffer.isBuffer(rawKey) || rawKey.length !== 32) throw new Error('recovery key must be 32 bytes');
+  const envelope = JSON.parse(requireText(BOOTSTRAP_FILE));
+  const iv = Buffer.from(envelope.iv, 'base64');
+  const tag = Buffer.from(envelope.tag, 'base64');
+  const encrypted = Buffer.from(envelope.data, 'base64');
+  const decipher = createDecipheriv('aes-256-gcm', rawKey, iv);
+  decipher.setAAD(Buffer.from(envelope.aad));
+  decipher.setAuthTag(tag);
+  const plain = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  return JSON.parse(gunzipSync(plain).toString('utf8'));
+}
+
+function publicBootstrapKey(webPassword) {
+  if (!webPassword) throw new Error('DIZA_WEB_PASSWORD is required for durable object credentials');
+  return createHash('sha256').update(`DIZA_PUBLIC_BOOTSTRAP_V1\0${webPassword}`).digest();
+}
+
+function sealPublicStorageConfig(storage, webPassword) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', publicBootstrapKey(webPassword), iv);
+  cipher.setAAD(Buffer.from(PUBLIC_BOOTSTRAP_AAD));
+  const encrypted = Buffer.concat([cipher.update(Buffer.from(JSON.stringify(storage))), cipher.final()]);
+  return Buffer.from(JSON.stringify({
+    version: 1,
+    aad: PUBLIC_BOOTSTRAP_AAD,
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    data: encrypted.toString('base64'),
+  }));
+}
+
+function openPublicStorageConfig(envelope, webPassword) {
+  if (!envelope || envelope.version !== 1 || envelope.aad !== PUBLIC_BOOTSTRAP_AAD) {
+    throw new Error('unsupported public object bootstrap');
+  }
+  const decipher = createDecipheriv(
+    'aes-256-gcm',
+    publicBootstrapKey(webPassword),
+    Buffer.from(envelope.iv, 'base64'),
+  );
+  decipher.setAAD(Buffer.from(PUBLIC_BOOTSTRAP_AAD));
+  decipher.setAuthTag(Buffer.from(envelope.tag, 'base64'));
+  const plain = Buffer.concat([
+    decipher.update(Buffer.from(envelope.data, 'base64')),
+    decipher.final(),
+  ]);
+  return JSON.parse(plain.toString('utf8'));
+}
+
+async function loadPublicStorageConfig(webPassword) {
+  if (!webPassword) return null;
+  const response = await fetch(PUBLIC_BOOTSTRAP_URL, { cache: 'no-store' }).catch(() => null);
+  if (!response || response.status === 404) return null;
+  if (!response.ok) throw new Error(`public object bootstrap HTTP ${response.status}`);
+  return openPublicStorageConfig(await response.json(), webPassword);
 }
 
 function requireText(path) {
@@ -239,6 +301,17 @@ class ObjectPersistence {
     });
   }
 
+  async persistPublicBootstrap(webPassword) {
+    const body = sealPublicStorageConfig(this.config, webPassword);
+    await this.client.send(new this.PutObjectCommand({
+      Bucket: PUBLIC_BOOTSTRAP_BUCKET,
+      Key: PUBLIC_BOOTSTRAP_KEY,
+      Body: body,
+      ContentType: 'application/json',
+    }));
+    this.logger.log?.('[diza-object] durable public bootstrap credential refreshed');
+  }
+
   async restore() {
     let source = 'object';
     try {
@@ -314,14 +387,29 @@ const disabled = (reason, logger = console) => ({
 });
 
 export async function initializeObjectPersistence(logger = console) {
-  let payload;
+  const webPassword = process.env.DIZA_WEB_PASSWORD || '';
+  let storage = null;
+  let bootstrap = null;
+
   try {
-    payload = decryptBootstrap(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL || '');
+    storage = await loadPublicStorageConfig(webPassword);
+    if (storage) logger.log?.('[diza-object] loaded durable object credential bootstrap');
   } catch (error) {
-    logger.error?.(`[diza-object] bootstrap decrypt failed: ${error?.message || error}`);
-    return disabled('bootstrap-decrypt-failed', logger);
+    logger.warn?.(`[diza-object] public bootstrap unavailable: ${error?.message || error}`);
   }
-  const persistence = new ObjectPersistence(payload.storage, payload.bootstrap, logger);
+
+  if (!storage) {
+    try {
+      const payload = decryptBootstrap(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL || '');
+      storage = payload.storage;
+      bootstrap = payload.bootstrap;
+    } catch (error) {
+      logger.error?.(`[diza-object] bootstrap decrypt failed: ${error?.message || error}`);
+      return disabled('bootstrap-decrypt-failed', logger);
+    }
+  }
+
+  const persistence = new ObjectPersistence(storage, bootstrap, logger);
   try {
     await persistence.restore();
     return persistence;
@@ -332,4 +420,21 @@ export async function initializeObjectPersistence(logger = console) {
   }
 }
 
-export const __test = { safeRelativePath, targetFor, decryptBootstrap, missingObject };
+export async function recoverObjectPersistenceWithRawKey(rawKey, logger = console) {
+  const webPassword = process.env.DIZA_WEB_PASSWORD || '';
+  const payload = decryptBootstrapWithRawKey(rawKey);
+  const persistence = new ObjectPersistence(payload.storage, payload.bootstrap, logger);
+  await persistence.restore();
+  await persistence.persistPublicBootstrap(webPassword);
+  return persistence;
+}
+
+export const __test = {
+  safeRelativePath,
+  targetFor,
+  decryptBootstrap,
+  decryptBootstrapWithRawKey,
+  openPublicStorageConfig,
+  sealPublicStorageConfig,
+  missingObject,
+};
