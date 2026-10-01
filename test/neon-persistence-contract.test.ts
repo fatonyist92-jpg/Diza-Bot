@@ -64,9 +64,24 @@ test("excluded legacy rows are preserved rather than silently deleted", () => {
 
 test("HTTP SQL failure can fall back to the same database over direct Postgres", () => {
   assert.match(source, /createRequire/);
-  assert.match(source, /node_modules', 'pg'/);
+  assert.match(source, /require\('pg'\)/);
   assert.match(source, /new Pool\(/);
   assert.match(source, /direct Postgres also failed/);
+});
+
+test("fresh PostgreSQL databases create the two persistence tables before restore", () => {
+  const schemaAt = source.indexOf("await persistence.ensureSchema()");
+  const restoreAt = source.indexOf("await persistence.restore()");
+  assert.ok(schemaAt >= 0 && restoreAt > schemaAt);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS public\.diza_persist_files/);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS public\.diza_runtime_snapshots/);
+});
+
+test("non-Neon PostgreSQL uses the packaged direct driver", () => {
+  assert.match(source, /databaseUrl\.hostname\.endsWith\('\.neon\.tech'\)/);
+  assert.match(source, /if \(!neonHttpAvailable\) return directQuery\(query, params\)/);
+  assert.match(source, /max: 1/);
+  assert.match(source, /allowExitOnIdle: true/);
 });
 
 test("native provider cursors are retired after restore so transcript can replay", () => {
