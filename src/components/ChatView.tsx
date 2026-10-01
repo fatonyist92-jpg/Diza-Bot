@@ -926,7 +926,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
               ? ""
               : hits.length === 0
                 ? "Tidak ada hasil"
-                : `${Math.min(hitAt, hits.length - 1) + 1} dari ${hits.length}`
+                : `${Math.min(hitAt, hits.length - 1) + 1} dari ${hits.length}`}
           </span>
           <div className="flex shrink-0 items-center gap-0.5">
             <button
