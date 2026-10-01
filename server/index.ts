@@ -3079,7 +3079,11 @@ async function foldContext(botId: string, threadId: string, force = false): Prom
   const bot = store.bot(botId);
   const task = bot?.tasks.find((t) => t.id === threadId);
   if (!bot || !task) return false;
-  const instance = registry.get(bot.modelSelection.instanceId);
+  // Compact with the engine that actually owns this lane when possible.
+  // Native-session engines (notably Codex) must be able to summarise
+  // themselves without depending on a second provider being connected.
+  const instanceId = task.lastInstanceId ?? bot.modelSelection.instanceId;
+  const instance = registry.get(instanceId) ?? registry.get(bot.modelSelection.instanceId);
   if (!instance?.generateText) return false;
 
   const settled = store
@@ -3113,6 +3117,10 @@ async function foldContext(botId: string, threadId: string, force = false): Prom
     through: already + plan.fold.length,
     at: Date.now(),
   });
+  // The old native session still contains the oversized conversation.
+  // Drop only its provider cursor so the next turn starts a fresh session
+  // and replays this summary + the recent turns. Chat history stays intact.
+  store.resetTaskSession(threadId, instance.instanceId);
   // a normal state, said plainly, in the thread it happened in
   const notice = store.appendMessage(threadId, {
     role: "bot",
