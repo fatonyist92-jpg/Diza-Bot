@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeNeonPersistence } from './neon-persistence.mjs';
+import { initializeObjectPersistence } from './object-persistence.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const port = Number(process.env.PORT || 10000);
@@ -23,9 +24,13 @@ delete env.DIZA_WEB_PASSWORD;
 // On an ephemeral hosted runtime a configured database is authoritative:
 // if it cannot be restored, starting an empty core is destructive-looking
 // and may later overwrite good state. Fail closed instead.
-const persistence = await initializeNeonPersistence();
-const persistenceRequired = Boolean(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
-const persistenceHealthy = !persistenceRequired || (persistence.enabled && persistence.ready);
+let persistence = await initializeObjectPersistence();
+if (!persistence.enabled || !persistence.ready) {
+  const postgresPersistence = await initializeNeonPersistence();
+  if (postgresPersistence.enabled && postgresPersistence.ready) persistence = postgresPersistence;
+}
+const persistenceRequired = true;
+const persistenceHealthy = persistence.enabled && persistence.ready;
 const core = persistenceHealthy
   ? spawn(process.execPath, ['--experimental-strip-types', 'server/index.ts'], { cwd: root, env, stdio: 'inherit' })
   : null;
