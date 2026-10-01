@@ -2022,6 +2022,7 @@ async function startTurn(
     // owner has let this agent's memory into the room: other people are
     // reading the replies.
     (!sharing || sharing.memoryFor?.includes(bot.id)) && workspace.memoryPrompt(bot.id),
+    !sharing && runsAProcess(instance.driverKind) && workspace.writableWorkspacePrompt(bot.id),
     DIZA_IMAGINE_ACTIVE && !blok && imagineContext(imagine.assetsForTask(task.id)),
     DIZA_IMAGINE_ACTIVE && !blok &&
       (runsAProcess(instance.driverKind)
