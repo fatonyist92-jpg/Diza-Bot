@@ -528,15 +528,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           break;
         // credentials changed and the engines were rebuilt, so the
         // picker needs to hear that something became usable
-        case "config":
+        case "config": {
+          const { kind: _kind, _seq: _sequence, ...config } = frame;
           rawDispatch({
             type: "configStatus",
-            config: { xai: frame.xai, composio: frame.composio, box: frame.box, profile: frame.profile },
+            config: { ...(stateRef.current.config ?? {}), ...config },
           });
           api("/api/instances")
             .then(({ instances }) => rawDispatch({ type: "instances", instances }))
             .catch(() => {});
+          api("/api/providers")
+            .then(({ providers }) => rawDispatch({ type: "providers", providers }))
+            .catch(() => {});
           break;
+        }
       }
     };
     connect();
