@@ -9,10 +9,11 @@ import MessageCircle from "lucide-react/dist/esm/icons/message-circle.mjs";
 import { AgentAvatar } from "./Avatar";
 import { useStore, formatWhen, type Bot, type TaskSummary } from "@/state/store";
 import { previewLine } from "@/lib/preview";
+import { simpleIndonesianText } from "@/lib/uiLanguage";
 
 type ChatRow = { bot: Bot; task: TaskSummary | null; updatedAt: number; preview: string };
 
-export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots }: { onOpenChat: () => void; onOpenRooms: () => void; onOpenBots: () => void }) {
+export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots, onOpenProfile }: { onOpenChat: () => void; onOpenRooms: () => void; onOpenBots: () => void; onOpenProfile: () => void }) {
   const { state, dispatch } = useStore();
   const [query, setQuery] = useState("");
 
@@ -22,7 +23,7 @@ export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots }: { onOpen
       const tasks = (bot.tasks ?? []).filter((task) => !task.archivedAt);
       if (!tasks.length) {
         const last = bot.messages.at(-1);
-        return [{ bot, task: null, updatedAt: last?.at ?? 0, preview: previewLine(last) }];
+        return [{ bot, task: null, updatedAt: last?.at ?? 0, preview: simpleIndonesianText(previewLine(last)) }];
       }
       return tasks.map((task) => {
         const active = task.id === bot.activeTaskId || task.id === bot.threadId;
@@ -31,7 +32,7 @@ export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots }: { onOpen
           bot,
           task,
           updatedAt: task.updatedAt ?? task.createdAt,
-          preview: active && last ? previewLine(last) : bot.title || "Percakapan DIZA",
+          preview: active && last ? simpleIndonesianText(previewLine(last)) : simpleIndonesianText(bot.title) || "Percakapan DIZA",
         };
       });
     })
@@ -59,7 +60,7 @@ export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots }: { onOpen
           <div>
             <div className="text-[23px] font-semibold tracking-[-0.04em]">DIZA</div>
             <div className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Personal AI
+              AI PRIBADI
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -91,9 +92,9 @@ export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots }: { onOpen
       </header>
 
       <nav className="grid grid-cols-3 gap-2 border-b border-border/55 px-4 py-3">
-        <button onClick={onOpenRooms} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><DoorOpen size={15} /> Rooms</button>
-        <button onClick={onOpenBots} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><BotIcon size={15} /> Bots</button>
-        <button onClick={() => dispatch({ type: "toggleAppSettings" })} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><UserRound size={15} /> Account</button>
+        <button onClick={onOpenRooms} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><DoorOpen size={15} /> Ruang</button>
+        <button onClick={onOpenBots} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><BotIcon size={15} /> Bot</button>
+        <button onClick={onOpenProfile} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><UserRound size={15} /> Akun</button>
       </nav>
 
       <section className="min-h-0 flex-1 overflow-y-auto animate-fade-in">
@@ -118,7 +119,7 @@ export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots }: { onOpen
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
-                    {row.task ? `${row.task.title} · ${row.preview}` : row.preview}
+                    {row.task ? `${simpleIndonesianText(row.task.title)} · ${row.preview}` : row.preview}
                   </span>
                   {row.bot.unread && <span className="size-2.5 shrink-0 rounded-full bg-foreground" />}
                 </div>
