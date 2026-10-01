@@ -10,7 +10,7 @@
 //
 // Permissions are tight (0700 dir, 0600 files): memories carry
 // personal detail and have no business being world-readable.
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 
@@ -39,6 +39,17 @@ const TOPIC_NAME = /^[\w][\w .-]{0,120}\.md$/;
 
 export function workspaceDir(botId: string): string {
   return join(WORKSPACES, botId);
+}
+
+export function removeWorkspace(botId: string): void {
+  // botId is an app-owned id and workspaceDir is the single path builder.
+  // Permanent agent deletion removes only that agent's private home; shared
+  // Main Source lives elsewhere and is never touched here.
+  try {
+    rmSync(workspaceDir(botId), { recursive: true, force: true });
+  } catch {
+    // Deleting an already-missing workspace is still a successful delete.
+  }
 }
 
 export function ensureWorkspace(botId: string): string {
