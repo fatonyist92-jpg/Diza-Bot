@@ -1,10 +1,11 @@
 // Hosting adapter only. The DIZA core keeps its original loopback boundary.
 import { createServer, request } from 'node:http';
 import { spawn } from 'node:child_process';
+import { generateKeyPairSync, privateDecrypt } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeNeonPersistence } from './neon-persistence.mjs';
-import { initializeObjectPersistence } from './object-persistence.mjs';
+import { initializeObjectPersistence, recoverObjectPersistenceWithRawKey } from './object-persistence.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const port = Number(process.env.PORT || 10000);
@@ -31,12 +32,37 @@ if (!persistence.enabled || !persistence.ready) {
 }
 const persistenceRequired = true;
 const persistenceHealthy = persistence.enabled && persistence.ready;
-const core = persistenceHealthy
-  ? spawn(process.execPath, ['--experimental-strip-types', 'server/index.ts'], { cwd: root, env, stdio: 'inherit' })
-  : null;
-if (core) persistence.start();
-else console.error(`[diza-web] core held offline: persistence ${persistence.reason || 'not ready'}`);
+let core = null;
+let recoveryKeys = null;
+let recoveryInFlight = false;
 let closing = false;
+
+function wireCore(child) {
+  child.on('error', () => void stop(1));
+  child.on('exit', (code) => void stop(code || 0));
+}
+
+function startCore() {
+  if (core) return core;
+  core = spawn(process.execPath, ['--experimental-strip-types', 'server/index.ts'], { cwd: root, env, stdio: 'inherit' });
+  wireCore(core);
+  persistence.start();
+  recoveryKeys = null;
+  console.log('[diza-web] DIZA core started with durable persistence');
+  return core;
+}
+
+if (persistenceHealthy) {
+  startCore();
+} else {
+  recoveryKeys = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  console.error(`[diza-web] core held offline: persistence ${persistence.reason || 'not ready'}`);
+  console.warn('[diza-web] one-time encrypted recovery bridge enabled while core is offline');
+}
 
 const gateway = createServer((req, res) => {
   const url = new URL(req.url || '/', origin);
@@ -56,6 +82,46 @@ const gateway = createServer((req, res) => {
   const topLevelGetNavigation =
     req.method === 'GET' &&
     req.headers['sec-fetch-mode'] === 'navigate';
+
+  // One-time recovery bridge. It exists only while the core is held
+  // offline. The public half is safe to expose; the private key never
+  // leaves this process. The recovery payload is only a 32-byte bootstrap
+  // key wrapped with RSA-OAEP, so no storage/database credential appears
+  // in a URL, response or repository.
+  if (!core && recoveryKeys && req.method === 'GET' && url.pathname === '/__diza/recovery-key') {
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    return res.end(JSON.stringify({ publicKey: recoveryKeys.publicKey, algorithm: 'RSA-OAEP-SHA256' }));
+  }
+
+  if (!core && recoveryKeys && req.method === 'GET' && url.pathname === '/__diza/recover') {
+    const wrapped = url.searchParams.get('key') || '';
+    if (!wrapped || wrapped.length > 1024 || recoveryInFlight) {
+      res.writeHead(recoveryInFlight ? 409 : 400, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      return res.end(JSON.stringify({ error: recoveryInFlight ? 'recovery already running' : 'invalid recovery envelope' }));
+    }
+    recoveryInFlight = true;
+    void (async () => {
+      try {
+        const rawKey = privateDecrypt(
+          { key: recoveryKeys.privateKey, oaepHash: 'sha256' },
+          Buffer.from(wrapped, 'base64url'),
+        );
+        if (rawKey.length !== 32) throw new Error('invalid recovery key length');
+        const recovered = await recoverObjectPersistenceWithRawKey(rawKey);
+        await persistence.close().catch(() => {});
+        persistence = recovered;
+        startCore();
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ ok: true, persistence: 'object-storage', core: 'started' }));
+      } catch (error) {
+        recoveryInFlight = false;
+        console.error(`[diza-web] encrypted recovery failed: ${error?.message || error}`);
+        res.writeHead(400, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ error: 'encrypted recovery failed' }));
+      }
+    })();
+    return;
+  }
 
   if (health && !core) {
     res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -135,6 +201,4 @@ async function stop(code = 0) {
     process.exit(code);
   }
 }
-core?.on('error', () => void stop(1));
-core?.on('exit', (code) => void stop(code || 0));
 for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => void stop());
