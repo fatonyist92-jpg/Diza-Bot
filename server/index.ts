@@ -6705,6 +6705,26 @@ const server = createServer(async (req, res) => {
           behavior: body.behavior,
           message: body.message,
         });
+        // The provider may emit request.resolved synchronously and remove
+        // its in-memory request mapping before this route resumes. Find the
+        // persisted card by requestId so a user-closing action remains
+        // closed after the server's patch arrives.
+        if (body.dismissed === true) {
+          const message = store.messagesFor(askThread).find((item) => item.card?.requestId === requestId);
+          if (message?.card) {
+            const patched = store.patchMessage(askThread, message.id, {
+              card: {
+                ...message.card,
+                answered:
+                  message.card.requestType === "question" && typeof body.message === "string"
+                    ? body.message
+                    : (message.card.answered ?? String(body.behavior || "dismissed")),
+                dismissed: true,
+              },
+            });
+            if (patched) broadcast({ kind: "message.patch", threadId: askThread, message: patched });
+          }
+        }
         return json(res, 200, { ok: true, outcome: "delivered" });
       } catch {
         // The ask is gone: the turn ended, or the engine died. Failing
