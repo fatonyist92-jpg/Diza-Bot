@@ -63,3 +63,50 @@ test("OpenAI-compatible provider receives app-owned image bytes as multimodal co
     await once(fake.server, "close").catch(() => {});
   }
 });
+
+
+test("OpenRouter caps output reservation so small chats do not reserve the model maximum", async () => {
+  const fake = await fakeProvider();
+  const spec: ProviderSpec = {
+    kind: "openrouter",
+    name: "OpenRouter",
+    url: fake.url,
+    auth: "none",
+    keyHint: "none",
+    docsUrl: "https://example.com",
+    tools: true,
+    models: { default: "test-model", options: [{ id: "test-model", label: "Test" }] },
+  };
+  const instance = await openAiCompatDriver(spec).create({
+    instanceId: "openrouter",
+    displayName: "OpenRouter",
+    environment: {},
+    enabled: true,
+    config: { url: fake.url, apiKeyEnv: "NONE" },
+  });
+  try {
+    const completed = new Promise<void>((resolve, reject) => {
+      const off = instance.adapter.onEvent((event) => {
+        if (event.type === "runtime.error") {
+          off();
+          reject(new Error(event.message));
+        }
+        if (event.type === "turn.completed") {
+          off();
+          event.ok ? resolve() : reject(new Error(event.stopReason ?? "failed"));
+        }
+      });
+    });
+    await instance.adapter.sendTurn({
+      threadId: "openrouter-cap-thread",
+      model: "test-model",
+      text: "Tes",
+    });
+    await completed;
+    assert.equal(fake.seen().max_tokens, 4096);
+  } finally {
+    await instance.dispose();
+    fake.server.close();
+    await once(fake.server, "close").catch(() => {});
+  }
+});
