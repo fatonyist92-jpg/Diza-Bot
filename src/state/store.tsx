@@ -575,7 +575,7 @@ export function formatWhen(at: number) {
   const now = new Date();
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   if (at >= midnight) return formatTime(at);
-  if (at >= midnight - 86_400_000) return "Yesterday";
+  if (at >= midnight - 86_400_000) return "Kemarin";
   if (at >= midnight - 6 * 86_400_000) return then.toLocaleDateString([], { weekday: "short" });
   return then.toLocaleDateString([], { month: "short", day: "numeric" });
 }
