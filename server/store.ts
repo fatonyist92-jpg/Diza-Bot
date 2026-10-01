@@ -617,18 +617,6 @@ export class Store {
     this.saveBots();
   }
 
-  /** Drop one provider session without touching the lane's transcript.
-   * Used after compaction so a full native session is replaced by a fresh
-   * one that receives the summary + recent turns. */
-  resetTaskSession(threadId: string, instanceId: string) {
-    const found = this.taskByThread(threadId);
-    if (!found) return;
-    delete found.task.resumeCursors[instanceId];
-    if (found.task.lastInstanceId === instanceId) delete found.task.lastInstanceId;
-    found.task.lastInput = 0;
-    this.saveBots();
-  }
-
   taskByThread(threadId: string): { bot: BotRecord; task: TaskRecord } | null {
     for (const bot of this.bots) {
       const task = bot.tasks.find((t) => t.id === threadId);
