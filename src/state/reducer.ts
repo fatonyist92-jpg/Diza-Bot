@@ -200,6 +200,8 @@ export interface Bot {
 /** What the server admits about stored credentials: whether each one
  * exists, and never the value. */
 export interface ConfigStatus {
+  /** One primary engine/model for the whole workspace. */
+  engine?: ModelSelection;
   xai?: { configured: boolean   /** Whether this workspace has been through the welcome. */
   setupDone?: boolean;
 };
