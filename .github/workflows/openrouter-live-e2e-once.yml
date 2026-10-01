@@ -33,7 +33,7 @@ jobs:
           try {
             const config = await j("/api/config");
             if (config?.engine?.instanceId !== "openrouter") throw new Error("global engine is not OpenRouter");
-            if (config?.engine?.model !== "qwen/qwen3.8-27b:free") throw new Error("global model is not the free Qwen model");
+            if (config?.engine?.model !== "openrouter/free") throw new Error("global model is not OpenRouter free router");
 
             const made = await j("/api/bots", {
               method: "POST",
@@ -46,8 +46,8 @@ jobs:
             });
             botId = made?.bot?.id ?? "";
             if (!botId) throw new Error("temporary bot was not created");
-            if (made?.bot?.modelSelection?.instanceId !== "openrouter") {
-              throw new Error("temporary bot did not inherit global OpenRouter engine");
+            if (made?.bot?.modelSelection?.instanceId !== "openrouter" || made?.bot?.modelSelection?.model !== "openrouter/free") {
+              throw new Error("temporary bot did not inherit global OpenRouter free router");
             }
 
             const before = new Set((made.bot.messages ?? []).map((m) => m.id));
@@ -57,7 +57,7 @@ jobs:
               body: JSON.stringify({ text: "Reply with exactly DIZA_OPENROUTER_LIVE_OK and nothing else. Do not call tools." }),
             });
 
-            const deadline = Date.now() + 180000;
+            const deadline = Date.now() + 120000;
             let reply = null;
             while (Date.now() < deadline) {
               await new Promise((r) => setTimeout(r, 2500));
@@ -70,6 +70,10 @@ jobs:
                 String(m.text ?? "").includes("DIZA_OPENROUTER_LIVE_OK")
               );
               if (reply) break;
+              const failure = (bot?.messages ?? []).find((m) =>
+                !before.has(m.id) && m.role === "bot" && m.kind === "notice"
+              );
+              if (failure) throw new Error("live inference failed: " + String(failure.text ?? "").slice(0,500));
             }
             if (!reply) throw new Error("OpenRouter live reply did not arrive before timeout");
             console.log("DIZA_OPENROUTER_LIVE_E2E_PASS=1");
