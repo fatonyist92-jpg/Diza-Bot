@@ -5692,10 +5692,42 @@ const server = createServer(async (req, res) => {
       }
       const text = clamp(body.text, MAX_MESSAGE_CHARS);
       if (!text) return json(res, 400, { error: "text required" });
-      const result = await sendUserMessage(m[1], text, {
+      const turn = () => sendUserMessage(m![1], text, {
         replyTo: replyRef(body.replyTo),
         intelligenceMode: parseMode(body.mode),
       });
+      // Vercel cannot guarantee that a separate EventSource request lands
+      // in the same warm function instance as the turn. When the browser
+      // asks for a streamed response, mirror the existing event frames on
+      // this very request. The desktop/long-running SSE path is unchanged.
+      if (process.env.DIZA_SERVERLESS === "1" && String(req.headers.accept || "").includes("text/event-stream")) {
+        res.writeHead(200, {
+          "content-type": "text/event-stream; charset=utf-8",
+          "cache-control": "no-cache, no-transform",
+          connection: "keep-alive",
+          "x-accel-buffering": "no",
+        });
+        res.write(": connected\n\n");
+        sseClients.add(res);
+        const keepalive = setInterval(() => {
+          try { res.write(": keepalive\n\n"); } catch {}
+        }, 15_000);
+        try {
+          const result = await turn();
+          res.write(`data: ${JSON.stringify({ kind: "request.accepted", result })}\n\n`);
+        } catch (error) {
+          res.write(`data: ${JSON.stringify({
+            kind: "request.error",
+            error: redactSecrets(error instanceof Error ? error.message : String(error)),
+          })}\n\n`);
+        } finally {
+          clearInterval(keepalive);
+          sseClients.delete(res);
+          res.end();
+        }
+        return;
+      }
+      const result = await turn();
       return json(res, 202, result);
     }
     // ── DIZA Imagine: provider-independent media jobs/assets ──
