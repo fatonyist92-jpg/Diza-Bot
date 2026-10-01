@@ -37,6 +37,7 @@ import {
 import { ModelPicker } from "./ModelPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { simpleIndonesianText } from "@/lib/uiLanguage";
 
 // Minimal markdown for bot bubbles: **bold**, `code`, headings, lists.
 // Rendered as React nodes, model output never reaches the DOM as HTML.
@@ -281,7 +282,7 @@ function TakenBack({ user }: { user: boolean }) {
   return (
     <div className={cn("flex w-full", user ? "justify-end" : "justify-start")}>
       <div className="rounded-2xl border border-dashed px-3 py-1.5 text-[13px] italic text-muted-foreground">
-        Message taken back
+        Pesan ditarik kembali
       </div>
     </div>
   );
@@ -421,7 +422,7 @@ function Bubble({
                   }}
                   className="font-medium underline underline-offset-2"
                 >
-                  Save
+                  Simpan
                 </button>
                 <button onClick={() => setEditing(null)}>Batal</button>
                 <span className="opacity-70">Enter menyimpan, Escape membatalkan</span>
@@ -430,7 +431,7 @@ function Bubble({
           ) : user ? (
             <UserText text={message.text ?? ""} highlight={highlight} />
           ) : (
-            <Markdownish text={message.text ?? ""} highlight={highlight} />
+            <Markdownish text={simpleIndonesianText(message.text ?? "")} highlight={highlight} />
           )}
           {message.editedAt && editing === null && (
             <span className="ml-1.5 align-baseline text-[10.5px] opacity-60">diedit</span>
@@ -438,7 +439,7 @@ function Bubble({
           {user && message.queued && (
             <div className="mt-1 flex items-center gap-1 text-[10.5px] font-medium opacity-70">
               <span className="inline-block size-1.5 animate-pulse rounded-full bg-current" />
-              Queued, sends when this turn finishes
+              Masuk antrean, dikirim setelah proses ini selesai
             </div>
           )}
         </div>
@@ -448,7 +449,7 @@ function Bubble({
         <Reactions
           reactions={message.reactions}
           onToggle={(emoji: string) => onReact?.(message.id, emoji)}
-          nameOf={nameOf ?? ((id) => (id === "user" ? "You" : author))}
+          nameOf={nameOf ?? ((id) => (id === "user" ? "Anda" : author))}
         />
       </div>
       {!user && (
@@ -880,20 +881,22 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
                 if (previous?.id && previous.text) branchAndSend(previous.id, previous.text, "retry");
               }}
             >
-              Try again
+              Coba lagi
             </button>
           </div>
         </div>
       )}
 
       {/* Messages */}
-      <TaskStrip
-        tasks={(bot.tasks ?? []).filter((task) => !task.archivedAt)}
-        activeId={bot.activeTaskId ?? bot.threadId}
-        onSelect={(taskId) => taskId !== bot.activeTaskId && dispatch({ type: "selectTask", botId: bot.id, taskId })}
-        onNew={() => dispatch({ type: "newTask", botId: bot.id })}
-        onClose={archiveConversationFromStrip}
-      />
+      <div className="hidden md:block">
+        <TaskStrip
+          tasks={(bot.tasks ?? []).filter((task) => !task.archivedAt)}
+          activeId={bot.activeTaskId ?? bot.threadId}
+          onSelect={(taskId) => taskId !== bot.activeTaskId && dispatch({ type: "selectTask", botId: bot.id, taskId })}
+          onNew={() => dispatch({ type: "newTask", botId: bot.id })}
+          onClose={archiveConversationFromStrip}
+        />
+      </div>
       {finding && (
         <div className="flex shrink-0 items-center gap-2 border-b bg-background/95 px-4 py-2 md:px-6">
           <Search size={14} className="shrink-0 text-muted-foreground" />
@@ -923,7 +926,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
               ? ""
               : hits.length === 0
                 ? "Tidak ada hasil"
-                : `${Math.min(hitAt, hits.length - 1) + 1} of ${hits.length}`}
+                : `${Math.min(hitAt, hits.length - 1) + 1} dari ${hits.length}`
           </span>
           <div className="flex shrink-0 items-center gap-0.5">
             <button
@@ -966,12 +969,12 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
               onClick={showEarlier}
               className="mx-auto mt-3 rounded-full border px-3.5 py-1.5 text-[12px] text-muted-foreground transition-colors duration-150 hover:border-foreground/25 hover:text-foreground"
             >
-              Show earlier messages ({start} more)
+              Tampilkan pesan sebelumnya ({start} lagi)
             </button>
           ) : (
             first && (
               <div className="py-3 text-center text-[12px] text-muted-foreground">
-                Today {formatTime(first.at)}
+                Hari ini {formatTime(first.at)}
               </div>
             )
           )}
@@ -1016,7 +1019,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
                   <Bubble
                     message={m}
                     fresh={fresh}
-                    author={m.role === "user" ? "You" : bot.name}
+                    author={m.role === "user" ? "Anda" : bot.name}
                     onReply={setReplyTo}
                     onForward={(message, author) => setForwarding({ message, author })}
                     onReact={(messageId, emoji) => reactTo(bot.threadId, messageId, emoji)}
@@ -1029,7 +1032,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
                     } : undefined}
                     highlight={finding ? query : ""}
                     isHit={absolute === currentHit}
-                    nameOf={(id) => (id === "user" ? "You" : (state.bots.find((b) => b.id === id)?.name ?? bot.name))}
+                    nameOf={(id) => (id === "user" ? "Anda" : (state.bots.find((b) => b.id === id)?.name ?? bot.name))}
                   />
                   </div>
                 );
@@ -1039,7 +1042,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             <div className="flex justify-start">
               <div className="flex items-center gap-2 px-1.5 py-0.5 text-[12px] text-muted-foreground">
                 <Loader2 size={12} className="animate-spin" />
-                Setting up this agent's computer…
+                Menyiapkan komputer agen…
               </div>
             </div>
           )}
