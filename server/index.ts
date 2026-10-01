@@ -14,6 +14,7 @@ import * as attachments from "./attachments.ts";
 import * as box from "./box.ts";
 import * as diagnostics from "./diagnostics.ts";
 import { FailureWindow, reliabilitySnapshot } from "./reliability.ts";
+import { CAPACITY_COOLDOWN_MS, fallbackOrder, isProviderCapacityError, usableSnapshot } from "./provider-fallback.ts";
 import * as scout from "./scout.ts";
 import {
   ArtifactCommentStore,
@@ -1590,6 +1591,36 @@ function carryOnAfterSleep(botId: string, laneId: string, slept: { roomId?: stri
  * total for the turn, so this holds a high-water mark, popped when the
  * turn settles and folded into the lane's lifetime tally. */
 const turnTokens = new Map<string, { input: number; output: number }>();
+
+/** Engines that recently returned quota/rate capacity errors. This is
+ * process-local on purpose: after a restart we probe again rather than
+ * carrying stale provider health forever. */
+const providerCapacityCooldowns = new Map<string, number>();
+
+function providerCoolingDown(instanceId: string, now = Date.now()): boolean {
+  const until = providerCapacityCooldowns.get(instanceId) ?? 0;
+  if (until <= now) {
+    providerCapacityCooldowns.delete(instanceId);
+    return false;
+  }
+  return true;
+}
+
+interface CapacityRetryTurn {
+  botId: string;
+  text: string;
+  taskId: string;
+  replyTo?: ReplyRef;
+  intelligenceMode: IntelligenceMode;
+  failedInstanceId: string;
+  fallbackDepth: number;
+  error?: string;
+  hadEffects: boolean;
+}
+
+/** Only interactive solo turns are auto-replayed after a pure capacity
+ * rejection. Tool activity or assistant output makes replay unsafe. */
+const capacityRetryTurns = new Map<string, CapacityRetryTurn>();
 /** What the deliverables dir looked like when each lane's turn began. */
 const artifactBaseline = new Map<string, Map<string, string>>();
 
@@ -1787,6 +1818,10 @@ async function startTurn(
     requester?: string;
     /** Diza intelligence mode for this user turn. Background work leaves it unset. */
     intelligenceMode?: IntelligenceMode;
+    /** Internal only: engines already known not to serve this turn. */
+    avoidInstanceIds?: string[];
+    /** Internal only: capacity fallback is tried once, never chained forever. */
+    capacityFallbackDepth?: number;
   } = {},
 ) {
   const bot = store.bot(botId);
