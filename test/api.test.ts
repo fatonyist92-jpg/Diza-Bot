@@ -454,30 +454,20 @@ describe("agents", () => {
     assert.ok(bots[0].messages.length > 0, "it should say hello");
   });
 
-  test("an agent with no engine fails visibly instead of hanging", async () => {
+  test("an agent with no engine fails visibly before starting", async () => {
     // Nothing is connected and PATH is empty, which is exactly where a
-    // first-time user starts. The turn is accepted and then fails, so
-    // what matters is that the failure reaches the transcript and the
-    // agent does not sit spinning forever.
+    // first-time user starts. The router now refuses the turn up front
+    // instead of accepting work it already knows cannot be dispatched.
     const { bots } = await h.json("/api/bots");
     const res = await h.fetch(`/api/bots/${bots[0].id}/messages`, {
       method: "POST",
       body: JSON.stringify({ text: "hello" }),
     });
-    assert.equal(res.status, 202);
-
-    const failed = await waitFor(async () => {
-      const { bots: after } = await h.json("/api/bots");
-      const bot = after.find((b: any) => b.id === bots[0].id);
-      if (bot.busy) return null;
-      return bot.messages.find((m: any) => m.kind === "notice") ?? null;
-    });
-    assert.ok(failed, "the turn neither reported a problem nor stopped being busy");
-
-    // and the notice has to be readable, not an errno
-    assert.ok(/not installed/i.test(failed.text), failed.text);
-    assert.ok(/npm i -g/.test(failed.text), "it should say how to fix it");
-    assert.ok(!/ENOENT|spawn /.test(failed.text), `errno leaked: ${failed.text}`);
+    assert.equal(res.status, 409);
+    const body = await res.json() as any;
+    assert.match(String(body.error ?? ""), /available AI engine/i);
+    assert.match(String(body.error ?? ""), /reconnect/i);
+    assert.doesNotMatch(String(body.error ?? ""), /ENOENT|spawn /i);
   });
 
   test("routes for an agent that does not exist say so", async () => {
