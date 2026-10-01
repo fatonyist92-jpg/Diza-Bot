@@ -100,11 +100,37 @@ export function chooseModels(
   const pool = spec.freeSlots ? usable.filter((id) => !/:free$/i.test(id)) : usable;
 
   const ranked = spec.prefer?.length
-    ? pool
-        .map((id) => ({ id, rank: spec.prefer!.findIndex((re) => re.test(id)) }))
-        .filter((e) => e.rank !== -1)
-        .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
-        .map((e) => e.id)
+    ? spec.kind === "openrouter"
+      ? (() => {
+          // OpenRouter can return dozens of models from one preferred family
+          // (especially Google). Fill the picker in rounds so one family
+          // cannot crowd Claude/Grok/OpenAI/Kimi/Llama/DeepSeek/Qwen/Mistral
+          // out of a global engine selector.
+          const buckets = spec.prefer.map((re) =>
+            pool.filter((id) => re.test(id)).sort((a, b) => a.localeCompare(b)),
+          );
+          const out: string[] = [];
+          const seen = new Set<string>();
+          while (out.length < (spec.limit ?? 20)) {
+            let added = false;
+            for (const bucket of buckets) {
+              while (bucket.length && seen.has(bucket[0]!)) bucket.shift();
+              const next = bucket.shift();
+              if (!next) continue;
+              seen.add(next);
+              out.push(next);
+              added = true;
+              if (out.length >= (spec.limit ?? 20)) break;
+            }
+            if (!added) break;
+          }
+          return out;
+        })()
+      : pool
+          .map((id) => ({ id, rank: spec.prefer!.findIndex((re) => re.test(id)) }))
+          .filter((e) => e.rank !== -1)
+          .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
+          .map((e) => e.id)
     : [...pool].sort();
   const shortlist = (ranked.length ? ranked : [...pool].sort()).slice(0, spec.limit ?? 20);
 
