@@ -536,6 +536,119 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       return { turnId };
     };
 
+    const generateText = async (prompt: string): Promise<string> => {
+      const env: Record<string, string | undefined> = {
+        ...process.env,
+        NPM_CONFIG_LOGLEVEL: "error",
+      };
+      // Keep one-shot compaction on the user's existing Codex login.
+      delete env.OPENAI_API_KEY;
+
+      return new Promise<string>((resolve, reject) => {
+        const child = spawn(config.cli, ["app-server"], {
+          cwd: homedir(),
+          env,
+          stdio: ["pipe", "pipe", "pipe"],
+          detached: true,
+        });
+        let settled = false;
+        let finalText = "";
+        let streamed = "";
+        let rpc: ReturnType<typeof attachRpc>;
+
+        const kill = () => {
+          try {
+            process.kill(-child.pid!, "SIGTERM");
+          } catch {
+            try { child.kill("SIGTERM"); } catch {}
+          }
+        };
+        const finish = (error?: Error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          rpc?.failPending(error ?? new Error("one-shot complete"));
+          kill();
+          if (error) reject(error);
+          else {
+            const text = (finalText || streamed).trim();
+            text ? resolve(text) : reject(new Error("Codex returned no text"));
+          }
+        };
+
+        const timer = setTimeout(() => finish(new Error("Codex one-shot compaction timed out")), 180_000);
+        timer.unref?.();
+
+        rpc = attachRpc({
+          stdin: child.stdin,
+          stdout: child.stdout,
+          onRequest: (msg) => {
+            // Compaction is text-only. Never let an internal summary call
+            // stop for permissions or act on the workspace.
+            rpc.replyError(msg.id, -32601, "tools are disabled for compaction");
+          },
+          onNotify: (msg) => {
+            const method = String(msg.method ?? "");
+            const params = msg.params ?? {};
+            if (method === "item/agentMessage/delta") {
+              const delta = typeof params.delta === "string" ? params.delta : "";
+              streamed += delta;
+              return;
+            }
+            if (method === "item/completed") {
+              const item = params.item ?? {};
+              if (item.type === "agentMessage" && typeof item.text === "string" && item.text.trim()) {
+                finalText = item.text;
+              }
+              return;
+            }
+            if (method === "turn/completed") {
+              const status = params.turn?.status;
+              if (status === "completed") finish();
+              else finish(new Error(params.turn?.error?.message ?? status ?? "Codex compaction failed"));
+              return;
+            }
+            if (method === "error" && params.message) {
+              finish(new Error(String(params.message)));
+            }
+          },
+        });
+
+        let stderr = "";
+        child.stderr.on("data", (chunk) => {
+          stderr += String(chunk);
+          if (stderr.length > 4096) stderr = stderr.slice(-4096);
+        });
+        child.on("error", (error) => finish(error));
+        child.on("close", (code) => {
+          if (settled) return;
+          finish(new Error(describeEarlyExit(code, stderr, { name: "Codex", signIn: "run `codex login`" })));
+        });
+
+        void (async () => {
+          try {
+            await rpc.request("initialize", { clientInfo: { name: "bloks-compaction", version: "1" } });
+            rpc.notify("initialized", {});
+            const started = await rpc.request("thread/start", {
+              cwd: homedir(),
+              model: MODELS.default,
+              sandbox: "workspace-write",
+              approvalPolicy: "never",
+              ephemeral: true,
+            });
+            const threadId = started?.thread?.id;
+            if (!threadId) throw new Error("Codex did not return a compaction thread");
+            await rpc.request("turn/start", {
+              threadId,
+              input: [{ type: "text", text: prompt }],
+            });
+          } catch (error) {
+            finish(error as Error);
+          }
+        })();
+      });
+    };
+
     const snapshot = async (): Promise<ProviderSnapshot> => {
       const version = await new Promise<string | null>((resolve) => {
         execFile(config.cli, ["--version"], { timeout: 8_000 }, (error, stdout) =>
@@ -556,6 +669,8 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       enabled: input.enabled,
       models: MODELS,
       snapshot,
+
+      generateText,
 
       adapter: {
         provider: DRIVER_KIND,
