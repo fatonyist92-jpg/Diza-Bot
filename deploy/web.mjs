@@ -97,6 +97,7 @@ function startCore() {
   persistence.start();
   recoveryKeys = null;
   console.log('[diza-web] DIZA core started with durable persistence');
+  console.log(`[diza-web] workspace persistence summary ${JSON.stringify(workspacePersistenceSummary())}`);
   return core;
 }
 
