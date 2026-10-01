@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { InstanceConfigMap } from "./contracts.ts";
+import type { InstanceConfigMap, ModelSelection } from "./contracts.ts";
 import { CUSTOM_SPEC, PROVIDER_SPECS, specFor } from "./providers.ts";
 
 /** One connected engine: the credential, plus an override for people
@@ -44,6 +44,9 @@ export interface CustomEndpoint {
 }
 
 export interface AppConfig {
+  /** One workspace-wide engine/model selection. Every agent follows this
+   * primary; provider fallback may temporarily serve a turn elsewhere. */
+  engine?: ModelSelection;
   /** Model providers, keyed by the catalog's driver kind. */
   providers?: Record<string, ProviderConfig>;
   /** Pre-catalog xAI slot. Still read, still written through to
@@ -249,6 +252,7 @@ export function saveConfig(patch: Partial<AppConfig>): void {
     "skills",
     "telegram",
     "chat",
+    "engine",
   ] as const) {
     if (patch[key] && typeof patch[key] === "object") {
       disk[key] = { ...(disk[key] as object), ...patch[key] };
