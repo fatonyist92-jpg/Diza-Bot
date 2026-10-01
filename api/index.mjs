@@ -35,6 +35,14 @@ async function boot() {
   process.env.DIZA_DATA_DIR = dataDir;
   process.env.DIZA_PERSIST_GROK_HOME ||= `${dataDir}/provider-auth/grok`;
   process.env.DIZA_PERSIST_CODEX_HOME ||= `${dataDir}/provider-auth/codex`;
+  const detectedPublicOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : undefined;
+  if (!process.env.DIZA_PUBLIC_ORIGIN && detectedPublicOrigin) {
+    process.env.DIZA_PUBLIC_ORIGIN = detectedPublicOrigin;
+  }
   persistence = await initializeNeonPersistence();
   if (!persistence.enabled || !persistence.ready) {
     throw new Error(`DIZA persistence unavailable: ${persistence.reason || 'not ready'}`);
@@ -131,7 +139,8 @@ export default async function handler(req, res) {
     await ensureBooted();
     const path = upstreamPath(req);
     await proxy(req, res, path);
-    if (req.method && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    const oauthCallback = /^\/api\/oauth\/[\w-]+\/callback(?:\?|$)/.test(path);
+    if (oauthCallback || (req.method && !['GET', 'HEAD', 'OPTIONS'].includes(req.method))) {
       await persistence.sync(`vercel-${req.method.toLowerCase()}`);
     }
     res.end();
