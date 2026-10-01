@@ -32,7 +32,6 @@ import {
   ReplyContext,
   type ReplyDraft,
 } from "./MessageActions";
-import { ModelPicker } from "./ModelPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { simpleIndonesianText } from "@/lib/uiLanguage";
@@ -890,7 +889,6 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
               Stop
             </Button>
           )}
-          <ModelPicker bot={bot} />
           <CallButton bot={bot} />
           <Button
             variant="ghost"
