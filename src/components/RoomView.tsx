@@ -3,6 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.mjs";
 import ArrowUp from "lucide-react/dist/esm/icons/arrow-up.mjs";
+import Plus from "lucide-react/dist/esm/icons/plus.mjs";
+import FileIcon from "lucide-react/dist/esm/icons/file.mjs";
+import X from "lucide-react/dist/esm/icons/x.mjs";
 import BookmarkPlus from "lucide-react/dist/esm/icons/bookmark-plus.mjs";
 import FolderOpen from "lucide-react/dist/esm/icons/folder-open.mjs";
 import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock.mjs";
@@ -46,6 +49,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { replyCounts, replyLabel } from "@/lib/threads";
 import { cn } from "@/lib/cn";
+import {
+  attachmentBasename,
+  composeOutgoing,
+  formatBytes,
+  intakeFiles,
+  splitAttachments,
+  uploadStoredAttachment,
+  type Attachment,
+} from "@/lib/attachments";
 
 /** A reaction in a room is the cheapest thing anyone can say, and often
  * the right thing: agreeing with a plan should not wake six agents. */
@@ -93,6 +105,38 @@ function withMentions(text: string, names: string[]): React.ReactNode[] {
     ) : (
       part
     ),
+  );
+}
+
+function RoomUserText({ text, names }: { text: string; names: string[] }) {
+  const { display, images, videos, files } = splitAttachments(text);
+  return (
+    <>
+      {images.length > 0 && (
+        <div className="mb-1 flex flex-wrap gap-1.5">
+          {images.map((attachment, i) => (
+            <img key={i} src={`/api/attachments/${attachmentBasename(attachment.path)}`} alt={attachment.name ?? "attached image"} className="max-h-[220px] max-w-full rounded-xl object-contain" />
+          ))}
+        </div>
+      )}
+      {videos.length > 0 && (
+        <div className="mb-1 flex flex-col gap-1.5">
+          {videos.map((attachment, i) => (
+            <video key={i} src={`/api/attachments/${attachmentBasename(attachment.path)}`} controls playsInline preload="metadata" className="max-h-[320px] max-w-full rounded-xl bg-black object-contain" />
+          ))}
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="mb-1 flex flex-wrap gap-1">
+          {files.map((attachment, i) => (
+            <span key={i} title={attachment.path} className="rounded-lg bg-black/15 px-1.5 py-0.5 text-[12px]">
+              {attachment.name ?? attachmentBasename(attachment.path)}
+            </span>
+          ))}
+        </div>
+      )}
+      {display.split("\n").map((line, i) => <RoomLine key={i} line={line} names={names} />)}
+    </>
   );
 }
 
@@ -172,9 +216,7 @@ function RoomMessage({
           <div className="group flex items-center gap-1.5">
             <div className="w-full min-w-0 rounded-2xl rounded-tl-md bg-muted px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-foreground [overflow-wrap:anywhere]">
               {message.replyTo && <ReplyContext replyTo={message.replyTo} />}
-              {(message.text ?? "").split("\n").map((line, i) => (
-                <RoomLine key={i} line={line} names={names} />
-              ))}
+              <RoomUserText text={message.text ?? ""} names={names} />
             </div>
             {verbs(who)}
           </div>
@@ -190,7 +232,7 @@ function RoomMessage({
         <div className="flex max-w-full flex-col items-end sm:max-w-[68%]">
           <div className="max-w-full whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-primary-foreground [overflow-wrap:anywhere]">
             {message.replyTo && <ReplyContext replyTo={message.replyTo} onDark />}
-            {message.text}
+            <RoomUserText text={message.text ?? ""} names={names} />
             {message.queued && (
               <div className="mt-1 flex items-center gap-1 text-[10.5px] font-medium opacity-70" role="status">
                 <span className="inline-block size-1.5 animate-pulse rounded-full bg-current" />
@@ -294,6 +336,9 @@ function RoomMessage({
 export function RoomView({ blok }: { blok: Blok }) {
   const { state, dispatch } = useStore();
   const [text, setText] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachNotice, setAttachNotice] = useState<string | null>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
   // Typing @ opens a list of the people in this room. Naming somebody is
   // how a room decides who answers, so guessing the spelling should
   // never be part of it: the list filters as you type, Tab or Enter
@@ -454,15 +499,29 @@ export function RoomView({ blok }: { blok: Blok }) {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [text]);
 
+  const intake = (files: File[]) => {
+    if (!files.length) return;
+    void intakeFiles(files, {
+      pathOf: (file) => window.bloks?.filePath?.(file) ?? "",
+      uploadAttachment: uploadStoredAttachment,
+    }).then(({ attachments: added, refused }) => {
+      if (added.length) setAttachments((current) => [...current, ...added]);
+      setAttachNotice(refused);
+    });
+  };
+
   const send = () => {
-    if (!text.trim()) return;
+    if (!text.trim() && !attachments.length) return;
+    const outgoing = composeOutgoing(text, attachments);
     dispatch({
       type: "sendToRoom",
       blokId: blok.id,
-      text: text.trim(),
+      text: outgoing,
       replyTo: replyTo ?? undefined,
     });
     setText("");
+    setAttachments([]);
+    setAttachNotice(null);
     setReplyTo(null);
   };
 
@@ -775,6 +834,24 @@ export function RoomView({ blok }: { blok: Blok }) {
             <ReplyChip draft={replyTo} onClear={() => setReplyTo(null)} />
           </div>
         )}
+        {attachNotice && (
+          <div className="mx-auto mb-2 flex max-w-[760px] items-center gap-2 rounded-xl bg-warning/10 px-3 py-2 text-[12px] text-warning">
+            <span className="min-w-0 flex-1">{attachNotice}</span>
+            <button onClick={() => setAttachNotice(null)} className="shrink-0 rounded-lg px-1.5 py-1 opacity-60" aria-label="Tutup">✕</button>
+          </div>
+        )}
+        {attachments.length > 0 && (
+          <div className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-1.5">
+            {attachments.map((a) => (
+              <span key={a.id} className="flex max-w-[240px] items-center gap-1.5 rounded-xl border bg-muted/50 py-1 pl-2 pr-1 text-[12px] text-foreground">
+                <FileIcon size={14} className="shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{a.kind === "paste" ? `Pasted text, ${a.lines} lines` : a.name}</span>
+                <span className="shrink-0 text-muted-foreground">{formatBytes(a.bytes)}</span>
+                <button onClick={() => setAttachments((cur) => cur.filter((x) => x.id !== a.id))} className="shrink-0 rounded-full p-0.5 text-muted-foreground" aria-label="Hapus lampiran"><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+        )}
         {mentionMatches.length > 0 && (
           <div className="mx-auto mb-1.5 max-w-[760px]">
             <div className="overflow-hidden rounded-xl border bg-popover p-1 shadow-lg shadow-[--shadow-color]">
@@ -798,7 +875,27 @@ export function RoomView({ blok }: { blok: Blok }) {
             </div>
           </div>
         )}
-        <div className="mx-auto flex max-w-[760px] items-end gap-1 rounded-[22px] border bg-background p-1.5 pl-4 shadow-[0_1px_3px_var(--shadow-color)] transition-[border-color,box-shadow] duration-150 focus-within:border-ring/50">
+        <div className="mx-auto flex max-w-[760px] items-end gap-1 rounded-[22px] border bg-background p-1.5 pl-2 shadow-[0_1px_3px_var(--shadow-color)] transition-[border-color,box-shadow] duration-150 focus-within:border-ring/50">
+          <input
+            ref={pickerRef}
+            type="file"
+            multiple
+            className="hidden"
+            accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm,video/quicktime,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => {
+              intake([...(e.target.files ?? [])]);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => pickerRef.current?.click()}
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+            aria-label="Pilih file"
+            title="Pilih file"
+          >
+            <Plus size={18} />
+          </button>
           <textarea
             ref={inputRef}
             rows={1}
@@ -846,10 +943,10 @@ export function RoomView({ blok }: { blok: Blok }) {
           />
           <button
             onClick={send}
-            disabled={!text.trim()}
+            disabled={!text.trim() && !attachments.length}
             className={cn(
               "flex size-8 shrink-0 items-center justify-center rounded-full transition-[background-color,color,opacity] duration-150 active:scale-95",
-              text.trim()
+              text.trim() || attachments.length
                 ? "bg-primary text-primary-foreground hover:opacity-90"
                 : "cursor-not-allowed bg-muted text-muted-foreground/60",
             )}
