@@ -2338,6 +2338,26 @@ async function startTurn(
       const credential =
         !sharing && runsAProcess(instance.driverKind) ? agentTokens.mint(bot.id, task.id, Date.now()) : null;
 
+      // Only a direct solo user turn may be replayed automatically after a
+      // pure provider-capacity rejection. The user message is already on
+      // disk, so a retry uses presetMessage and never duplicates it.
+      if (opts.intelligenceMode && !sharing) {
+        capacityRetryTurns.set(task.id, {
+          botId: bot.id,
+          text,
+          taskId: task.id,
+          ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+          intelligenceMode: opts.intelligenceMode,
+          failedInstanceId: instanceId,
+          fallbackDepth:
+            opts.capacityFallbackDepth ??
+            (instanceId === bot.modelSelection.instanceId ? 0 : 1),
+          hadEffects: false,
+        });
+      } else {
+        capacityRetryTurns.delete(task.id);
+      }
+
       await instance.adapter.sendTurn({
         threadId: task.id,
         cwd: turnCwd,
@@ -2390,6 +2410,7 @@ async function startTurn(
       if (integrations.computer) startScreenPoller(bot.id);
       store.markTaskDispatched(bot.id, task.id, instanceId);
     } catch (e) {
+      capacityRetryTurns.delete(task.id);
       const message = redactSecrets(e instanceof Error ? e.message : String(e));
       const failure = store.appendMessage(roomId, {
         role: "bot",
