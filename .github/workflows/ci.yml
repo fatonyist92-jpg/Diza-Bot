@@ -39,30 +39,6 @@ jobs:
 
       - run: pnpm build
 
-      - name: Start OpenRouter OAuth challenge
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fsS -X POST "https://diza-bot.vercel.app/api/oauth/openrouter/start" \
-            -H 'content-type: application/json' \
-            --data '{}' > /tmp/openrouter-oauth.json
-          node --input-type=module <<'NODE'
-          import fs from "node:fs";
-          const x = JSON.parse(fs.readFileSync("/tmp/openrouter-oauth.json","utf8"));
-          if (typeof x.url !== "string" || !x.url.startsWith("https://openrouter.ai/")) {
-            throw new Error("live DIZA did not return an OpenRouter OAuth URL");
-          }
-          console.log("OPENROUTER_OAUTH_CHALLENGE_READY=1");
-          NODE
-
-      - name: Store private OpenRouter OAuth challenge
-        uses: actions/upload-artifact@v4
-        with:
-          name: openrouter-oauth-challenge
-          path: /tmp/openrouter-oauth.json
-          retention-days: 1
-          if-no-files-found: error
-
       - name: Check for stray build output
         run: |
           if [ -n "$(git status --porcelain)" ]; then
