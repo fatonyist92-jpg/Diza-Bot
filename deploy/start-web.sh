@@ -34,6 +34,12 @@ if [ ! -f "$PG_MODULE" ]; then
   npm install -g --prefix "$HOME/.local" --no-audit --no-fund "pg@$PG_VERSION"
 fi
 
+AWS_S3_VERSION="3.901.0"
+AWS_S3_MODULE="$HOME/.local/lib/node_modules/@aws-sdk/client-s3/package.json"
+if [ ! -f "$AWS_S3_MODULE" ]; then
+  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@aws-sdk/client-s3@$AWS_S3_VERSION"
+fi
+
 node deploy/codex-ipv4-proxy.mjs &
 
 export CODEX_HOME
