@@ -55,7 +55,12 @@ const LIMITS: Array<[RegExp, number]> = [
 export const DEFAULT_LIMIT = 32_000;
 
 export function contextLimitFor(model: string | undefined | null): number {
-  const name = (model ?? "").trim();
+  const raw = (model ?? "").trim();
+  // Gateways such as OpenRouter namespace model ids as "vendor/model".
+  // The context window belongs to the model, not to the gateway/vendor
+  // prefix, so match the final model segment. Direct provider ids are
+  // unchanged.
+  const name = raw.includes("/") ? (raw.split("/").pop() ?? raw) : raw;
   for (const [pattern, limit] of LIMITS) {
     if (pattern.test(name)) return limit;
   }
