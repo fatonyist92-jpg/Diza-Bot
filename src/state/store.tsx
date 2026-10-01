@@ -187,7 +187,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 behavior,
                 message: behavior === "answer" ? action.answer : undefined,
               }),
-            }).catch(showError);
+            })
+              .then(() => reconcileServerlessTurn(action.botId))
+              .catch((error) => {
+                showError(error);
+                reconcileServerlessTurn(action.botId);
+              });
           } else if (action.roomId) {
             api(`/api/bloks/${action.roomId}/messages`, {
               method: "POST",
@@ -254,7 +259,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 message: permission ? "Ditolak dan ditutup oleh pengguna." : "Pertanyaan dilewati oleh pengguna.",
                 dismissed: true,
               }),
-            }).catch(() => {});
+            })
+              .then(() => reconcileServerlessTurn(action.botId))
+              .catch((error) => {
+                showError(error);
+                reconcileServerlessTurn(action.botId);
+              });
           } else if (!action.roomId) {
             persistCard(action.botId, action.messageId, { dismissed: true });
           }
