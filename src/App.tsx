@@ -24,12 +24,14 @@ import { ActivityPanel } from "@/components/Activity";
 import { CommandPalette } from "@/components/CommandPalette";
 import { QuickAsk } from "@/components/QuickAsk";
 import { MobileChatHome } from "@/components/MobileChatHome";
+import { ProfilePanel } from "@/components/ProfilePanel";
 
 function Shell() {
   const { state, dispatch } = useStore();
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   const [mobileHome, setMobileHome] = useState(() => window.innerWidth < 768);
   const [mobileList, setMobileList] = useState<"rooms" | "bots" | null>(null);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   useEffect(() => {
     if (!mobile || mobileHome) return;
     history.pushState({ dizaMobileChat: true }, "", location.href);
@@ -70,11 +72,11 @@ function Shell() {
           <button onClick={() => setMobileList(null)} className="flex size-9 items-center justify-center rounded-full active:bg-accent" aria-label="Kembali">
             <ArrowLeft size={20} />
           </button>
-          <div className="flex-1 text-[20px] font-semibold">{roomsMode ? "Rooms" : "Bots"}</div>
+          <div className="flex-1 text-[20px] font-semibold">{roomsMode ? "Ruang" : "Bot"}</div>
           <button
             onClick={() => dispatch({ type: roomsMode ? "toggleNewRoom" : "toggleNewAgent", open: true })}
             className="flex size-9 items-center justify-center rounded-full active:bg-accent"
-            aria-label={roomsMode ? "Buat room" : "Buat bot"}
+            aria-label={roomsMode ? "Buat ruang" : "Buat bot"}
           >
             <Plus size={21} />
           </button>
@@ -105,8 +107,10 @@ function Shell() {
           onOpenChat={() => setMobileHome(false)}
           onOpenRooms={() => setMobileList("rooms")}
           onOpenBots={() => setMobileList("bots")}
+          onOpenProfile={() => setMobileProfileOpen(true)}
         />
         {state.appSettingsOpen && <AppSettingsPanel />}
+        {mobileProfileOpen && <ProfilePanel onClose={() => setMobileProfileOpen(false)} />}
         {state.newAgentOpen && <NewAgentScreen />}
       </>
     );
