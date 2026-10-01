@@ -5,6 +5,7 @@ import { useStore, type Message, type TeamPlan } from "@/state/store";
 import { BlokAvatar } from "@/components/Avatar";
 import { BLOK_COLOR_NAMES, shapeForBot, type BlokColor } from "@/lib/mascot";
 import { cn } from "@/lib/cn";
+import { simpleIndonesianText } from "@/lib/uiLanguage";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -34,7 +35,7 @@ export function OptionCard({
     return (
       <TeamProposal
         plan={card.team}
-        leadName={lead?.name ?? "Your agent"}
+        leadName={lead?.name ?? "Agen Anda"}
         settled={card.answered}
         onHire={() => dispatch({ type: "hireTeam", botId, messageId: message.id })}
         onDecline={() => answer("Not now. Handle this yourself.")}
@@ -58,25 +59,25 @@ export function OptionCard({
             approval ? "text-muted-foreground" : card.runId ? "text-warning" : "text-brand-ink",
           )}>
             {approval && <span className="flex size-8 items-center justify-center rounded-xl border border-border/60 bg-foreground text-background shadow-sm"><ShieldCheck size={16} /></span>}
-            <span>{approval ? "Approval required" : card.runId ? "Workflow" : "Question"}</span>
+            <span>{approval ? "Perlu persetujuan" : card.runId ? "Alur kerja" : "Pertanyaan"}</span>
           </div>
           <div className={cn("break-words font-semibold text-foreground [overflow-wrap:anywhere]", approval ? "mt-3.5 text-[15.5px] tracking-[-0.01em]" : "mt-1 text-[14.5px]")}>
-            {card.title}
+            {simpleIndonesianText(card.title)}
           </div>
           {card.subtitle && (
             <div className={cn(
               "break-words leading-relaxed text-muted-foreground [overflow-wrap:anywhere]",
               approval ? "mt-2 rounded-xl border border-border/50 bg-muted/35 px-3 py-2.5 font-mono text-[12px]" : "mt-0.5 text-[13px]",
             )}>
-              {card.subtitle}
+              {simpleIndonesianText(card.subtitle)}
             </div>
           )}
-          {card.answeredBy && <div className="mt-1 text-[12px] text-muted-foreground">Answered by {card.answeredBy}</div>}
+          {card.answeredBy && <div className="mt-1 text-[12px] text-muted-foreground">Dijawab oleh {card.answeredBy}</div>}
         </div>
         <button
           onClick={() => dispatch({ type: "dismissCard", botId, roomId, messageId: message.id })}
-          aria-label="Put this question aside"
-          title="Put this question aside"
+          aria-label="Simpan pertanyaan ini untuk nanti"
+          title="Simpan pertanyaan ini untuk nanti"
           className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
         >
           <X size={16} />
@@ -113,7 +114,7 @@ export function OptionCard({
                 {LETTERS[i]}
               </span>
             )}
-            {opt}
+            {simpleIndonesianText(opt)}
           </button>
         ))}
       </div>
@@ -130,7 +131,7 @@ export function OptionCard({
           }}
           className="w-full border-t border-border/60 px-4 py-3 text-left text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
         >
-          Always allow {card.tool} for this agent
+          Selalu izinkan {card.tool} untuk agen ini
         </button>
       )}
 
@@ -139,7 +140,7 @@ export function OptionCard({
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && answer(custom)}
-          placeholder="Type your own answer…"
+          placeholder="Tulis jawaban sendiri…"
           className="mt-2 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-[13.5px] text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground focus:border-ring/60"
         />
       )}
@@ -179,14 +180,13 @@ function TeamProposal({
     <div className="w-full max-w-[560px] animate-rise-in overflow-hidden rounded-2xl border bg-card shadow-[0_1px_3px_var(--shadow-color)]">
       <div className="px-4 pt-4">
         <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-ink">
-          {hired ? "Team hired" : "Proposed team"}
+          {hired ? "Tim dibuat" : "Usulan tim"}
         </div>
         <div className="mt-1 text-[14.5px] font-semibold text-foreground">
-          {leadName} wants {plan.members.length} people for “{plan.room}”
+          {leadName} ingin {plan.members.length} anggota untuk “{plan.room}”
         </div>
         <div className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
-          They run on the cheaper model and do the legwork. {leadName} reviews everything and reports
-          back to you.
+          Mereka mengerjakan tugas pendukung. {leadName} meninjau hasilnya lalu melaporkan kembali kepada Anda.
         </div>
       </div>
 
@@ -229,7 +229,7 @@ function TeamProposal({
             onClick={() => setOpen((v) => !v)}
             className="text-[12px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
           >
-            {open ? "Hide the brief" : "See the brief they get"}
+            {open ? "Tutup brief" : "Lihat brief tim"}
           </button>
           {open && (
             <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground">
@@ -242,23 +242,23 @@ function TeamProposal({
       <div className="flex items-center gap-2 border-t bg-muted/30 px-4 py-3">
         {hired ? (
           <span className="text-[13px] text-muted-foreground">
-            Hired. The room is open and {leadName} has briefed them.
+            Tim sudah dibuat. Ruang kerja terbuka dan {leadName} sudah memberi brief.
           </span>
         ) : settled ? (
-          <span className="text-[13px] text-muted-foreground">Declined.</span>
+          <span className="text-[13px] text-muted-foreground">Ditolak.</span>
         ) : (
           <>
             <button
               onClick={onHire}
               className="rounded-xl bg-brand-ink px-3.5 py-2 text-[13.5px] font-medium text-brand-foreground transition-[transform,filter] duration-150 hover:brightness-95 active:scale-[0.98]"
             >
-              Hire the team
+              Buat tim
             </button>
             <button
               onClick={onDecline}
               className="rounded-xl px-3 py-2 text-[13.5px] text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
             >
-              Not now
+              Nanti saja
             </button>
           </>
         )}
