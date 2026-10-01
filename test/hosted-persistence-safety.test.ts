@@ -21,3 +21,17 @@ test("Faable runtime carries both S3 and direct Postgres persistence clients", (
   assert.match(start, /AWS_S3_VERSION="3\.901\.0"/);
   assert.match(start, /@aws-sdk\/client-s3@\$AWS_S3_VERSION/);
 });
+
+
+test("offline recovery bridge exposes only an ephemeral RSA public key and starts core after durable recovery", () => {
+  assert.match(web, /generateKeyPairSync\('rsa'/);
+  assert.match(web, /url\.pathname === '\/__diza\/recovery-key'/);
+  assert.match(web, /publicKey: recoveryKeys\.publicKey/);
+  assert.doesNotMatch(web, /privateKey: recoveryKeys\.privateKey/);
+  assert.match(web, /privateDecrypt\(/);
+  assert.match(web, /oaepHash: 'sha256'/);
+  assert.match(web, /recoverObjectPersistenceWithRawKey\(rawKey\)/);
+  assert.match(web, /persistence = recovered/);
+  assert.match(web, /startCore\(\)/);
+  assert.match(web, /recoveryKeys = null/);
+});
