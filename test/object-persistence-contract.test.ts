@@ -13,12 +13,14 @@ test("object persistence module remains valid JavaScript", () => {
 
 test("bootstrap stays encrypted in the public repository", () => {
   const envelope = JSON.parse(encrypted);
-  assert.equal(envelope.version, 1);
-  assert.equal(envelope.aad, "diza-storage-bootstrap-v1");
+  assert.equal(envelope.version, 2);
+  assert.equal(envelope.aad, "diza-storage-bootstrap-v2");
   assert.equal(typeof envelope.data, "string");
   assert.ok(envelope.data.length > 1000);
   assert.doesNotMatch(encrypted, /secretAccessKey|postgresql:\/\//);
   assert.doesNotMatch(encrypted, /Production Engineer Saniter|Personal AI Assistant/);
+  assert.match(source, /DIZA_STORAGE_V2\\0\$\{password\}/);
+  assert.match(source, /new URL\(databaseUrl\)\.password/);
 });
 
 test("object storage preserves DIZA core plus CLI auth, not rebuildable traces", () => {
