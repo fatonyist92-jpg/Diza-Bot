@@ -13,6 +13,12 @@ test("Vercel adapter fails closed until PostgreSQL restore is ready", () => {
   assert.match(adapter, /saved data was not replaced/);
 });
 
+test("Vercel adapter validates the public origin before entering the loopback core", () => {
+  assert.match(adapter, /hasAllowedPublicOrigin\(req\)/);
+  assert.match(adapter, /new URL\(origin\)\.host === forwardedHost/);
+  assert.match(adapter, /delete headers\.origin/);
+});
+
 test("mutating requests sync before their streamed response completes", () => {
   const proxyAt = adapter.indexOf("await proxy(req, res, path)");
   const syncAt = adapter.indexOf("await persistence.sync(`vercel-");
