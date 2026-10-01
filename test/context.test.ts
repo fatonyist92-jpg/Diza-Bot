@@ -37,6 +37,17 @@ describe("how much a model will take", () => {
     assert.equal(contextLimitFor("deepseek-chat"), 65_536);
   });
 
+  test("gateway-namespaced model ids use the underlying model family limit", () => {
+    assert.equal(contextLimitFor("google/gemini-2.5-flash"), 1_000_000);
+    assert.equal(contextLimitFor("anthropic/claude-sonnet-5"), 200_000);
+    assert.equal(contextLimitFor("x-ai/grok-4"), 131_072);
+    assert.equal(contextLimitFor("openai/gpt-4o-mini"), 128_000);
+    assert.equal(contextLimitFor("deepseek/deepseek-chat"), 65_536);
+    assert.equal(contextLimitFor("moonshotai/kimi-k2"), 131_072);
+    assert.equal(contextLimitFor("meta-llama/llama-4-maverick"), 131_072);
+    assert.equal(contextLimitFor("openrouter/free"), DEFAULT_LIMIT);
+  });
+
   test("an unknown model gets a small, safe number", () => {
     // being low costs a summary sooner than needed; being high costs a
     // recoverable error. Low is the right way to be wrong.
