@@ -11,6 +11,16 @@ test("interactive capacity failure retries once without duplicating the user mes
   assert.match(server, /capacityFallbackDepth: capacityRetry\.fallbackDepth \+ 1/);
 });
 
+test("fallback context budgeting follows the engine and model that actually serve the turn", () => {
+  const server = readFileSync(new URL("../server/index.ts", import.meta.url), "utf8");
+  const store = readFileSync(new URL("../server/store.ts", import.meta.url), "utf8");
+  assert.match(server, /const contextLimit = contextLimitFor\(turnModel\)/);
+  assert.match(server, /task\.lastInstanceId === instance\.instanceId[\s\S]{0,180}contextLimitFor\(task\.lastModel \?\? turnModel\)/);
+  assert.match(server, /markTaskDispatched\(bot\.id, task\.id, instanceId, turnModel\)/);
+  assert.match(server, /contextLimitFor\(settledTask\?\.lastModel \?\? bot\.modelSelection\.model\)/);
+  assert.match(store, /lastModel\?: string/);
+});
+
 test("tool use or assistant output disables automatic replay", () => {
   const server = readFileSync(new URL("../server/index.ts", import.meta.url), "utf8");
   assert.match(server, /case "item\.started":[\s\S]{0,220}retry\.hadEffects = true/);
