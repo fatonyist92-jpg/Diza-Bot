@@ -755,6 +755,7 @@ export function openAiCompatDriver(spec: ProviderSpec): ProviderDriver<CompatCon
               requestId,
               behavior: "answer",
               source: "user",
+              answer,
             });
             resolve(answer);
           });
