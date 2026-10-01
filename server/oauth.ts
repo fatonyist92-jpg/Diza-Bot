@@ -8,6 +8,9 @@
 // the connections screen says which is which rather than dressing a
 // paste field up as a sign-in.
 import { createHash, randomBytes } from "node:crypto";
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 /** PKCE attempts live only as long as the browser round trip. */
 const PENDING_TTL_MS = 10 * 60_000;
@@ -20,6 +23,37 @@ interface Pending {
 const pending = new Map<string, Pending>();
 
 const base64url = (buf: Buffer) => buf.toString("base64url");
+
+function pendingPath(state: string): string | null {
+  if (process.env.DIZA_SERVERLESS !== "1" || !/^[A-Za-z0-9_-]{16,128}$/.test(state)) return null;
+  const root = process.env.DIZA_DATA_DIR || join(homedir(), ".bloks");
+  return join(root, "oauth", `${state}.json`);
+}
+
+function persistPending(state: string, entry: Pending) {
+  const path = pendingPath(state);
+  if (!path) return;
+  mkdirSync(join(path, ".."), { recursive: true, mode: 0o700 });
+  writeFileSync(path, JSON.stringify(entry), { mode: 0o600 });
+}
+
+function restorePending(state: string): Pending | undefined {
+  const path = pendingPath(state);
+  if (!path) return undefined;
+  try {
+    const value = JSON.parse(readFileSync(path, "utf8"));
+    if (typeof value?.verifier !== "string" || typeof value?.startedAt !== "number") return undefined;
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+
+function removePending(state: string) {
+  const path = pendingPath(state);
+  if (!path) return;
+  try { unlinkSync(path); } catch {}
+}
 
 function sweep() {
   const now = Date.now();
@@ -78,7 +112,9 @@ export function startOAuth(kind: string, callbackUrl: string): { url: string; st
   const verifier = base64url(randomBytes(32));
   const challenge = base64url(createHash("sha256").update(verifier).digest());
   const state = base64url(randomBytes(16));
-  pending.set(state, { verifier, startedAt: Date.now() });
+  const entry = { verifier, startedAt: Date.now() };
+  pending.set(state, entry);
+  persistPending(state, entry);
   return { url: provider.authorizeUrl({ challenge, callbackUrl, state }), state };
 }
 
@@ -87,10 +123,13 @@ export async function finishOAuth(kind: string, state: string, code: string, cal
   sweep();
   const provider = PROVIDERS.find((p) => p.kind === kind);
   if (!provider) throw Object.assign(new Error(`unknown provider "${kind}"`), { status: 400 });
-  const entry = pending.get(state);
+  const entry = pending.get(state) ?? restorePending(state);
   // one code, one use: a replayed callback must not mint a second key
   pending.delete(state);
-  if (!entry) throw Object.assign(new Error("this sign-in expired, try again"), { status: 400 });
+  removePending(state);
+  if (!entry || Date.now() - entry.startedAt > PENDING_TTL_MS) {
+    throw Object.assign(new Error("this sign-in expired, try again"), { status: 400 });
+  }
   return provider.exchange({ code, verifier: entry.verifier, callbackUrl });
 }
 

@@ -4574,7 +4574,8 @@ async function providerCatalog() {
 
 /** The address OpenRouter sends the browser back to. It has to be this
  * server, since the verifier never leaves it. */
-const oauthCallback = (kind: string) => `http://127.0.0.1:${PORT}/api/oauth/${kind}/callback`;
+const oauthOrigin = process.env.DIZA_PUBLIC_ORIGIN?.replace(/\/$/, "") || `http://127.0.0.1:${PORT}`;
+const oauthCallback = (kind: string) => `${oauthOrigin}/api/oauth/${kind}/callback`;
 
 async function connectProvider(kind: string, key: string, endpoint = "") {
   saveConfig({
