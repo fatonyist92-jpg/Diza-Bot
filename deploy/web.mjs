@@ -2,7 +2,9 @@
 import { createServer, request } from 'node:http';
 import { spawn } from 'node:child_process';
 import { generateKeyPairSync, privateDecrypt } from 'node:crypto';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeNeonPersistence } from './neon-persistence.mjs';
 import { initializeObjectPersistence, recoverObjectPersistenceWithRawKey } from './object-persistence.mjs';
@@ -36,6 +38,52 @@ let core = null;
 let recoveryKeys = null;
 let recoveryInFlight = false;
 let closing = false;
+
+function workspacePersistenceSummary() {
+  const dataDir = process.env.DIZA_DATA_DIR || join(homedir(), '.bloks');
+  let entries = [];
+  try { entries = readdirSync(dataDir); } catch {}
+  const messageFiles = entries.filter((name) => /^messages-.+\\.json$/.test(name));
+  const messageThreadIds = new Set(messageFiles.map((name) => name.slice('messages-'.length, -'.json'.length)));
+
+  let bots = [];
+  try {
+    const parsed = JSON.parse(readFileSync(join(dataDir, 'bots.json'), 'utf8'));
+    if (Array.isArray(parsed)) bots = parsed;
+  } catch {}
+  const referencedThreads = new Set();
+  for (const bot of bots) {
+    if (typeof bot?.threadId === 'string') referencedThreads.add(bot.threadId);
+    for (const task of Array.isArray(bot?.tasks) ? bot.tasks : []) {
+      if (typeof task?.id === 'string') referencedThreads.add(task.id);
+    }
+  }
+
+  let avatarEntries = [];
+  try { avatarEntries = readdirSync(join(dataDir, 'avatars')); } catch {}
+  const avatarFiles = avatarEntries.filter((name) => !name.endsWith('.mime'));
+  const avatarMimeFiles = avatarEntries.filter((name) => name.endsWith('.mime'));
+  const botAvatarRefs = bots.filter((bot) => Boolean(bot?.avatarAt)).length;
+
+  let totalMessages = 0;
+  for (const name of messageFiles) {
+    try {
+      const parsed = JSON.parse(readFileSync(join(dataDir, name), 'utf8'));
+      if (Array.isArray(parsed)) totalMessages += parsed.length;
+    } catch {}
+  }
+
+  return {
+    bots: bots.length,
+    messageFiles: messageFiles.length,
+    totalMessages,
+    referencedThreads: referencedThreads.size,
+    orphanMessageFiles: [...messageThreadIds].filter((id) => !referencedThreads.has(id)).length,
+    avatarFiles: avatarFiles.length,
+    avatarMimeFiles: avatarMimeFiles.length,
+    botAvatarRefs,
+  };
+}
 
 function wireCore(child) {
   child.on('error', () => void stop(1));
@@ -132,6 +180,7 @@ const gateway = createServer((req, res) => {
         ready: Boolean(persistence.ready),
         ...(persistence.reason ? { reason: persistence.reason } : {}),
       },
+      workspace: workspacePersistenceSummary(),
     }));
   }
 
@@ -167,6 +216,7 @@ const gateway = createServer((req, res) => {
           ready: Boolean(persistence.ready),
           ...(persistence.reason ? { reason: persistence.reason } : {}),
         },
+        workspace: workspacePersistenceSummary(),
       }));
     }
     const responseHeaders = { ...incoming.headers };
