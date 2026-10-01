@@ -27,14 +27,14 @@ const roots = () => [
   },
   {
     namespace: 'grok',
-    dir: process.env.GROK_HOME || join(homedir(), '.grok'),
+    dir: process.env.DIZA_PERSIST_GROK_HOME || process.env.GROK_HOME || join(homedir(), '.grok'),
     // Grok continuity can be rebuilt from DIZA's transcript. Only the login
     // credential needs to survive an ephemeral Faable restart.
     exclude: (path) => path !== 'auth.json',
   },
   {
     namespace: 'codex',
-    dir: process.env.CODEX_HOME || join(homedir(), '.codex'),
+    dir: process.env.DIZA_PERSIST_CODEX_HOME || process.env.CODEX_HOME || join(homedir(), '.codex'),
     // Same rule as Grok: keep credentials/config, not provider session logs.
     // DIZA retires provider cursors after restore so the next turn safely
     // replays transcript into a fresh native session.
@@ -108,20 +108,22 @@ function endpointFor(connectionString) {
 }
 
 function makeClient(connectionString, logger = console) {
-  const endpoint = endpointFor(connectionString);
+  const databaseUrl = new URL(connectionString);
+  const neonHttpAvailable = databaseUrl.hostname.endsWith('.neon.tech');
+  const endpoint = neonHttpAvailable ? endpointFor(connectionString) : null;
   let directPool = null;
   let announcedDirect = false;
 
   const directQuery = async (query, params) => {
     if (!directPool) {
       const require = createRequire(import.meta.url);
-      const modulePath = join(homedir(), '.local', 'lib', 'node_modules', 'pg');
-      const { Pool } = require(modulePath);
+      const { Pool } = require('pg');
       directPool = new Pool({
         connectionString,
         max: 1,
         idleTimeoutMillis: 10_000,
         connectionTimeoutMillis: 12_000,
+        allowExitOnIdle: true,
       });
     }
     if (!announcedDirect) {
@@ -133,6 +135,7 @@ function makeClient(connectionString, logger = console) {
   };
 
   const queryFn = async (query, params = []) => {
+    if (!neonHttpAvailable) return directQuery(query, params);
     const encoded = params.map((value) => {
       if (Buffer.isBuffer(value)) return `\\x${value.toString('hex')}`;
       if (value instanceof Date) return value.toISOString();
@@ -238,6 +241,30 @@ class NeonPersistence {
     // because the local copy is absent. Keep it until a later healthy
     // runtime successfully recreates/syncs that exact path.
     this.restoreFailures = new Set();
+  }
+
+  async ensureSchema() {
+    await this.query(`
+      CREATE TABLE IF NOT EXISTS public.diza_persist_files (
+        namespace text NOT NULL,
+        path text NOT NULL,
+        sha256 text NOT NULL,
+        data bytea NOT NULL,
+        compressed boolean NOT NULL DEFAULT false,
+        mode integer NOT NULL DEFAULT 384,
+        size_bytes bigint NOT NULL DEFAULT 0,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (namespace, path)
+      )
+    `);
+    await this.query(`
+      CREATE TABLE IF NOT EXISTS public.diza_runtime_snapshots (
+        slot text PRIMARY KEY,
+        payload text NOT NULL,
+        sha256 text NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
   }
 
   async #readStoredData(row) {
@@ -553,6 +580,7 @@ export async function initializeNeonPersistence(logger = console) {
   }
   const persistence = new NeonPersistence(connectionString, logger);
   try {
+    await persistence.ensureSchema();
     await persistence.restore();
     await persistence.recoverBotRosterIfNeeded();
     await persistence.retireProviderCursorsAfterRestore();
