@@ -63,6 +63,12 @@ function mcpResult(result: any): { text: string; isError: boolean } {
 
 /** How long a fetched model list is trusted before we look again. */
 const CATALOG_TTL_MS = 10 * 60_000;
+// OpenRouter treats an omitted output cap as permission to reserve up to
+// the model's maximum. On zero/low-credit accounts that can reject an
+// otherwise tiny chat before generation starts. Keep ordinary DIZA turns
+// comfortably below the free/low-credit ceiling without changing other
+// OpenAI-compatible providers.
+const OPENROUTER_MAX_TOKENS = 4_096;
 
 /** Turns "meta-llama/llama-4-maverick" into "Llama 4 Maverick". */
 function labelFor(id: string): string {
@@ -433,7 +439,12 @@ export function openAiCompatDriver(spec: ProviderSpec): ProviderDriver<CompatCon
         const res = await fetch(`${config.url}/chat/completions`, {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ model, messages, stream: opts.stream }),
+          body: JSON.stringify({
+            model,
+            messages,
+            stream: opts.stream,
+            ...(spec.kind === "openrouter" ? { max_tokens: OPENROUTER_MAX_TOKENS } : {}),
+          }),
           signal: opts.signal ?? AbortSignal.timeout(120_000),
         });
         if (!res.ok) {
@@ -500,7 +511,13 @@ export function openAiCompatDriver(spec: ProviderSpec): ProviderDriver<CompatCon
         const res = await fetch(`${config.url}/chat/completions`, {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ model, messages, tools, stream: false }),
+          body: JSON.stringify({
+            model,
+            messages,
+            tools,
+            stream: false,
+            ...(spec.kind === "openrouter" ? { max_tokens: OPENROUTER_MAX_TOKENS } : {}),
+          }),
           signal,
         });
         if (!res.ok) {
