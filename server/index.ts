@@ -305,6 +305,18 @@ bus.attach(registry.instances());
 // What a brand new agent thinks with: whichever engine is actually
 // usable, preferring Claude when there is a choice.
 async function defaultSelection() {
+  // The workspace setting is the source of truth. Temporary provider
+  // failures are handled by the fallback router, not by silently changing
+  // the user's chosen primary engine.
+  if (cfg.engine) {
+    const chosen = registry.get(cfg.engine.instanceId);
+    if (chosen) {
+      const model = chosen.models.options.some((option) => option.id === cfg.engine!.model)
+        ? cfg.engine.model
+        : chosen.models.default;
+      return { instanceId: chosen.instanceId, model };
+    }
+  }
   const described = await registry.describe();
   const available = described.filter((d) => d.snapshot.state === "available");
   const pick = available.find((d) => d.driverKind === "claudeAgent") ?? available[0] ?? described[0];
@@ -689,6 +701,15 @@ const teamLibrary = new TeamLibrary();
 }
 
 bootSelection = await defaultSelection();
+if (
+  !cfg.engine ||
+  cfg.engine.instanceId !== bootSelection.instanceId ||
+  cfg.engine.model !== bootSelection.model
+) {
+  saveConfig({ engine: bootSelection });
+  Object.assign(cfg, loadConfig());
+}
+store.setGlobalModelSelection(bootSelection);
 store.seedIfEmpty();
 
 /** An agent record as clients are allowed to see it. The resume cursors
@@ -4450,6 +4471,8 @@ const dispatching = new Map<string, Map<string, string>>();
 // ── reacting to changed settings ──────────────────────────────────────
 function configStatus() {
   return {
+    // Global by design: every agent follows this primary engine/model.
+    engine: { ...(cfg.engine ?? bootSelection) },
     xai: { configured: Boolean(cfg.xai?.key) },
     composio: { configured: Boolean(cfg.composio?.key), apiKeyConfigured: Boolean(cfg.composio?.apiKey) },
     speech: speech.speechConfigured(cfg),
@@ -5317,8 +5340,29 @@ const server = createServer(async (req, res) => {
         }
         delete body.hidden;
       }
+      // Backward compatibility for older clients: their per-agent model
+      // picker is now an alias for the workspace-wide choice. Agents
+      // themselves may not widen/change the workspace engine.
+      if (body.modelSelection !== undefined) {
+        if (asAgent) return json(res, 403, { error: "an agent cannot change the workspace engine" });
+        const asked = body.modelSelection as Record<string, unknown>;
+        const instanceId = typeof asked?.instanceId === "string" ? asked.instanceId.trim() : "";
+        const model = typeof asked?.model === "string" ? asked.model.trim() : "";
+        if (!instanceId || !model) {
+          return json(res, 400, { error: "modelSelection must name an engine and model" });
+        }
+        const selection = { instanceId, model };
+        saveConfig({ engine: selection });
+        Object.assign(cfg, loadConfig());
+        bootSelection = selection;
+        store.setGlobalModelSelection(selection);
+        for (const changed of store.bots) {
+          broadcast({ kind: "bot", bot: clientBot(changed) });
+        }
+        delete body.modelSelection;
+      }
       const patch: Record<string, unknown> = {};
-      for (const key of ["name", "title", "description", "notifications", "modelSelection", "unread", "computer", "color", "shape", "skills", "skillIds", "seniority", "effort", "mascotExpression", "pinned", "hidden"] as const) {
+      for (const key of ["name", "title", "description", "notifications", "unread", "computer", "color", "shape", "skills", "skillIds", "seniority", "effort", "mascotExpression", "pinned", "hidden"] as const) {
         if (body[key] !== undefined) patch[key] = body[key];
       }
       if (body.cwd !== undefined) {
@@ -8809,6 +8853,23 @@ const server = createServer(async (req, res) => {
       /** Sections that save themselves, so the empty-patch guard below
        * does not mistake a real write for an empty request. */
       let wroteSomething = false;
+      let requestedEngine: { instanceId: string; model: string } | null = null;
+      if (body.engine && typeof body.engine === "object" && !Array.isArray(body.engine)) {
+        if (store.bots.some((bot) => bot.tasks.some((task) => task.busy))) {
+          return json(res, 409, { error: "Stop running agents before changing the workspace engine." });
+        }
+        const asked = body.engine as Record<string, unknown>;
+        const instanceId = typeof asked.instanceId === "string" ? asked.instanceId.trim() : "";
+        const model = typeof asked.model === "string" ? asked.model.trim() : "";
+        const instance = instanceId ? registry.get(instanceId) : null;
+        if (!instance) return json(res, 400, { error: "that engine is not available in this workspace" });
+        if (!instance.models.options.some((option) => option.id === model)) {
+          return json(res, 400, { error: "that model is not available on the selected engine" });
+        }
+        requestedEngine = { instanceId, model };
+        patch.engine = requestedEngine;
+        wroteSomething = true;
+      }
       if (body.speech && typeof body.speech === "object" && !Array.isArray(body.speech)) {
         const consent = (body.speech as Record<string, unknown>).useDiscoveredOpenAI;
         if (typeof consent === "boolean") consentPatch = { useDiscoveredOpenAI: consent };
@@ -8896,7 +8957,16 @@ const server = createServer(async (req, res) => {
       }
       saveConfig(patch);
       Object.assign(cfg, loadConfig());
+      if (requestedEngine) {
+        bootSelection = { ...requestedEngine };
+        store.setGlobalModelSelection(requestedEngine);
+      }
       await reloadProviders();
+      if (requestedEngine) {
+        for (const changed of store.bots) {
+          broadcast({ kind: "bot", bot: clientBot(changed) });
+        }
+      }
       const status = configStatus();
       broadcast({ kind: "config", ...status });
       return json(res, 200, status);
