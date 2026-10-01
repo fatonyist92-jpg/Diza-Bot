@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import Loader2 from "lucide-react/dist/esm/icons/loader-2.mjs";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
@@ -26,6 +27,17 @@ import { QuickAsk } from "@/components/QuickAsk";
 import { MobileChatHome } from "@/components/MobileChatHome";
 import { ProfilePanel } from "@/components/ProfilePanel";
 
+function transitionUi(update: () => void) {
+  const doc = document as Document & {
+    startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+  };
+  if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    update();
+    return;
+  }
+  doc.startViewTransition(() => flushSync(update));
+}
+
 function Shell() {
   const { state, dispatch } = useStore();
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
@@ -35,7 +47,7 @@ function Shell() {
   useEffect(() => {
     if (!mobile || mobileHome) return;
     history.pushState({ dizaMobileChat: true }, "", location.href);
-    const onPopState = () => setMobileHome(true);
+    const onPopState = () => transitionUi(() => setMobileHome(true));
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [mobile, mobileHome]);
@@ -69,7 +81,7 @@ function Shell() {
     return (
       <main className="flex h-full min-h-0 w-full flex-col bg-background text-foreground">
         <header className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-4">
-          <button onClick={() => setMobileList(null)} className="flex size-9 items-center justify-center rounded-full active:bg-accent" aria-label="Kembali">
+          <button onClick={() => transitionUi(() => setMobileList(null))} className="flex size-9 items-center justify-center rounded-full active:bg-accent" aria-label="Kembali">
             <ArrowLeft size={20} />
           </button>
           <div className="flex-1 text-[20px] font-semibold">{roomsMode ? "Ruang" : "Bot"}</div>
@@ -83,12 +95,12 @@ function Shell() {
         </header>
         <section className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
           {roomsMode ? rooms.map((room) => (
-            <button key={room.id} onClick={() => { dispatch({ type: "select", id: room.id }); setMobileList(null); setMobileHome(false); }} className="flex w-full items-center gap-3 border-b border-border/55 px-1 py-3 text-left active:bg-accent/60">
+            <button key={room.id} onClick={() => transitionUi(() => { dispatch({ type: "select", id: room.id }); setMobileList(null); setMobileHome(false); })} className="flex w-full items-center gap-3 border-b border-border/55 px-1 py-3 text-left active:bg-accent/60">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent"><Users size={20} /></span>
               <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{room.name}</span>
             </button>
           )) : bots.map((item) => (
-            <button key={item.id} onClick={() => { dispatch({ type: "select", id: item.id }); setMobileList(null); setMobileHome(false); }} className="flex w-full items-center gap-3 border-b border-border/55 px-1 py-3 text-left active:bg-accent/60">
+            <button key={item.id} onClick={() => transitionUi(() => { dispatch({ type: "select", id: item.id }); setMobileList(null); setMobileHome(false); })} className="flex w-full items-center gap-3 border-b border-border/55 px-1 py-3 text-left active:bg-accent/60">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent"><BotIcon size={20} /></span>
               <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{item.name}</span>
             </button>
@@ -104,13 +116,13 @@ function Shell() {
     return (
       <>
         <MobileChatHome
-          onOpenChat={() => setMobileHome(false)}
-          onOpenRooms={() => setMobileList("rooms")}
-          onOpenBots={() => setMobileList("bots")}
-          onOpenProfile={() => setMobileProfileOpen(true)}
+          onOpenChat={() => transitionUi(() => setMobileHome(false))}
+          onOpenRooms={() => transitionUi(() => setMobileList("rooms"))}
+          onOpenBots={() => transitionUi(() => setMobileList("bots"))}
+          onOpenProfile={() => transitionUi(() => setMobileProfileOpen(true))}
         />
         {state.appSettingsOpen && <AppSettingsPanel />}
-        {mobileProfileOpen && <ProfilePanel onClose={() => setMobileProfileOpen(false)} />}
+        {mobileProfileOpen && <ProfilePanel onClose={() => transitionUi(() => setMobileProfileOpen(false))} />}
         {state.newAgentOpen && <NewAgentScreen />}
       </>
     );
@@ -126,7 +138,7 @@ function Shell() {
       ) : room ? (
         <RoomView blok={room} />
       ) : bot ? (
-        <ChatView bot={bot} onMobileBack={mobile ? () => setMobileHome(true) : undefined} />
+        <ChatView bot={bot} onMobileBack={mobile ? () => transitionUi(() => setMobileHome(true)) : undefined} />
       ) : (
         <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
           <Loader2 size={20} className="animate-spin" />
