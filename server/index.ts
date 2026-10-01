@@ -2873,10 +2873,12 @@ function unresume(threadId: string, error: unknown): boolean {
 }
 
 /** Resolves once an agent's turn has settled, so the next speaker sees it. */
-function waitForIdle(botId: string): Promise<void> {
+function waitForIdle(botId: string, timeoutMs?: number): Promise<void> {
   return new Promise((resolve) => {
+    const started = Date.now();
     const tick = () => {
       if (!store.bot(botId)?.busy) return resolve();
+      if (timeoutMs !== undefined && Date.now() - started > timeoutMs) return resolve();
       setTimeout(tick, 250);
     };
     setTimeout(tick, 250);
