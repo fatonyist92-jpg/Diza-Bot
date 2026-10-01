@@ -485,7 +485,10 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       // locked against a process that is never going to answer.
       void (async () => {
         try {
-          await rpc.request("initialize", { clientInfo: { name: "bloks", version: "1" } });
+          await rpc.request("initialize", {
+            clientInfo: { name: "bloks", version: "1" },
+            capabilities: { experimentalApi: true },
+          });
           rpc.notify("initialized", {});
 
           const cursor = typeof turn.resumeCursor === "string" ? turn.resumeCursor : null;
