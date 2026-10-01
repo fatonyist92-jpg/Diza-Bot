@@ -48,10 +48,20 @@ async function atomicWrite(target, data, mode = 0o600) {
 function decryptBootstrap(databaseUrl) {
   if (!databaseUrl) throw new Error('DATABASE_URL is required to unlock the storage bootstrap');
   const envelope = JSON.parse(requireText(BOOTSTRAP_FILE));
-  if (envelope.version !== 1 || envelope.aad !== 'diza-storage-bootstrap-v1') {
+  if (envelope.version !== 2 || envelope.aad !== 'diza-storage-bootstrap-v2') {
     throw new Error('unsupported DIZA storage bootstrap');
   }
-  const key = createHash('sha256').update(`DIZA_STORAGE_V1\0${databaseUrl}`).digest();
+  let password;
+  try {
+    password = decodeURIComponent(new URL(databaseUrl).password);
+  } catch {
+    throw new Error('DATABASE_URL is not a valid URL');
+  }
+  if (!password) throw new Error('DATABASE_URL has no password credential');
+  // Faable may rewrite the Neon hostname/pooler/query string while keeping
+  // the same database credential. The password is the stable secret shared
+  // by both representations; host text is not key material.
+  const key = createHash('sha256').update(`DIZA_STORAGE_V2\0${password}`).digest();
   const iv = Buffer.from(envelope.iv, 'base64');
   const tag = Buffer.from(envelope.tag, 'base64');
   const encrypted = Buffer.from(envelope.data, 'base64');
