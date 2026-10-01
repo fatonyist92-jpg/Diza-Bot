@@ -1,8 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 test("shared Main Source is a durable writable root under DIZA data", async () => {
   const source = readFileSync("server/workspace.ts", "utf8");
