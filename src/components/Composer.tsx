@@ -91,7 +91,7 @@ const SPEECH_TROUBLE: Record<string, string> = {
   "speech-not-authorized":
     "Bloks memerlukan akses Pengenalan Suara untuk mengubah suara Anda menjadi teks. Izin ini terpisah dari izin mikrofon.",
   "recognizer-unavailable":
-    "macOS has no speech recognizer available for English on this Mac right now.",
+    "Pengenalan suara belum tersedia di perangkat ini saat ini.",
   "mic-failed": "Mikrofon tidak dapat dibuka. Aplikasi lain mungkin sedang menggunakannya.",
   "recognition-error": "Pengenalan suara berhenti. Coba lagi, dan periksa perangkat input jika masalah berulang.",
 };
@@ -236,7 +236,7 @@ export function Composer({
           setSpeechError(
             browserCode === "not-allowed" || browserCode === "service-not-allowed"
               ? "Browser ini tidak diizinkan menggunakan pengenalan suara. Periksa izin mikrofon/situs."
-              : `Voice recognition stopped (${browserCode}). Try again.`,
+              : `Pengenalan suara berhenti (${browserCode}). Coba lagi.`,
           );
           return;
         }
@@ -434,7 +434,7 @@ export function Composer({
               onClick={() => void window.bloks?.permOpenSettings(speechPane)}
               className="shrink-0 rounded-lg bg-warning/15 px-2 py-1 font-medium underline-offset-2 transition-colors hover:bg-warning/25"
             >
-              Open Settings
+              Buka Pengaturan
             </button>
           )}
           <button
@@ -461,7 +461,7 @@ export function Composer({
             aria-pressed={intelligenceMode === mode}
             title={mode === "fast" ? "Respons cepat" : mode === "expert" ? "Penalaran lebih mendalam" : "Diza memilih otomatis"}
           >
-            {mode}
+            {mode === "fast" ? "Cepat" : mode === "expert" ? "Mendalam" : "Otomatis"}
           </button>
         ))}
       </div>
@@ -570,10 +570,10 @@ export function Composer({
           }}
           placeholder={
             recording
-              ? "Listening…"
+              ? "Mendengarkan…"
               : bot.busy
-                ? `${bot.name} is working. Enter queues, ${modKey()}Enter interrupts…`
-                : `Message ${bot.name}`
+                ? `${bot.name} sedang bekerja. Enter untuk antre, ${modKey()}Enter untuk hentikan…`
+                : `Pesan ke ${bot.name}`
           }
           className="w-full min-w-0 resize-none self-center bg-transparent px-1 py-1 text-[14.5px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
         />
@@ -594,7 +594,7 @@ export function Composer({
                 ? "animate-pulse bg-destructive/15 text-destructive"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
-            title={recording ? "Hentikan dikte (Esc)" : "Dictate"}
+            title={recording ? "Hentikan dikte (Esc)" : "Dikte"}
           >
             {recording ? <VoiceMeter level={level} /> : <Mic size={17} />}
           </button>
