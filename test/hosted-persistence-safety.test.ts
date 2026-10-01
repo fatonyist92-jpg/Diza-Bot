@@ -9,7 +9,8 @@ test("hosted DIZA restores object storage first and still fails closed if every 
   assert.match(web, /let persistence = await initializeObjectPersistence\(\)/);
   assert.match(web, /const postgresPersistence = await initializeNeonPersistence\(\)/);
   assert.match(web, /const persistenceRequired = true/);
-  assert.match(web, /const core = persistenceHealthy[\s\S]{0,220}\? spawn\(/);
+  assert.match(web, /function startCore\(\)[\s\S]{0,260}spawn\(/);
+  assert.match(web, /if \(persistenceHealthy\) \{[\s\S]{0,120}startCore\(\)/);
   assert.match(web, /core held offline: persistence/);
   assert.match(web, /if \(!core && !health\)/);
   assert.match(web, /saved workspace cannot be replaced by an empty one/);
