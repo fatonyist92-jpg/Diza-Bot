@@ -28,9 +28,9 @@ export function usableSnapshot(snapshot: ProviderSnapshot | null | undefined): b
 }
 
 /** Explicit order beats registry insertion order. Keep this intentionally
- * short: Codex prefers the agentic Gemini CLI, then the Gemini API instance
- * if a key is connected. The API path is a second rail, not a substitute
- * for CLI tools. */
+ * short: Codex prefers Gemini CLI, then an authenticated Grok CLI, then
+ * the Gemini API instance if a key is connected. Only snapshots that are
+ * actually authenticated are eligible, so signed-out CLIs are skipped. */
 export function fallbackOrder(primaryInstanceId: string): string[] {
-  return primaryInstanceId === "codex" ? ["gemini_cli", "gemini"] : [];
+  return primaryInstanceId === "codex" ? ["gemini_cli", "grok_cli", "gemini"] : [];
 }
