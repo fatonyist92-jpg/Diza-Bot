@@ -15,18 +15,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Set global engine on live Vercel
+      - name: Set global engine to OpenRouter free router
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsS -X PATCH "https://diza-bot.vercel.app/api/config" \
-            -H 'content-type: application/json' \
-            --data '{"engine":{"instanceId":"openrouter","model":"qwen/qwen3.8-27b:free"}}' \
-            > /tmp/config.json
           node --input-type=module <<'NODE'
-          import fs from "node:fs";
-          const x = JSON.parse(fs.readFileSync("/tmp/config.json","utf8"));
-          if (x?.engine?.instanceId !== "openrouter") throw new Error("global engine did not switch to OpenRouter");
-          if (x?.engine?.model !== "qwen/qwen3.8-27b:free") throw new Error("global model did not switch to free Qwen");
-          console.log("DIZA_GLOBAL_ENGINE_OPENROUTER_FREE=1");
+          const base = "https://diza-bot.vercel.app";
+          const botsRes = await fetch(base + "/api/bots?messages=0");
+          if (!botsRes.ok) throw new Error("could not read bots");
+          const bots = (await botsRes.json()).bots ?? [];
+          const bot = bots.find((b) => b.name === "Diza") ?? bots.find((b) => !b.hidden) ?? bots[0];
+          if (!bot?.id) throw new Error("no bot available to use the backward-compatible global engine route");
+          const patch = await fetch(base + `/api/bots/${bot.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              modelSelection: { instanceId: "openrouter", model: "openrouter/free" }
+            }),
+          });
+          const body = await patch.text();
+          if (!patch.ok) throw new Error(`engine patch failed ${patch.status}: ${body.slice(0,500)}`);
+          const configRes = await fetch(base + "/api/config");
+          const config = await configRes.json();
+          if (config?.engine?.instanceId !== "openrouter" || config?.engine?.model !== "openrouter/free") {
+            throw new Error("global engine did not switch to openrouter/free");
+          }
+          console.log("DIZA_GLOBAL_ENGINE_OPENROUTER_FREE_ROUTER=1");
           NODE
