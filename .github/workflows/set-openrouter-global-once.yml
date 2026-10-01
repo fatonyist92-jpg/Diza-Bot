@@ -1,0 +1,32 @@
+name: DIZA set OpenRouter global once
+
+on:
+  push:
+    branches:
+      - migration-vercel-supabase
+    paths:
+      - ".github/workflows/set-openrouter-global-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  set-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Set global engine on live Vercel
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -X PATCH "https://diza-bot.vercel.app/api/config" \
+            -H 'content-type: application/json' \
+            --data '{"engine":{"instanceId":"openrouter","model":"qwen/qwen3.8-27b:free"}}' \
+            > /tmp/config.json
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const x = JSON.parse(fs.readFileSync("/tmp/config.json","utf8"));
+          if (x?.engine?.instanceId !== "openrouter") throw new Error("global engine did not switch to OpenRouter");
+          if (x?.engine?.model !== "qwen/qwen3.8-27b:free") throw new Error("global model did not switch to free Qwen");
+          console.log("DIZA_GLOBAL_ENGINE_OPENROUTER_FREE=1");
+          NODE
