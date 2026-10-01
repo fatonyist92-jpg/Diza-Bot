@@ -434,7 +434,16 @@ class NeonPersistence {
 
   async sync(reason = 'interval') {
     if (!this.ready) return { synced: false, reason: 'not-ready' };
-    if (this.inFlight) return this.inFlight;
+    if (this.inFlight) {
+      const running = this.inFlight;
+      await running;
+      // An interval may safely share another scan. A mutation may not:
+      // the running scan could have enumerated the filesystem before the
+      // mutation landed, so give every mutation a pass that starts after
+      // the previous scan has completely settled.
+      if (reason === 'interval') return running;
+      return this.sync(reason);
+    }
     this.inFlight = this.#sync(reason).finally(() => { this.inFlight = null; });
     return this.inFlight;
   }
