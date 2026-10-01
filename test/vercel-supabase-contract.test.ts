@@ -4,6 +4,7 @@ import test from "node:test";
 
 const adapter = fs.readFileSync("api/index.mjs", "utf8");
 const server = fs.readFileSync("server/index.ts", "utf8");
+const oauth = fs.readFileSync("server/oauth.ts", "utf8");
 const client = fs.readFileSync("src/state/store.tsx", "utf8");
 const vercel = JSON.parse(fs.readFileSync("vercel.json", "utf8"));
 
@@ -33,6 +34,15 @@ test("serverless chat carries existing runtime frames on its own request", () =>
   assert.match(client, /accept: "text\/event-stream"/);
   assert.match(client, /type: "streamDelta"/);
   assert.match(client, /type: "messageAdded"/);
+});
+
+test("serverless OpenRouter OAuth uses the public callback and durable one-use PKCE state", () => {
+  assert.match(adapter, /VERCEL_PROJECT_PRODUCTION_URL/);
+  assert.match(server, /DIZA_PUBLIC_ORIGIN/);
+  assert.match(oauth, /persistPending\(state, entry\)/);
+  assert.match(oauth, /pending\.get\(state\) \?\? restorePending\(state\)/);
+  assert.match(oauth, /removePending\(state\)/);
+  assert.match(adapter, /oauthCallback \|\|/);
 });
 
 test("Vercel stays on Hobby-compatible limits and routes only API through the function", () => {
