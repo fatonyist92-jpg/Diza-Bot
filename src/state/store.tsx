@@ -73,13 +73,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }).catch(() => {});
     };
 
+    const sendStreamingTurn = async (botId: string, body: Record<string, unknown>) => {
+      const response = await fetch(`/api/bots/${botId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "text/event-stream" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const failure = await response.json().catch(() => ({}));
+        throw new Error(failure.error ?? `${response.status} ${response.statusText}`);
+      }
+      if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
+        await response.json().catch(() => ({}));
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let failure: Error | null = null;
+      const fold = (frame: any) => {
+        if (frame.kind === "message") {
+          rawDispatch({ type: "messageAdded", threadId: frame.threadId, message: frame.message });
+        } else if (frame.kind === "message.patch") {
+          rawDispatch({ type: "messagePatched", threadId: frame.threadId, message: frame.message });
+        } else if (frame.kind === "bot" && frame.bot?.id) {
+          rawDispatch({ type: "botPatched", bot: frame.bot });
+        } else if (frame.kind === "runtime" && frame.event?.type === "content.delta" && frame.event.streamKind === "assistant_text") {
+          rawDispatch({ type: "streamDelta", threadId: frame.event.threadId, delta: frame.event.delta });
+        } else if (frame.kind === "runtime" && frame.event?.type === "turn.completed") {
+          rawDispatch({ type: "streamClear", threadId: frame.event.threadId });
+        } else if (frame.kind === "request.error") {
+          failure = new Error(frame.error || "The provider could not complete this turn.");
+        }
+      };
+      while (true) {
+        const { done, value } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const block of frames) {
+          const line = block.split("\n").find((entry) => entry.startsWith("data: "));
+          if (!line) continue;
+          try { fold(JSON.parse(line.slice(6))); } catch {}
+        }
+        if (done) break;
+      }
+      if (failure) throw failure;
+    };
+
     const wrapped: React.Dispatch<Action> = (action) => {
       rawDispatch(action);
       switch (action.type) {
         case "send":
-          api(`/api/bots/${action.botId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({ text: action.text, replyTo: action.replyTo, mode: action.mode ?? "auto" }),
+          sendStreamingTurn(action.botId, {
+            text: action.text,
+            replyTo: action.replyTo,
+            mode: action.mode ?? "auto",
           })
             .then(() => action.onAccepted?.())
             .catch((error) => {
@@ -544,7 +593,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-    connect();
+    // A Vercel turn carries its own event frames on the POST request;
+    // keeping a second indefinite EventSource function open would add
+    // cost without improving delivery. A refresh rehydrates from the
+    // database-backed core, while the turn request carries live frames.
+    if (import.meta.env.VITE_DIZA_SERVERLESS === "1") {
+      loadAll();
+      rawDispatch({ type: "connected", value: true });
+    } else {
+      connect();
+    }
     return () => {
       alive = false;
       if (retryTimer) clearTimeout(retryTimer);
