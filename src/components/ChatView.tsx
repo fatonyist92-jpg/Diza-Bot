@@ -24,7 +24,6 @@ import { attachmentBasename, splitAttachments } from "@/lib/attachments";
 import { TaskStrip } from "./TaskStrip";
 import { CallButton } from "./Voice";
 import { ArtifactCard } from "./Artifacts";
-import { ImagineCard } from "./ImagineCard";
 import { ConnectorCard } from "./ConnectorCard";
 import { SecretCard } from "./SecretCard";
 import {
@@ -63,15 +62,16 @@ function UserText({ text, highlight }: { text: string; highlight?: string }) {
         </div>
       )}
       {videos.length > 0 && (
-        <div className="mb-1 flex flex-wrap gap-1">
+        <div className="mb-1 flex flex-col gap-1.5">
           {videos.map((attachment, i) => (
-            <span
+            <video
               key={i}
-              title={attachment.path}
-              className="inline-flex items-center gap-1 rounded-lg bg-black/15 px-1.5 py-0.5 text-[12px]"
-            >
-              <Video size={12} /> {attachment.name ?? attachmentBasename(attachment.path)}
-            </span>
+              src={`/api/attachments/${attachmentBasename(attachment.path)}`}
+              controls
+              playsInline
+              preload="metadata"
+              className="max-h-[360px] max-w-full rounded-xl bg-black object-contain"
+            />
           ))}
         </div>
       )}
@@ -89,6 +89,51 @@ function UserText({ text, highlight }: { text: string; highlight?: string }) {
         </div>
       )}
       {withHighlight([display], highlight ?? "")}
+    </>
+  );
+}
+
+
+function BotText({ text, highlight }: { text: string; highlight?: string }) {
+  const { display, images, videos, files } = splitAttachments(text);
+  return (
+    <>
+      {images.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {images.map((attachment, i) => (
+            <img
+              key={i}
+              src={`/api/attachments/${attachmentBasename(attachment.path)}`}
+              alt={attachment.name ?? "gambar"}
+              className="max-h-[420px] max-w-full rounded-xl object-contain"
+            />
+          ))}
+        </div>
+      )}
+      {videos.length > 0 && (
+        <div className="mb-2 flex flex-col gap-2">
+          {videos.map((attachment, i) => (
+            <video
+              key={i}
+              src={`/api/attachments/${attachmentBasename(attachment.path)}`}
+              controls
+              playsInline
+              preload="metadata"
+              className="max-h-[420px] max-w-full rounded-xl bg-black object-contain"
+            />
+          ))}
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {files.map((attachment, i) => (
+            <span key={i} className="rounded-lg bg-foreground/[0.07] px-1.5 py-0.5 text-[12px]">
+              {attachment.name ?? attachmentBasename(attachment.path)}
+            </span>
+          ))}
+        </div>
+      )}
+      {display ? <Markdownish text={simpleIndonesianText(display)} highlight={highlight} /> : null}
     </>
   );
 }
@@ -431,7 +476,7 @@ function Bubble({
           ) : user ? (
             <UserText text={message.text ?? ""} highlight={highlight} />
           ) : (
-            <Markdownish text={simpleIndonesianText(message.text ?? "")} highlight={highlight} />
+            <BotText text={message.text ?? ""} highlight={highlight} />
           )}
           {message.editedAt && editing === null && (
             <span className="ml-1.5 align-baseline text-[10.5px] opacity-60">diedit</span>
@@ -998,11 +1043,9 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
                   </div>
                 ) : null;
               case "imagine":
-                return (
-                  <div key={m.id} className={cn("flex", fresh && "animate-receive-in")}>
-                    <ImagineCard botId={bot.id} taskId={bot.threadId} message={m} />
-                  </div>
-                );
+                // Historical Imagine cards stay on disk for reversibility,
+                // but the temporarily disabled feature is not shown in chat.
+                return null;
               case "component":
                 return m.component ? (
                   <div key={m.id} className={cn("flex", fresh && "animate-receive-in")}>
