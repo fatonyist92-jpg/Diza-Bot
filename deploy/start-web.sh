@@ -25,6 +25,15 @@ if [ ! -x "$GEMINI_BIN" ]; then
 fi
 "$GEMINI_BIN" --version
 
+# The HTTP SQL endpoint can refuse requests when Neon free-tier API quota is
+# exhausted even while the Postgres endpoint remains usable. Keep one tiny
+# direct driver available as a restore fallback; DIZA data itself stays in Neon.
+PG_VERSION="8.16.3"
+PG_MODULE="$HOME/.local/lib/node_modules/pg/package.json"
+if [ ! -f "$PG_MODULE" ]; then
+  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "pg@$PG_VERSION"
+fi
+
 node deploy/codex-ipv4-proxy.mjs &
 
 export CODEX_HOME
