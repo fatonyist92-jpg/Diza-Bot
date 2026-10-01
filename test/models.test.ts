@@ -42,6 +42,32 @@ test("preferred families come first, in the order the spec lists them", () => {
   ]);
 });
 
+test("OpenRouter keeps preferred families represented instead of letting one family crowd out the picker", () => {
+  const out = chooseModels(
+    spec({
+      kind: "openrouter",
+      prefer: [/^google\//, /^anthropic\//, /^x-ai\//, /^openai\//],
+      limit: 8,
+    }),
+    [
+      "google/gemini-a", "google/gemini-b", "google/gemini-c", "google/gemini-d",
+      "anthropic/claude-a", "anthropic/claude-b",
+      "x-ai/grok-a", "x-ai/grok-b",
+      "openai/gpt-a", "openai/gpt-b",
+    ],
+  )!;
+  const got = out.options.map((o) => o.id);
+  assert.deepEqual(got.slice(0, 4), [
+    "google/gemini-a",
+    "anthropic/claude-a",
+    "x-ai/grok-a",
+    "openai/gpt-a",
+  ]);
+  assert.ok(got.some((id) => id.startsWith("anthropic/")));
+  assert.ok(got.some((id) => id.startsWith("x-ai/")));
+  assert.ok(got.some((id) => id.startsWith("openai/")));
+});
+
 test("the list is capped, because a gateway can serve hundreds", () => {
   const many = Array.from({ length: 400 }, (_, i) => `vendor/model-${i}`);
   const out = chooseModels(spec({ prefer: [/^vendor\//], limit: 12 }), many);
