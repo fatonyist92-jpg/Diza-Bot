@@ -1969,8 +1969,34 @@ async function startTurn(
   // limit would never fire, because trimming is what makes it fit, and
   // the trimming is exactly the silent forgetting this replaces.
   let built = buildTranscript();
-  if (!blok && built.dropped > 0) {
-    if (await foldContext(bot.id, task.id).catch(() => false)) built = buildTranscript();
+  // Native provider sessions can grow far beyond the visible transcript:
+  // tool calls, reasoning and provider-side state all count toward their
+  // window. Preflight the provider's last reported input before the next turn.
+  const providerSessionFull =
+    !blok &&
+    (task.lastInput ?? 0) > 0 &&
+    shouldCompact(task.lastInput ?? 0, contextLimit);
+
+  if (!blok && (built.dropped > 0 || providerSessionFull)) {
+    const folded = await foldContext(bot.id, task.id, providerSessionFull).catch(() => false);
+    if (folded) {
+      built = buildTranscript();
+    } else {
+      // If summarisation itself cannot run, availability still wins over a
+      // silent dead chat: drop only the oversized provider session and replay
+      // the bounded transcript into a fresh session. Chat history stays intact.
+      const ownerId = task.lastInstanceId ?? bot.modelSelection.instanceId;
+      const owner = registry.get(ownerId);
+      if (owner && !owner.adapter.capabilities.replaysNatively && task.resumeCursors[ownerId] !== undefined) {
+        store.resetTaskSession(task.id, ownerId);
+        const notice = store.appendMessage(task.id, {
+          role: "bot",
+          kind: "notice",
+          text: "Percakapan ini sudah sangat panjang. Session AI direfresh agar tetap bisa menjawab; history chat tetap tersimpan.",
+        });
+        broadcast({ kind: "message", threadId: task.id, message: notice });
+      }
+    }
   }
   const transcript = built.turns;
 
@@ -3082,7 +3108,9 @@ async function foldContext(botId: string, threadId: string, force = false): Prom
   const bot = store.bot(botId);
   const task = bot?.tasks.find((t) => t.id === threadId);
   if (!bot || !task) return false;
-  const instance = registry.get(bot.modelSelection.instanceId);
+  // Compact with the engine that actually owns this lane when possible.
+  const instanceId = task.lastInstanceId ?? bot.modelSelection.instanceId;
+  const instance = registry.get(instanceId) ?? registry.get(bot.modelSelection.instanceId);
   if (!instance?.generateText) return false;
 
   const settled = store
@@ -3116,6 +3144,10 @@ async function foldContext(botId: string, threadId: string, force = false): Prom
     through: already + plan.fold.length,
     at: Date.now(),
   });
+  // The old native session still contains the oversized conversation.
+  // Reset only that provider cursor so the next turn starts fresh with
+  // summary + recent turns while the visible chat stays untouched.
+  store.resetTaskSession(threadId, instance.instanceId);
   // a normal state, said plainly, in the thread it happened in
   const notice = store.appendMessage(threadId, {
     role: "bot",
