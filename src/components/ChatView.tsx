@@ -883,7 +883,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => dispatch({ type: "interrupt", botId: bot.id })}
+              onClick={() => dispatch({ type: "interrupt", botId: bot.id, taskId: bot.threadId })}
               title="Hentikan respons ini"
             >
               <Square size={11} className="fill-current" />
