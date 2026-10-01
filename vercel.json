@@ -7,10 +7,7 @@
     "api/index.mjs": {
       "maxDuration": 300,
       "memory": 1024,
-      "includeFiles": [
-        "server/**",
-        "package.json"
-      ]
+      "includeFiles": "{server/**,package.json}"
     }
   },
   "rewrites": [
