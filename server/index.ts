@@ -2212,11 +2212,13 @@ async function startTurn(
         : onCloud
           ? store.pinTaskCwd(task.id, null)
           : store.pinTaskCwd(task.id, roomDesk ?? bot.cwd ?? projectDesk ?? null);
+      const ownWorkspace = workspace.ensureWorkspace(bot.id);
+      const sharedMainSource = workspace.ensureMainSource();
       const turnCwd = sharing
         ? sharedDesk(sharedRoom!.id)
         : onCloud
           ? undefined
-          : (roomDesk ?? pinned ?? workspace.ensureWorkspace(bot.id));
+          : (roomDesk ?? pinned ?? ownWorkspace);
 
       // A lane served by a different engine last time has a blind spot:
       // any cursor the new engine holds predates the other engine's
@@ -2269,7 +2271,7 @@ async function startTurn(
         // its own workspace is always the agent's to edit: memory notes
         // must not queue approval cards behind a custom working folder.
         // Not in a shared room, where those notes are the owner's.
-        ...(onCloud || sharing ? {} : { extraDirs: [workspace.ensureWorkspace(bot.id)] }),
+        ...(onCloud || sharing ? {} : { extraDirs: [ownWorkspace, sharedMainSource] }),
         ...(sharing ? { shared: { tools: sharing.tools } } : {}),
         text: turnText,
         model: turnModel,
@@ -2292,6 +2294,7 @@ async function startTurn(
                   ? " You have your own Linux sandbox: a persistent shell and filesystem at /work, isolated from this person's machine. Use sandbox_exec for anything a shell can do. There is no display, so nothing can be clicked or screenshotted; work in files and commands."
                   : "") +
           (credential ? `\n\n${cliBriefing(`node "${AGENT_CLI}"`)}` : "") +
+          (!sharing && runsAProcess(instance.driverKind) ? `\n\n${workspace.mainSourcePrompt()}` : "") +
           (project ? `\n\n${briefFor(project)}` : "") +
           (project && projectMemoryPrompt(project) ? `\n\n${projectMemoryPrompt(project)}` : "") +
           (project && projectAssetsPrompt(project) ? `\n\n${projectAssetsPrompt(project)}` : ""),
