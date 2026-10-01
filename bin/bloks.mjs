@@ -141,30 +141,6 @@ const COMMANDS = {
       return (skills ?? []).map((s) => ({ id: s.id, name: s.name, description: s.description }));
     },
   },
-  imagine: {
-    use: 'imagine --operation <image-generate|image-edit|image-to-video|text-to-video|video-extend|variation> --prompt <text> [--assets "id,id"] [--duration 15] [--extend 15]',
-    about: "hand image/video generation to DIZA Imagine using stable conversation asset ids",
-    run: async (args) => {
-      const flags = parseFlags(args);
-      if (!flags.operation) throw new Error("imagine needs --operation");
-      if (!flags.prompt) throw new Error("imagine needs --prompt");
-      const ids = (flags.assets ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-      const continuity = {};
-      if (flags.duration) continuity.durationSeconds = Number(flags.duration);
-      if (flags.extend) continuity.extendSeconds = Number(flags.extend);
-      if (flags.face) continuity.faceIdentity = flags.face;
-      if (flags.wardrobe) continuity.wardrobe = flags.wardrobe;
-      if (flags.scene) continuity.scene = flags.scene;
-      if (flags.camera) continuity.camera = flags.camera;
-      return request("POST", "/api/imagine/jobs", {
-        operation: flags.operation,
-        prompt: flags.prompt,
-        inputAssetIds: ids,
-        parentAssetId: ids[0],
-        continuity,
-      });
-    },
-  },
   show: {
     use: "show <kind> <json>",
     about: "answer with a component instead of prose: chart, table, decision, steps, quote, refused",
