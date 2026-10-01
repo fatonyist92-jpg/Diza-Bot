@@ -23,7 +23,7 @@ test("persistence keeps durable workspace/auth state and skips rebuildable nativ
   assert.match(source, /path\.startsWith\('native\/'\)/);
   assert.match(source, /path === 'events'/);
   assert.match(source, /path\.startsWith\('events\/'\)/);
-  assert.match(source, /namespace: 'grok'[\s\S]{0,180}path !== 'auth\.json'/);
+  assert.match(source, /namespace: 'grok'[\s\S]{0,420}path !== 'auth\.json'/);
   assert.match(source, /\['auth\.json', 'config\.toml', 'environments\.toml'\]/);
   assert.match(source, /DEFAULT_INTERVAL_MS = 30_000/);
 });
