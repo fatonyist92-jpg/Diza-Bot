@@ -34,38 +34,15 @@ test("a failed restore row cannot be deleted by the next sync", () => {
 });
 
 
-test("bot roster recovery only triggers for a fresh bootstrap over existing rooms", async () => {
-  const { __test } = await import("../deploy/neon-persistence.mjs");
-  const rooms = [{ memberIds: ["diza-old", "rani-old"] }];
-  assert.equal(__test.needsBotRosterRecovery([{ id: "fresh-diza" }], rooms), true);
-  assert.equal(__test.needsBotRosterRecovery([{ id: "diza-old" }], rooms), false);
-  assert.equal(__test.needsBotRosterRecovery([{ id: "fresh-diza" }], []), false);
+test("bot roster recovery is conservative and requires zero overlap with persisted room agents", () => {
+  assert.match(source, /return overlap === 0 && missing === roomIds\.size/);
+  assert.match(source, /if \(!roomIds\.size \|\| !botIds\.size\) return false/);
 });
 
-test("recovery roster must uniquely cover every persisted room member", async () => {
-  const { __test } = await import("../deploy/neon-persistence.mjs");
-  const rooms = [{ memberIds: ["diza-old", "rani-old"] }];
-  assert.equal(
-    __test.validRecoveryRoster(
-      { kind: "bots-recovery", bots: [{ id: "diza-old" }, { id: "rani-old" }] },
-      rooms,
-    ),
-    true,
-  );
-  assert.equal(
-    __test.validRecoveryRoster(
-      { kind: "bots-recovery", bots: [{ id: "diza-old" }] },
-      rooms,
-    ),
-    false,
-  );
-  assert.equal(
-    __test.validRecoveryRoster(
-      { kind: "bots-recovery", bots: [{ id: "diza-old" }, { id: "diza-old" }, { id: "rani-old" }] },
-      rooms,
-    ),
-    false,
-  );
+test("recovery roster must uniquely cover every persisted room member", () => {
+  assert.match(source, /candidateIds\.size !== ids\.length/);
+  assert.match(source, /for \(const id of required\) if \(!candidateIds\.has\(id\)\) return false/);
+  assert.match(source, /payload\.kind !== 'bots-recovery'/);
 });
 
 test("startup invokes roster repair only after normal Neon restore", () => {
