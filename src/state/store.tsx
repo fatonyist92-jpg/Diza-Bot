@@ -121,6 +121,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (failure) throw failure;
     };
 
+    const reconcileServerlessTurn = (botId: string) => {
+      if (import.meta.env.VITE_DIZA_SERVERLESS !== "1") return;
+      const current = stateRef.current.bots.find((bot) => bot.id === botId);
+      if (current?.threadId) {
+        rawDispatch({ type: "streamClear", threadId: current.threadId });
+      }
+      // The POST stream is the fast path, but Vercel may finish/persist the
+      // turn even when a mobile browser misses its final frame. Rehydrate
+      // once at settlement so busy/thinking state and the saved reply agree
+      // with the durable backend after both success and provider errors.
+      api("/api/bots?messages=120")
+        .then(({ bots }) => {
+          if (Array.isArray(bots)) rawDispatch({ type: "hydrate", bots });
+        })
+        .catch(() => {});
+    };
+
     const wrapped: React.Dispatch<Action> = (action) => {
       rawDispatch(action);
       switch (action.type) {
@@ -135,7 +152,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               const message = error instanceof Error ? error.message : String(error);
               action.onFailed?.(message);
               showError(error);
-            });
+            })
+            .finally(() => reconcileServerlessTurn(action.botId));
           break;
         case "answerCard": {
           const card = findCard(stateRef.current, action);
