@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, stat, unlink, writeFile, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
+import { createRequire } from 'node:module';
 import { dirname, join, posix, resolve, sep } from 'node:path';
 import { gzipSync, gunzipSync } from 'node:zlib';
 
 const VERSION = 1;
-const DEFAULT_INTERVAL_MS = 5_000;
+const DEFAULT_INTERVAL_MS = 30_000;
 const MAX_FILE_BYTES = 128 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 384 * 1024 * 1024;
 const RESTORE_CHUNK_BYTES = 512 * 1024;
@@ -15,27 +16,29 @@ const roots = () => [
   {
     namespace: 'bloks',
     dir: process.env.DIZA_DATA_DIR || join(homedir(), '.bloks'),
-    exclude: () => false,
+    // Provider/native traces are diagnostics, not DIZA memory. Persisting
+    // them rewrites tens or hundreds of MB every few seconds and can burn
+    // through a free database quota while bots/messages themselves are tiny.
+    exclude: (path) =>
+      path === 'native' ||
+      path.startsWith('native/') ||
+      path === 'events' ||
+      path.startsWith('events/'),
   },
   {
     namespace: 'grok',
     dir: process.env.GROK_HOME || join(homedir(), '.grok'),
-    exclude: () => false,
+    // Grok continuity can be rebuilt from DIZA's transcript. Only the login
+    // credential needs to survive an ephemeral Faable restart.
+    exclude: (path) => path !== 'auth.json',
   },
   {
     namespace: 'codex',
     dir: process.env.CODEX_HOME || join(homedir(), '.codex'),
-    exclude: (path) =>
-      path === '.env' ||
-      path === 'node-root-ca.pem' ||
-      path === '.tmp' ||
-      path.startsWith('.tmp/') ||
-      path === 'cache' ||
-      path.startsWith('cache/') ||
-      path === 'plugins/cache' ||
-      path.startsWith('plugins/cache/') ||
-      path.endsWith('.sqlite-wal') ||
-      path.endsWith('.sqlite-shm'),
+    // Same rule as Grok: keep credentials/config, not provider session logs.
+    // DIZA retires provider cursors after restore so the next turn safely
+    // replays transcript into a fresh native session.
+    exclude: (path) => !['auth.json', 'config.toml', 'environments.toml'].includes(path),
   },
 ];
 
@@ -104,33 +107,79 @@ function endpointFor(connectionString) {
   return `https://${url.hostname}/sql`;
 }
 
-function makeClient(connectionString) {
+function makeClient(connectionString, logger = console) {
   const endpoint = endpointFor(connectionString);
-  return async (query, params = []) => {
+  let directPool = null;
+  let announcedDirect = false;
+
+  const directQuery = async (query, params) => {
+    if (!directPool) {
+      const require = createRequire(import.meta.url);
+      const modulePath = join(homedir(), '.local', 'lib', 'node_modules', 'pg');
+      const { Pool } = require(modulePath);
+      directPool = new Pool({
+        connectionString,
+        max: 1,
+        idleTimeoutMillis: 10_000,
+        connectionTimeoutMillis: 12_000,
+      });
+    }
+    if (!announcedDirect) {
+      announcedDirect = true;
+      logger.warn?.('[diza-persist] Neon HTTP SQL unavailable; using direct Postgres restore/sync path');
+    }
+    const result = await directPool.query(query, params);
+    return result.rows ?? [];
+  };
+
+  const queryFn = async (query, params = []) => {
     const encoded = params.map((value) => {
       if (Buffer.isBuffer(value)) return `\\x${value.toString('hex')}`;
       if (value instanceof Date) return value.toISOString();
       return value;
     });
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'Neon-Connection-String': connectionString,
-        'Neon-Raw-Text-Output': 'true',
-        'Neon-Array-Mode': 'true',
-      },
-      body: JSON.stringify({ query, params: encoded }),
-    });
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`Neon HTTP ${response.status}: ${body.slice(0, 240)}`);
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'Neon-Connection-String': connectionString,
+          'Neon-Raw-Text-Output': 'true',
+          'Neon-Array-Mode': 'true',
+        },
+        body: JSON.stringify({ query, params: encoded }),
+      });
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        const error = new Error(`Neon HTTP ${response.status}: ${body.slice(0, 240)}`);
+        error.status = response.status;
+        throw error;
+      }
+      const raw = await response.json();
+      const names = Array.isArray(raw.fields) ? raw.fields.map((field) => field.name) : [];
+      const rows = Array.isArray(raw.rows) ? raw.rows : [];
+      return rows.map((row) => Object.fromEntries(row.map((value, index) => [names[index], value])));
+    } catch (error) {
+      // A free-tier HTTP SQL quota refusal should not strand an otherwise
+      // reachable Postgres database. Direct TCP uses the same DATABASE_URL
+      // and the same role; there is no second copy of user data.
+      try {
+        return await directQuery(query, params);
+      } catch (directError) {
+        const http = error?.message || String(error);
+        const direct = directError?.message || String(directError);
+        throw new Error(`${http}; direct Postgres also failed: ${direct}`);
+      }
     }
-    const raw = await response.json();
-    const names = Array.isArray(raw.fields) ? raw.fields.map((field) => field.name) : [];
-    const rows = Array.isArray(raw.rows) ? raw.rows : [];
-    return rows.map((row) => Object.fromEntries(row.map((value, index) => [names[index], value])));
   };
+
+  queryFn.close = async () => {
+    if (!directPool) return;
+    const pool = directPool;
+    directPool = null;
+    await pool.end().catch(() => {});
+  };
+  return queryFn;
 }
 
 async function atomicWrite(target, data, mode) {
@@ -179,8 +228,8 @@ async function collectFiles(root) {
 
 class NeonPersistence {
   constructor(connectionString, logger = console) {
-    this.query = makeClient(connectionString);
     this.logger = logger;
+    this.query = makeClient(connectionString, logger);
     this.ready = false;
     this.timer = null;
     this.inFlight = null;
@@ -312,6 +361,46 @@ class NeonPersistence {
     return { recovered: true, count: payload.bots.length, slot: row.slot };
   }
 
+  async retireProviderCursorsAfterRestore() {
+    const bloksRoot = this.rootList.find((root) => root.namespace === 'bloks');
+    if (!bloksRoot) return { changed: false };
+    const botsPath = join(bloksRoot.dir, 'bots.json');
+    let bots;
+    try {
+      bots = JSON.parse(await readFile(botsPath, 'utf8'));
+    } catch {
+      return { changed: false };
+    }
+    if (!Array.isArray(bots)) return { changed: false };
+
+    let changed = false;
+    for (const bot of bots) {
+      if (bot && typeof bot === 'object' && bot.resumeCursors && Object.keys(bot.resumeCursors).length) {
+        bot.resumeCursors = {};
+        changed = true;
+      }
+      for (const task of Array.isArray(bot?.tasks) ? bot.tasks : []) {
+        if (task.resumeCursors && Object.keys(task.resumeCursors).length) {
+          task.resumeCursors = {};
+          changed = true;
+        }
+        if (task.lastInstanceId !== undefined) {
+          delete task.lastInstanceId;
+          changed = true;
+        }
+        if ((task.lastInput ?? 0) !== 0) {
+          task.lastInput = 0;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      await atomicWrite(botsPath, Buffer.from(JSON.stringify(bots, null, 2)), 0o600);
+      this.logger.log?.('[diza-persist] retired native provider cursors; transcript will replay into fresh sessions');
+    }
+    return { changed };
+  }
+
   async sync(reason = 'interval') {
     if (!this.ready) return { synced: false, reason: 'not-ready' };
     if (this.inFlight) return this.inFlight;
@@ -320,19 +409,9 @@ class NeonPersistence {
   }
 
   async #sync(reason) {
-    // Rebuildable Codex caches are not DIZA memory. Prune them server-side
-    // in one statement so an old cache-heavy snapshot cannot require
-    // hundreds of delete round-trips before the useful state is synced.
-    await this.query(`
-      DELETE FROM public.diza_persist_files
-      WHERE namespace = 'codex' AND (
-        path = '.tmp' OR path LIKE '.tmp/%' OR
-        path = 'cache' OR path LIKE 'cache/%' OR
-        path = 'plugins/cache' OR path LIKE 'plugins/cache/%' OR
-        path LIKE '%.sqlite-wal' OR path LIKE '%.sqlite-shm'
-      )
-    `);
-
+    // Never prune old excluded rows automatically. They may be useful for
+    // forensic recovery, and deleting user/provider history is a separate,
+    // explicit maintenance decision. We simply stop rewriting them.
     const existingRows = await this.query(`
       SELECT namespace, path, sha256
       FROM public.diza_persist_files
@@ -395,6 +474,8 @@ class NeonPersistence {
 
     for (const row of existingRows) {
       const key = `${row.namespace}\0${row.path}`;
+      const root = this.rootList.find((item) => item.namespace === row.namespace);
+      if (!root || root.exclude(row.path)) continue;
       if (seen.has(key) || this.restoreFailures.has(key)) continue;
       await this.query(
         'DELETE FROM public.diza_persist_files WHERE namespace = $1 AND path = $2',
@@ -449,6 +530,8 @@ class NeonPersistence {
       await this.sync('shutdown');
     } catch (error) {
       this.logger.error?.(`[diza-persist] shutdown sync failed: ${error?.message || error}`);
+    } finally {
+      await this.query.close?.();
     }
   }
 }
@@ -472,6 +555,7 @@ export async function initializeNeonPersistence(logger = console) {
   try {
     await persistence.restore();
     await persistence.recoverBotRosterIfNeeded();
+    await persistence.retireProviderCursorsAfterRestore();
   } catch (error) {
     logger.error?.(`[diza-persist] restore failed; persistence disabled for this process: ${error?.message || error}`);
     return disabled('restore-failed', logger);
