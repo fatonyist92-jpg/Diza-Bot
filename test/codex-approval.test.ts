@@ -187,8 +187,10 @@ test("workspace write roots are forwarded on thread start and turn start", async
   });
   await setImmediate();
   const frames = h.peers[0].frames;
+  const initialize = frames.find((frame) => frame.method === "initialize");
   const threadStart = frames.find((frame) => frame.method === "thread/start");
   const turnStart = frames.find((frame) => frame.method === "turn/start");
+  assert.deepEqual(initialize.params.capabilities, { experimentalApi: true });
   assert.deepEqual(threadStart.params.runtimeWorkspaceRoots, ["/tmp/bot-workspace", "/tmp/main-source"]);
   assert.deepEqual(turnStart.params.runtimeWorkspaceRoots, ["/tmp/bot-workspace", "/tmp/main-source"]);
 });
