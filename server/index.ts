@@ -5552,6 +5552,12 @@ const server = createServer(async (req, res) => {
       routines.removeForTarget(bot.id);
       usage.forget(bot.id);
       store.deleteBot(bot.id);
+      workspace.removeWorkspace(bot.id);
+      for (const file of [join(AVATARS_DIR, bot.id), join(AVATARS_DIR, `${bot.id}.mime`)]) {
+        try {
+          unlinkSync(file);
+        } catch {}
+      }
       // Every lane, not just the first: an agent with three lanes used
       // to leave two files behind.
       for (const dir of [EVENTS_DIR, NATIVE_DIR]) {
