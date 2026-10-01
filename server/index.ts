@@ -1241,6 +1241,7 @@ bus.subscribe((event: RuntimeEvent) => {
           subtitle: askedBy && !asking ? `${event.summary ?? ""} (asked for by ${askedBy})`.trim() : event.summary,
           options: event.choices?.length ? event.choices : asking ? [] : ["Allow", "Deny"],
           requestId: event.requestId,
+          requestType: asking ? "question" : "permission",
           ...(byMember && !asking ? { askedFor: requester } : {}),
           // The tool rides along so the card can offer to remember the
           // answer as a rule. Never for a question: a rule cannot answer
@@ -1275,14 +1276,18 @@ bus.subscribe((event: RuntimeEvent) => {
       if (messageId) {
         const existing = store.messagesFor(roomId).find((m) => m.id === messageId);
         if (existing?.card && !existing.card.answered) {
-          // The one thing in the product that is genuinely on your behalf:
-          // an agent stopped, asked, and was told yes or no. Recorded with
-          // who decided, because "the engine's own policy allowed it" and
-          // "you allowed it" are different facts.
-          if (existing.card.requestId) {
-            // Signed by the agent that asked, so "Ivy asked to do this"
-            // stops being a claim by whatever wrote the line and becomes
-            // something a person can check afterwards.
+          const permissionCard =
+            existing.card.requestType === "permission" ||
+            (!existing.card.requestType && Boolean(existing.card.tool));
+          const settledAnswer =
+            existing.card.requestType === "question" ||
+            (!existing.card.requestType && !existing.card.tool)
+              ? (event.answer ?? event.behavior)
+              : event.behavior;
+
+          // Only a permission is an approval record. A question is normal
+          // conversation and must not pollute the consequential-action ledger.
+          if (existing.card.requestId && permissionCard) {
             record(
               signed(bot.id, {
                 at: Date.now(),
@@ -1302,7 +1307,7 @@ bus.subscribe((event: RuntimeEvent) => {
           const patched = store.patchMessage(roomId, messageId, {
             card: {
               ...existing.card,
-              answered: event.behavior,
+              answered: settledAnswer,
               dismissed: event.source !== "user",
               ...(decider ? { answeredBy: decider } : {}),
             },
