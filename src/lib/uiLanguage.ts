@@ -9,6 +9,8 @@ const SIMPLE_INDONESIAN_TEXT: Record<string, string> = {
   "Check with me before acting": "Tanya saya sebelum bertindak",
   "Act on the small stuff, ask on the big": "Kerjakan hal kecil, tanyakan yang penting",
   "Keep me posted, I trust you": "Kabari saya, selebihnya lanjutkan",
+  "Your agent has a question": "Agen Anda punya pertanyaan",
+  "Approval needed": "Perlu persetujuan",
   "General": "Umum",
   "Personal AI": "AI Pribadi",
 };
