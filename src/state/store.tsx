@@ -128,14 +128,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         rawDispatch({ type: "streamClear", threadId: current.threadId });
       }
       // The POST stream is the fast path, but Vercel may finish/persist the
-      // turn even when a mobile browser misses its final frame. Rehydrate
-      // once at settlement so busy/thinking state and the saved reply agree
-      // with the durable backend after both success and provider errors.
-      api("/api/bots?messages=120")
-        .then(({ bots }) => {
-          if (Array.isArray(bots)) rawDispatch({ type: "hydrate", bots });
-        })
-        .catch(() => {});
+      // turn even when a mobile browser misses its final frame. A fresh
+      // serverless instance can briefly refuse the first read immediately
+      // after that mutation, so retry only this read. Never replay the turn.
+      const refresh = (attempt: number) => {
+        api("/api/bots?messages=120")
+          .then(({ bots }) => {
+            if (Array.isArray(bots)) rawDispatch({ type: "hydrate", bots });
+          })
+          .catch(() => {
+            if (attempt < 2) {
+              setTimeout(() => refresh(attempt + 1), 400 * (attempt + 1));
+            }
+          });
+      };
+      refresh(0);
     };
 
     const wrapped: React.Dispatch<Action> = (action) => {
