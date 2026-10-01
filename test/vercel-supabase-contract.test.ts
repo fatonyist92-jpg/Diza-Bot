@@ -36,6 +36,14 @@ test("serverless chat carries existing runtime frames on its own request", () =>
   assert.match(client, /type: "messageAdded"/);
 });
 
+test("serverless chat reconciles durable state after both success and provider failure", () => {
+  assert.match(client, /reconcileServerlessTurn/);
+  assert.match(client, /finally\(\(\) => reconcileServerlessTurn\(action\.botId\)\)/);
+  assert.match(client, /\/api\/bots\?messages=120/);
+  assert.match(client, /type: "streamClear"/);
+  assert.match(client, /type: "hydrate"/);
+});
+
 test("serverless OpenRouter OAuth uses the public callback and durable one-use PKCE state", () => {
   assert.match(adapter, /VERCEL_PROJECT_PRODUCTION_URL/);
   assert.match(server, /DIZA_PUBLIC_ORIGIN/);
