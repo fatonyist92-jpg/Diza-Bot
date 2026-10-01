@@ -24,7 +24,7 @@ test("fallback only treats authenticated available engines as usable", () => {
   assert.equal(usableSnapshot({ state: "unavailable", reason: "missing" }), false);
 });
 
-test("Codex fallback order prefers Gemini CLI then Gemini API", () => {
-  assert.deepEqual(fallbackOrder("codex"), ["gemini_cli", "gemini"]);
+test("Codex fallback order prefers Gemini CLI, Grok CLI, then Gemini API", () => {
+  assert.deepEqual(fallbackOrder("codex"), ["gemini_cli", "grok_cli", "gemini"]);
   assert.deepEqual(fallbackOrder("gemini_cli"), []);
 });
