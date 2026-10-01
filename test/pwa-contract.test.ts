@@ -28,6 +28,8 @@ test("PWA registration is additive and secure-context aware", () => {
   assert.match(main, /registerPwa\(\)/);
   assert.match(pwa, /"serviceWorker" in navigator/);
   assert.match(pwa, /location\.protocol !== "https:"/);
+  assert.match(pwa, /document\.readyState === "complete"/);
+  assert.match(pwa, /window\.addEventListener\("load", register/);
   assert.match(pwa, /\.catch\(\(\) =>/);
 });
 
