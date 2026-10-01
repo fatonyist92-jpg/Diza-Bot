@@ -32,3 +32,47 @@ test("a failed restore row cannot be deleted by the next sync", () => {
   assert.match(source, /this\.restoreFailures\.add\(key\)/);
   assert.match(source, /seen\.has\(key\) \|\| this\.restoreFailures\.has\(key\)/);
 });
+
+
+test("bot roster recovery only triggers for a fresh bootstrap over existing rooms", async () => {
+  const { __test } = await import("../deploy/neon-persistence.mjs");
+  const rooms = [{ memberIds: ["diza-old", "rani-old"] }];
+  assert.equal(__test.needsBotRosterRecovery([{ id: "fresh-diza" }], rooms), true);
+  assert.equal(__test.needsBotRosterRecovery([{ id: "diza-old" }], rooms), false);
+  assert.equal(__test.needsBotRosterRecovery([{ id: "fresh-diza" }], []), false);
+});
+
+test("recovery roster must uniquely cover every persisted room member", async () => {
+  const { __test } = await import("../deploy/neon-persistence.mjs");
+  const rooms = [{ memberIds: ["diza-old", "rani-old"] }];
+  assert.equal(
+    __test.validRecoveryRoster(
+      { kind: "bots-recovery", bots: [{ id: "diza-old" }, { id: "rani-old" }] },
+      rooms,
+    ),
+    true,
+  );
+  assert.equal(
+    __test.validRecoveryRoster(
+      { kind: "bots-recovery", bots: [{ id: "diza-old" }] },
+      rooms,
+    ),
+    false,
+  );
+  assert.equal(
+    __test.validRecoveryRoster(
+      { kind: "bots-recovery", bots: [{ id: "diza-old" }, { id: "diza-old" }, { id: "rani-old" }] },
+      rooms,
+    ),
+    false,
+  );
+});
+
+test("startup invokes roster repair only after normal Neon restore", () => {
+  const restoreAt = source.indexOf("await persistence.restore()");
+  const repairAt = source.indexOf("await persistence.recoverBotRosterIfNeeded()");
+  assert.ok(restoreAt >= 0 && repairAt > restoreAt);
+  assert.match(source, /WHERE slot LIKE 'recovery-bots-%'/);
+  assert.match(source, /sha256\(Buffer\.from\(row\.payload\)\) !== row\.sha256/);
+  assert.match(source, /await atomicWrite\(botsPath, recovered, 0o600\)/);
+});
