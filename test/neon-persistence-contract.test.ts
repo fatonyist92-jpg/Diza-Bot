@@ -28,6 +28,12 @@ test("persistence keeps durable workspace/auth state and skips rebuildable nativ
   assert.match(source, /DEFAULT_INTERVAL_MS = 30_000/);
 });
 
+test("a mutation arriving during another sync gets a fresh persistence pass", () => {
+  assert.match(source, /if \(this\.inFlight\) \{[\s\S]{0,220}await running/);
+  assert.match(source, /if \(reason === 'interval'\) return running/);
+  assert.match(source, /return this\.sync\(reason\)/);
+});
+
 test("a failed restore row cannot be deleted by the next sync", () => {
   assert.match(source, /this\.restoreFailures = new Set\(\)/);
   assert.match(source, /this\.restoreFailures\.add\(key\)/);
