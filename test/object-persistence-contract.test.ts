@@ -47,3 +47,20 @@ test("snapshot upload is private S3 state and periodic persistence remains bound
   assert.match(source, /MAX_TOTAL_BYTES = 32 \* 1024 \* 1024/);
   assert.match(source, /DEFAULT_INTERVAL_MS = 30_000/);
 });
+
+
+test("durable object credential bootstrap is public-readable only as DIZA_WEB_PASSWORD ciphertext", () => {
+  assert.match(source, /PUBLIC_BOOTSTRAP_BUCKET = 'diza-bootstrap'/);
+  assert.match(source, /DIZA_PUBLIC_BOOTSTRAP_V1\\0\$\{webPassword\}/);
+  assert.match(source, /sealPublicStorageConfig/);
+  assert.match(source, /openPublicStorageConfig/);
+  assert.match(source, /persistPublicBootstrap\(webPassword\)/);
+  assert.match(source, /loadPublicStorageConfig\(webPassword\)/);
+});
+
+test("one-time recovery uses only the raw encrypted bootstrap key then seals credentials durably", () => {
+  assert.match(source, /decryptBootstrapWithRawKey\(rawKey\)/);
+  assert.match(source, /rawKey\.length !== 32/);
+  assert.match(source, /recoverObjectPersistenceWithRawKey/);
+  assert.match(source, /await persistence\.persistPublicBootstrap\(webPassword\)/);
+});
