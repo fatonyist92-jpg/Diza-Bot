@@ -24,7 +24,13 @@ const roots = () => [
   {
     namespace: 'codex',
     dir: process.env.CODEX_HOME || join(homedir(), '.codex'),
-    exclude: (path) => path === '.env' || path === 'node-root-ca.pem',
+    exclude: (path) =>
+      path === '.env' ||
+      path === 'node-root-ca.pem' ||
+      path === '.tmp' ||
+      path.startsWith('.tmp/') ||
+      path.endsWith('.sqlite-wal') ||
+      path.endsWith('.sqlite-shm'),
   },
 ];
 
