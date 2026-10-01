@@ -214,6 +214,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
       >
     >,
   ) => dispatch({ type: "updateBot", botId: bot.id, patch: p });
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   /** Center-crop to a square, shrink to 512, and ship as JPEG. Done
    * here so the server never has to buffer somebody's 12MB original. */
   const uploadAvatar = (file: File) => {
@@ -225,7 +226,10 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
       const canvas = document.createElement("canvas");
       canvas.width = canvas.height = 512;
       const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      if (!ctx) {
+        setAvatarError("Foto tidak dapat diproses di perangkat ini.");
+        return;
+      }
       ctx.drawImage(
         image,
         (image.width - side) / 2,
@@ -241,7 +245,18 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
       api(`/api/bots/${bot.id}/avatar`, {
         method: "PUT",
         body: JSON.stringify({ data, mime: "image/jpeg" }),
-      }).catch(() => {});
+      })
+        .then(({ bot: patched }) => {
+          setAvatarError(null);
+          if (patched) dispatch({ type: "botPatched", bot: patched });
+        })
+        .catch((error) =>
+          setAvatarError(error instanceof Error ? error.message : "Foto gagal disimpan."),
+        );
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      setAvatarError("File foto tidak dapat dibaca.");
     };
     image.src = url;
   };
@@ -302,13 +317,25 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
                   <button
                     className="rounded-lg px-2 py-0.5 text-[11.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     onClick={() => {
-                      api(`/api/bots/${bot.id}/avatar`, { method: "DELETE" }).catch(() => {});
+                      api(`/api/bots/${bot.id}/avatar`, { method: "DELETE" })
+                        .then(({ bot: patched }) => {
+                          setAvatarError(null);
+                          if (patched) dispatch({ type: "botPatched", bot: patched });
+                        })
+                        .catch((error) =>
+                          setAvatarError(error instanceof Error ? error.message : "Foto gagal dihapus."),
+                        );
                     }}
                   >
-                    Remove photo
+                    Hapus foto
                   </button>
                 )}
               </div>
+              {avatarError && (
+                <div className="max-w-[180px] text-center text-[11px] leading-snug text-destructive">
+                  {avatarError}
+                </div>
+              )}
             </div>
 
             <div className="min-w-0 flex-1">
