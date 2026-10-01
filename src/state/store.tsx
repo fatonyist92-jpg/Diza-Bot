@@ -23,6 +23,7 @@ import { noticeFor } from "@/lib/notify";
 import { maybeAutoSpeak } from "@/components/Voice";
 import {
   findCard,
+  isPermissionCard,
   initialState,
   reducer,
   type Action,
@@ -244,9 +245,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         case "dismissCard": {
           const card = findCard(stateRef.current, action);
           if (card?.requestId) {
+            const permission = isPermissionCard(card);
             api(`/api/bots/${action.botId}/respond`, {
               method: "POST",
-              body: JSON.stringify({ requestId: card.requestId, behavior: "deny", message: "Dismissed by user." }),
+              body: JSON.stringify({
+                requestId: card.requestId,
+                behavior: permission ? "deny" : "answer",
+                message: permission ? "Ditolak dan ditutup oleh pengguna." : "Pertanyaan dilewati oleh pengguna.",
+                dismissed: true,
+              }),
             }).catch(() => {});
           } else if (!action.roomId) {
             persistCard(action.botId, action.messageId, { dismissed: true });
