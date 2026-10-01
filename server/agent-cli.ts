@@ -101,7 +101,6 @@ export const RULES: Rule[] = [
   { method: "GET", path: "/api/bots/:me/memory", why: "read its own memory" },
   { method: "PUT", path: "/api/bots/:me/memory", why: "write its own memory" },
   { method: "GET", path: "/api/bots/:me/artifacts", why: "list what it has produced" },
-  { method: "POST", path: "/api/imagine/jobs", why: "hand an image or video generation job to DIZA Imagine" },
 
   // Skills it can consult, and its own settings.
   { method: "GET", path: "/api/skills", why: "see the skill library" },
