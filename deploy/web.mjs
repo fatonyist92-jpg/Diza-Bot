@@ -20,11 +20,17 @@ const env = { ...process.env, BLOKS_PORT: String(innerPort), BLOKS_STATIC_DIR: r
 delete env.DIZA_WEB_PASSWORD;
 
 // Restore DIZA state before the core reads ~/.bloks or provider auth homes.
-// Failure is fail-safe for the live app: the core still starts, but persistence
-// stays disabled for this process rather than risking an empty-runtime overwrite.
+// On an ephemeral hosted runtime a configured database is authoritative:
+// if it cannot be restored, starting an empty core is destructive-looking
+// and may later overwrite good state. Fail closed instead.
 const persistence = await initializeNeonPersistence();
-const core = spawn(process.execPath, ['--experimental-strip-types', 'server/index.ts'], { cwd: root, env, stdio: 'inherit' });
-persistence.start();
+const persistenceRequired = Boolean(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
+const persistenceHealthy = !persistenceRequired || (persistence.enabled && persistence.ready);
+const core = persistenceHealthy
+  ? spawn(process.execPath, ['--experimental-strip-types', 'server/index.ts'], { cwd: root, env, stdio: 'inherit' })
+  : null;
+if (core) persistence.start();
+else console.error(`[diza-web] core held offline: persistence ${persistence.reason || 'not ready'}`);
 let closing = false;
 
 const gateway = createServer((req, res) => {
@@ -45,6 +51,25 @@ const gateway = createServer((req, res) => {
   const topLevelGetNavigation =
     req.method === 'GET' &&
     req.headers['sec-fetch-mode'] === 'navigate';
+
+  if (health && !core) {
+    res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    return res.end(JSON.stringify({
+      ok: false,
+      persistence: {
+        enabled: Boolean(persistence.enabled),
+        ready: Boolean(persistence.ready),
+        ...(persistence.reason ? { reason: persistence.reason } : {}),
+      },
+    }));
+  }
+
+  if (!core && !health) {
+    res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    return res.end(JSON.stringify({
+      error: 'DIZA persistence is unavailable. The core was not started so your saved workspace cannot be replaced by an empty one.',
+    }));
+  }
 
   if (
     (suppliedOrigin && suppliedOrigin !== origin.origin && !sameRequestOrigin) ||
@@ -95,7 +120,7 @@ async function stop(code = 0) {
   closing = true;
   gateway.close();
   gateway.closeAllConnections();
-  core.kill('SIGTERM');
+  core?.kill('SIGTERM');
   const forceExit = setTimeout(() => process.exit(code), 3000);
   forceExit.unref?.();
   try {
@@ -105,6 +130,6 @@ async function stop(code = 0) {
     process.exit(code);
   }
 }
-core.on('error', () => void stop(1));
-core.on('exit', (code) => void stop(code || 0));
+core?.on('error', () => void stop(1));
+core?.on('exit', (code) => void stop(code || 0));
 for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => void stop());
