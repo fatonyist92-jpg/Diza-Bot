@@ -116,7 +116,7 @@ export type RuntimeEvent = RuntimeEventBase &
         summary: string;
         choices?: string[];
       }
-    | { type: "request.resolved"; behavior: string; source: string }
+    | { type: "request.resolved"; behavior: string; source: string; answer?: string }
     | { type: "thread.token-usage.updated"; input: number; output: number }
     | { type: "runtime.error"; message: string }
   );
