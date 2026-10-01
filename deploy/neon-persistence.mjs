@@ -6,8 +6,9 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 
 const VERSION = 1;
 const DEFAULT_INTERVAL_MS = 5_000;
-const MAX_FILE_BYTES = 64 * 1024 * 1024;
+const MAX_FILE_BYTES = 128 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 384 * 1024 * 1024;
+const RESTORE_CHUNK_BYTES = 512 * 1024;
 const SNAPSHOT_SLOT = 'primary';
 
 const roots = () => [
@@ -29,6 +30,10 @@ const roots = () => [
       path === 'node-root-ca.pem' ||
       path === '.tmp' ||
       path.startsWith('.tmp/') ||
+      path === 'cache' ||
+      path.startsWith('cache/') ||
+      path === 'plugins/cache' ||
+      path.startsWith('plugins/cache/') ||
       path.endsWith('.sqlite-wal') ||
       path.endsWith('.sqlite-shm'),
   },
@@ -148,12 +153,49 @@ class NeonPersistence {
     this.timer = null;
     this.inFlight = null;
     this.rootList = roots();
+    // A row that could not be restored must never be deleted merely
+    // because the local copy is absent. Keep it until a later healthy
+    // runtime successfully recreates/syncs that exact path.
+    this.restoreFailures = new Set();
+  }
+
+  async #readStoredData(row) {
+    const storedBytes = Number(row.stored_bytes);
+    if (!Number.isSafeInteger(storedBytes) || storedBytes < 0) {
+      throw new Error('invalid stored byte count');
+    }
+    if (storedBytes === 0) return Buffer.alloc(0);
+
+    const chunks = [];
+    let received = 0;
+    while (received < storedBytes) {
+      const length = Math.min(RESTORE_CHUNK_BYTES, storedBytes - received);
+      const rows = await this.query(`
+        SELECT encode(substring(data from $3::integer for $4::integer), 'hex') AS data_hex
+        FROM public.diza_persist_files
+        WHERE namespace = $1 AND path = $2
+      `, [row.namespace, row.path, received + 1, length]);
+      const hex = rows[0]?.data_hex;
+      if (typeof hex !== 'string' || hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
+        throw new Error('invalid restore chunk');
+      }
+      const chunk = Buffer.from(hex, 'hex');
+      if (chunk.length !== length) {
+        throw new Error(`restore chunk length mismatch: expected ${length}, got ${chunk.length}`);
+      }
+      chunks.push(chunk);
+      received += chunk.length;
+    }
+    return Buffer.concat(chunks, storedBytes);
   }
 
   async restore() {
+    // Fetch only metadata up front. Pulling every bytea as one giant hex
+    // JSON response stops scaling once chat history and native logs grow.
+    // Blob bytes are fetched below in bounded chunks instead.
     const rows = await this.query(`
-      SELECT namespace, path, sha256, encode(data, 'hex') AS data_hex,
-             compressed, mode, size_bytes
+      SELECT namespace, path, sha256, compressed, mode, size_bytes,
+             octet_length(data) AS stored_bytes
       FROM public.diza_persist_files
       WHERE namespace IN ('bloks', 'grok', 'codex')
       ORDER BY namespace, path
@@ -164,14 +206,17 @@ class NeonPersistence {
       const root = this.rootList.find((item) => item.namespace === row.namespace);
       if (!root || root.exclude(row.path)) { skipped += 1; continue; }
       const target = targetFor(root.dir, row.path);
-      if (!target || typeof row.data_hex !== 'string') { skipped += 1; continue; }
+      if (!target) { skipped += 1; continue; }
+      const key = `${row.namespace}\0${row.path}`;
       try {
-        const stored = Buffer.from(row.data_hex, 'hex');
+        const stored = await this.#readStoredData(row);
         const data = asBool(row.compressed) ? gunzipSync(stored) : stored;
         if (sha256(data) !== row.sha256) throw new Error('sha256 mismatch');
         await atomicWrite(target, data, safeMode(row.mode));
+        this.restoreFailures.delete(key);
         restored += 1;
       } catch (error) {
+        this.restoreFailures.add(key);
         skipped += 1;
         this.logger.warn?.(`[diza-persist] skipped restore ${row.namespace}/${row.path}: ${error?.message || error}`);
       }
@@ -189,6 +234,19 @@ class NeonPersistence {
   }
 
   async #sync(reason) {
+    // Rebuildable Codex caches are not DIZA memory. Prune them server-side
+    // in one statement so an old cache-heavy snapshot cannot require
+    // hundreds of delete round-trips before the useful state is synced.
+    await this.query(`
+      DELETE FROM public.diza_persist_files
+      WHERE namespace = 'codex' AND (
+        path = '.tmp' OR path LIKE '.tmp/%' OR
+        path = 'cache' OR path LIKE 'cache/%' OR
+        path = 'plugins/cache' OR path LIKE 'plugins/cache/%' OR
+        path LIKE '%.sqlite-wal' OR path LIKE '%.sqlite-shm'
+      )
+    `);
+
     const existingRows = await this.query(`
       SELECT namespace, path, sha256
       FROM public.diza_persist_files
@@ -208,6 +266,7 @@ class NeonPersistence {
       for (const file of files) {
         const key = `${root.namespace}\0${file.path}`;
         seen.add(key);
+        this.restoreFailures.delete(key);
         namespaceStats[root.namespace].bytes += file.size;
         totalBytes += file.size;
         if (file.size > MAX_FILE_BYTES || totalBytes > MAX_TOTAL_BYTES) {
@@ -250,7 +309,7 @@ class NeonPersistence {
 
     for (const row of existingRows) {
       const key = `${row.namespace}\0${row.path}`;
-      if (seen.has(key)) continue;
+      if (seen.has(key) || this.restoreFailures.has(key)) continue;
       await this.query(
         'DELETE FROM public.diza_persist_files WHERE namespace = $1 AND path = $2',
         [row.namespace, row.path],
