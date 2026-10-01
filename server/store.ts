@@ -182,6 +182,9 @@ export interface TaskRecord {
    * time means that engine missed everything since and needs the story
    * replayed. Never shipped to clients. */
   lastInstanceId?: string;
+  /** The model that actually served the lane's last turn. This can differ
+   * from the workspace primary while a fallback is serving it. */
+  lastModel?: string;
   id: ThreadId;
   title: string;
   /** Explicit project scope for this conversation. A lane keeps this
@@ -611,6 +614,7 @@ export class Store {
         for (const task of bot.tasks) {
           delete task.resumeCursors[selection.instanceId];
           if (task.lastInstanceId === selection.instanceId) delete task.lastInstanceId;
+          delete task.lastModel;
           task.lastInput = 0;
         }
       }
@@ -859,11 +863,13 @@ export class Store {
     this.saveBots();
   }
 
-  markTaskDispatched(botId: string, taskId: string, instanceId: string): void {
+  markTaskDispatched(botId: string, taskId: string, instanceId: string, model: string): void {
     const bot = this.bot(botId);
     const task = bot?.tasks.find((t) => t.id === taskId);
-    if (!task || task.lastInstanceId === instanceId) return;
+    if (!task) return;
+    if (task.lastInstanceId === instanceId && task.lastModel === model) return;
     task.lastInstanceId = instanceId;
+    task.lastModel = model;
     this.saveBots();
   }
 
