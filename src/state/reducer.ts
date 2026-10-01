@@ -21,6 +21,9 @@ export interface OptionCardData {
   /** Set when the agent is genuinely blocked on this card. Its absence
    * means a setup question, which is safe to ignore. */
   requestId?: string;
+  /** A live request can be a question or a permission gate. Never infer
+   * this from requestId alone: both kinds are blocking requests. */
+  requestType?: "permission" | "question";
   /** The tool an approval card is about, so the answer can be
    * remembered as a rule about that tool. */
   tool?: string;
@@ -33,6 +36,18 @@ export interface OptionCardData {
 }
 
 /** A team a lead wants to hire, pending the user's approval. */
+export function isPermissionCard(card?: OptionCardData): boolean {
+  if (!card?.requestId) return false;
+  if (card.requestType) return card.requestType === "permission";
+  // Backward compatibility for saved cards from before requestType was
+  // persisted: permission cards carried the tool, question cards did not.
+  return Boolean(card.tool);
+}
+
+export function isQuestionCard(card?: OptionCardData): boolean {
+  return Boolean(card?.requestId) && !isPermissionCard(card);
+}
+
 export interface TeamPlan {
   room: string;
   brief: string;
