@@ -311,10 +311,20 @@ async function defaultSelection() {
   if (cfg.engine) {
     const chosen = registry.get(cfg.engine.instanceId);
     if (chosen) {
-      const model = chosen.models.options.some((option) => option.id === cfg.engine!.model)
-        ? cfg.engine.model
-        : chosen.models.default;
-      return { instanceId: chosen.instanceId, model };
+      const snapshot = await chosen.snapshot();
+      // A CLI binary missing inside a Vercel/serverless runtime is not a
+      // temporary provider failure. It can never recover on the next turn,
+      // so migrate that stale desktop selection once to an actually
+      // available cloud engine. Desktop/local behavior stays unchanged.
+      const cliKind = CLI_PROVIDERS.some((provider) => provider.kind === chosen.driverKind);
+      const permanentlyUnsupportedHere =
+        process.env.DIZA_SERVERLESS === "1" && cliKind && snapshot.state !== "available";
+      if (!permanentlyUnsupportedHere) {
+        const model = chosen.models.options.some((option) => option.id === cfg.engine!.model)
+          ? cfg.engine.model
+          : chosen.models.default;
+        return { instanceId: chosen.instanceId, model };
+      }
     }
   }
   const described = await registry.describe();
