@@ -16,6 +16,7 @@
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import X from "lucide-react/dist/esm/icons/x.mjs";
 import { cn } from "@/lib/cn";
+import { simpleIndonesianText } from "@/lib/uiLanguage";
 
 export type TaskState = "working" | "needs-you" | "idle";
 
@@ -138,13 +139,13 @@ export function TaskStrip({
             )}
           >
             <StateDot state={task.state} />
-            <span className="truncate font-medium">{task.title}</span>
+            <span className="truncate font-medium">{simpleIndonesianText(task.title)}</span>
             {task.context && (task.context.fraction >= RING_FROM || task.context.summarised) && (
               <span
                 className={cn("shrink-0", active ? "opacity-80" : "text-muted-foreground")}
                 title={
-                  `${Math.round(task.context.fraction * 100)}% of what this model will take` +
-                  (task.context.summarised ? ", and the earlier part has been summarised" : "")
+                  `${Math.round(task.context.fraction * 100)}% dari kapasitas konteks model` +
+                  (task.context.summarised ? ", bagian awal sudah diringkas" : "")
                 }
               >
                 <ContextRing fraction={task.context.fraction} summarised={task.context.summarised} />
@@ -156,7 +157,7 @@ export function TaskStrip({
               return label ? (
                 <span
                   className={cn("shrink-0 text-[10.5px] tabular-nums", active ? "opacity-70" : "text-muted-foreground/70")}
-                  title={`${task.usage!.input.toLocaleString()} in · ${task.usage!.output.toLocaleString()} out · ${task.usage!.turns} turns`}
+                  title={`${task.usage!.input.toLocaleString()} masuk · ${task.usage!.output.toLocaleString()} keluar · ${task.usage!.turns} giliran`}
                 >
                   {label}
                 </span>
@@ -166,7 +167,7 @@ export function TaskStrip({
               <span
                 role="button"
                 tabIndex={-1}
-                aria-label={`Archive ${task.title}`}
+                aria-label={`Arsipkan ${simpleIndonesianText(task.title)}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose(task.id);
@@ -185,8 +186,8 @@ export function TaskStrip({
 
       <button
         onClick={onNew}
-        title="New chat"
-        aria-label="New chat"
+        title="Chat baru"
+        aria-label="Chat baru"
         className="flex size-6 shrink-0 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors duration-150 hover:border-foreground/30 hover:text-foreground"
       >
         <Plus size={13} />
@@ -194,9 +195,9 @@ export function TaskStrip({
 
       <span className="ml-auto shrink-0 pl-2 text-[11px] text-muted-foreground/70">
         {needsYou > 0
-          ? `${needsYou} waiting on you`
+          ? `${needsYou} menunggu Anda`
           : running > 0
-            ? `${running} running`
+            ? `${running} berjalan`
             : null}
       </span>
     </div>
