@@ -501,6 +501,8 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
             }
           }
 
+          const runtimeWorkspaceRoots = [...new Set((turn.extraDirs ?? []).filter(Boolean))];
+
           if (!codexThread) {
             const startParams: Record<string, unknown> = {
               cwd: turn.cwd ?? homedir(),
@@ -509,6 +511,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
               // keeps the agent inside its workspace and asking.
               sandbox: config.fullAuto ? "danger-full-access" : "workspace-write",
               approvalPolicy: config.fullAuto ? "never" : "on-request",
+              ...(runtimeWorkspaceRoots.length ? { runtimeWorkspaceRoots } : {}),
               ephemeral: false,
             };
             if (turn.effort) startParams.reasoningEffort = turn.effort;
@@ -535,6 +538,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
 
           await rpc.request("turn/start", {
             threadId: codexThread,
+            ...(runtimeWorkspaceRoots.length ? { runtimeWorkspaceRoots } : {}),
             input: [
               { type: "text", text: turn.system ? `${turn.system}\n\n${turn.text}` : turn.text },
             ],

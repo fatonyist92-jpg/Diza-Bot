@@ -68,7 +68,7 @@ async function setup(t: TestContext, fullAuto = false) {
     await setImmediate();
     return peers.at(-1)!;
   }
-  return { instance, events, logs, start };
+  return { instance, events, logs, peers, start };
 }
 
 function elicitation(id: number | string = 0, tool = "COMPOSIO_MULTI_EXECUTE_TOOL") {
@@ -175,6 +175,22 @@ test("concurrent tasks and out-of-order approvals keep their own RPC ids", async
   assert.equal(first.reply(0).result.action, "accept");
   assert.equal(first.reply("next").result.action, "accept");
   assert.equal(second.reply(0).result.action, "decline");
+});
+
+test("workspace write roots are forwarded on thread start and turn start", async (t) => {
+  const h = await setup(t);
+  await h.instance.adapter.sendTurn({
+    threadId: "task-write",
+    text: "write there",
+    cwd: "/tmp/bot-workspace",
+    extraDirs: ["/tmp/bot-workspace", "/tmp/main-source"],
+  });
+  await setImmediate();
+  const frames = h.peers[0].frames;
+  const threadStart = frames.find((frame) => frame.method === "thread/start");
+  const turnStart = frames.find((frame) => frame.method === "turn/start");
+  assert.deepEqual(threadStart.params.runtimeWorkspaceRoots, ["/tmp/bot-workspace", "/tmp/main-source"]);
+  assert.deepEqual(turnStart.params.runtimeWorkspaceRoots, ["/tmp/bot-workspace", "/tmp/main-source"]);
 });
 
 test("fullAuto uses the MCP response format too", async (t) => {
