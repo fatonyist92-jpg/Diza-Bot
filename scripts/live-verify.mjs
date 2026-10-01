@@ -62,23 +62,18 @@ try {
   const bot = botsResponse.body?.bots?.[0];
   assert.ok(bot?.id, "no seeded bot available");
 
-  const image = await jsonFetch(`/api/bots/${bot.id}/messages`, {
+  const imagineDisabled = await jsonFetch("/api/imagine/jobs", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text: "Bikin gambar kucing astronaut" }),
+    body: JSON.stringify({
+      botId: bot.id,
+      taskId: bot.activeTaskId,
+      operation: "image-generate",
+      prompt: "disabled route verification",
+    }),
   });
-  assert.equal(image.status, 202);
-  assert.equal(image.body?.imagineTemporary, "image-generate");
-  assert.equal(image.body?.imagineJobId, undefined);
-
-  const video = await jsonFetch(`/api/bots/${bot.id}/messages`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text: "Buat video seekor kucing berjalan 5 detik" }),
-  });
-  assert.equal(video.status, 202);
-  assert.equal(video.body?.imagineTemporary, "text-to-video");
-  assert.equal(video.body?.imagineJobId, undefined);
+  assert.equal(imagineDisabled.status, 404);
+  assert.match(String(imagineDisabled.body?.error ?? ""), /temporarily disabled/i);
 
   botsResponse = await jsonFetch("/api/bots?messages=30");
   const before = new Set((botsResponse.body?.bots?.[0]?.messages ?? []).map((message) => message.id));
@@ -102,20 +97,6 @@ try {
     if (reply && !busy) break;
   }
   assert.ok(reply?.text, "real AI provider produced no browser-visible reply");
-
-  const directVideo = await jsonFetch("/api/imagine/jobs", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      botId: bot.id,
-      taskId: bot.activeTaskId,
-      operation: "text-to-video",
-      prompt: "temporary fallback verification",
-    }),
-  });
-  assert.equal(directVideo.status, 503);
-  assert.equal(directVideo.body?.error, "Maaf, layanan pembuatan video sementara belum tersedia.");
-  assert.equal(directVideo.body?.temporary, true);
 
   const sw = await page.evaluate(async () => {
     if (!("serviceWorker" in navigator)) return { supported: false };
@@ -144,8 +125,7 @@ try {
     providerReply: String(reply.text).slice(0, 120),
     pwa: true,
     mobileViewport: "390x844",
-    imagineImage: image.body?.imagineTemporary,
-    imagineVideo: video.body?.imagineTemporary,
+    imagineDormant: imagineDisabled.status === 404,
   }));
 } finally {
   await context.setOffline(false).catch(() => {});
