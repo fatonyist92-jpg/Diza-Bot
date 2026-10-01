@@ -40,6 +40,8 @@ test("serverless chat reconciles durable state after both success and provider f
   assert.match(client, /reconcileServerlessTurn/);
   assert.match(client, /finally\(\(\) => reconcileServerlessTurn\(action\.botId\)\)/);
   assert.match(client, /\/api\/bots\?messages=120/);
+  assert.match(client, /attempt < 2/);
+  assert.match(client, /refresh\(attempt \+ 1\)/);
   assert.match(client, /type: "streamClear"/);
   assert.match(client, /type: "hydrate"/);
 });
