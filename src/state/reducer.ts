@@ -394,7 +394,7 @@ export type Action =
   | { type: "screenFrame"; botId: string; png: string; mime: string; source?: "browser" }
   | { type: "provisioning"; botId: string; on: boolean }
   | { type: "setModel"; botId: string; selection: ModelSelection }
-  | { type: "interrupt"; botId: string }
+  | { type: "interrupt"; botId: string; taskId?: string }
   | { type: "connected"; value: boolean }
   | { type: "error"; message: string | null }
   | { type: "toggleSettings"; open?: boolean }
