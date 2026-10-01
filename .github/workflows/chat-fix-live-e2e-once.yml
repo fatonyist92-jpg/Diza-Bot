@@ -49,7 +49,18 @@ jobs:
             if (!streamed.ok) throw new Error(`chat POST failed ${streamed.status}: ${wire.slice(0,500)}`);
             if (/request\.error/.test(wire)) throw new Error("stream returned request.error: " + wire.slice(-700));
 
-            const state = await j("/api/bots?messages=30");
+            let state = null;
+            let lastReadError = null;
+            for (let attempt = 0; attempt < 4; attempt++) {
+              try {
+                state = await j("/api/bots?messages=30");
+                break;
+              } catch (error) {
+                lastReadError = error;
+                if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+              }
+            }
+            if (!state) throw lastReadError ?? new Error("could not read settled bot state");
             const bot = (state.body.bots ?? []).find((b) => b.id === botId);
             if (!bot) throw new Error("temporary bot disappeared");
             if (bot.busy) throw new Error("bot remained busy after settled turn");
