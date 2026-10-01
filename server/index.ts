@@ -254,6 +254,8 @@ import * as speech from "./speech.ts";
 import { speakable } from "./speech-text.ts";
 
 const PORT = Number(process.env.BLOKS_PORT || process.env.PORT || 8799);
+// Temporarily retired: media requests stay in normal chat/web tooling.
+const DIZA_IMAGINE_ACTIVE = false;
 const STATIC_DIR = process.env.BLOKS_STATIC_DIR || null;
 const MIME: Record<string, string> = {
   ".html": "text/html",
@@ -616,11 +618,13 @@ async function runImagineJob(jobId: string) {
 // Restart recovery: queued jobs may be safely re-submitted because the
 // bridge contract carries the DIZA job id as an idempotency key. Jobs that
 // already have a remote id resume by polling, never by replaying generation.
-setTimeout(() => {
-  for (const job of imagine.jobs) {
-    if (job.status === "queued" || job.status === "processing") void runImagineJob(job.id);
-  }
-}, 250).unref?.();
+if (DIZA_IMAGINE_ACTIVE) {
+  setTimeout(() => {
+    for (const job of imagine.jobs) {
+      if (job.status === "queued" || job.status === "processing") void runImagineJob(job.id);
+    }
+  }, 250).unref?.();
+}
 // One credential per turn, so an agent can act on the workspace as
 // itself. See server/agent-cli.ts for what that means and what it does
 // not mean.
@@ -982,19 +986,20 @@ bus.subscribe((event: RuntimeEvent) => {
       break;
     case "item.completed":
       if (event.itemType === "assistant_text") {
-        // API-backed engines cannot run the one-turn CLI, so media actions
-        // arrive as fenced directives and enter the same job validator.
-        const { directives: imagineDirectives, text: afterImagine } = extractImagineDirectives(event.text);
-        for (const directive of imagineDirectives) {
-          try {
-            if (publishTemporaryImagineNotice(event.threadId, directive.operation)) continue;
-            createImagineJob({ botId: bot.id, taskId: event.threadId, ...directive });
-          } catch (error) {
-            pushMessage({
-              role: "bot",
-              kind: "notice",
-              text: `DIZA Imagine could not start that generation: ${redactSecrets(error instanceof Error ? error.message : String(error)).slice(0, 240)}`,
-            });
+        let afterImagine = event.text;
+        if (DIZA_IMAGINE_ACTIVE) {
+          const parsedImagine = extractImagineDirectives(event.text);
+          afterImagine = parsedImagine.text;
+          for (const directive of parsedImagine.directives) {
+            try {
+              createImagineJob({ botId: bot.id, taskId: event.threadId, ...directive });
+            } catch (error) {
+              pushMessage({
+                role: "bot",
+                kind: "notice",
+                text: `Media job could not start: ${redactSecrets(error instanceof Error ? error.message : String(error)).slice(0, 240)}`,
+              });
+            }
           }
         }
         // a lead may have proposed a team; the plan becomes a card the
@@ -2034,13 +2039,15 @@ async function startTurn(
     // owner has let this agent's memory into the room: other people are
     // reading the replies.
     (!sharing || sharing.memoryFor?.includes(bot.id)) && workspace.memoryPrompt(bot.id),
-    !blok && imagineContext(imagine.assetsForTask(task.id)),
-    !blok &&
+    DIZA_IMAGINE_ACTIVE && !blok && imagineContext(imagine.assetsForTask(task.id)),
+    DIZA_IMAGINE_ACTIVE && !blok &&
       (runsAProcess(instance.driverKind)
         ? `For DIZA Imagine media work you can run: node "${AGENT_CLI}" imagine --operation <image-generate|image-edit|image-to-video|text-to-video|video-extend|variation> --prompt <text> [--assets <id,id>] [--duration <seconds>] [--extend <seconds>]. Use the stable asset ids above; do not invent an id.`
         : `When you decide an image/video generation action is needed and DIZA CORE did not already hand it off, emit one fenced block named diza-imagine containing JSON: {"operation":"image-generate|image-edit|image-to-video|text-to-video|video-extend|variation","prompt":"the generation prompt","inputAssetIds":["stable-id"],"parentAssetId":"stable-id","continuity":{"durationSeconds":15,"extendSeconds":15}}. Use only asset ids listed above; omit asset fields for text-only generation. The block is an action and will not be shown to the user.`),
+    !DIZA_IMAGINE_ACTIVE && !blok &&
+      `Media work: DIZA Imagine is temporarily disabled. Treat image/video generation and editing as normal work. Use your available browser, computer, web, or other connected tools when they can do the job. Never emit a diza-imagine block. When you produce a final image or video file, save it to ${artifacts.artifactsDir(bot.id)} with a clear filename so it appears directly in the web chat. If no available tool can actually create or edit the media, say so instead of pretending it was produced.`,
     sharing && sharedBriefing(sharedRoom!, sharing, roomTools),
-    `Deliverables: when you produce a file for the user (a report, web page, slide deck, spreadsheet, PDF, chart), save it to ${artifacts.artifactsDir(bot.id)} with a descriptive filename. Files saved there appear in the chat as cards the user can open in-app or download. HTML, PDF, images, CSV, XLSX, markdown and text all render in-app; for slide decks, save an HTML version alongside any .pptx so the deck is viewable in place.`,
+    `Deliverables: when you produce a file for the user (a report, web page, slide deck, spreadsheet, PDF, chart), save it to ${artifacts.artifactsDir(bot.id)} with a descriptive filename. Files saved there appear in the chat as cards the user can open in-app or download. HTML, PDF, images, video, CSV, XLSX, markdown and text all render in-app; for slide decks, save an HTML version alongside any .pptx so the deck is viewable in place.`,
     HOUSE_STYLE,
     // In a room, who else is here and who decides. Solo chats stay silent
     // about all of it.
@@ -4199,25 +4206,22 @@ async function sendUserMessage(botId: string, text: string, options: { taskId?: 
   if (bot.archivedAt) {
     throw Object.assign(new Error(`${bot.name} is archived. Restore it to give it work.`), { status: 409 });
   }
-  // Uploaded images/videos become stable conversation assets even when
-  // this turn is ordinary chat. A later "make that move" can then bind
-  // to the exact upload instead of guessing from a filesystem path.
-  adoptImagineAttachments(bot.id, lane.id, lane.projectId, text);
-  if (!lane.busy) {
-    const detected = detectImagineRequest(text, imagine.assetsForTask(lane.id));
-    if (detected) {
-      const userMessage = store.appendMessage(lane.id, {
-        role: "user", kind: "text", text,
-        ...(options.replyTo ? { replyTo: options.replyTo } : {}),
-      });
-      broadcast({ kind: "message", threadId: lane.id, message: userMessage });
-      if (publishTemporaryImagineNotice(lane.id, detected.operation)) {
+  if (DIZA_IMAGINE_ACTIVE) {
+    // Kept behind one reversible gate so the old implementation can be
+    // restored later without letting it intercept today's normal chat.
+    adoptImagineAttachments(bot.id, lane.id, lane.projectId, text);
+    if (!lane.busy) {
+      const detected = detectImagineRequest(text, imagine.assetsForTask(lane.id));
+      if (detected) {
+        const userMessage = store.appendMessage(lane.id, {
+          role: "user", kind: "text", text,
+          ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+        });
+        broadcast({ kind: "message", threadId: lane.id, message: userMessage });
+        const job = createImagineJob({ botId: bot.id, taskId: lane.id, prompt: text, ...detected });
         triggersFired({ kind: "message", targetId: bot.id, text, fromUser: true });
-        return { ok: true, imagineTemporary: detected.operation };
+        return { ok: true, imagineJobId: job.id };
       }
-      const job = createImagineJob({ botId: bot.id, taskId: lane.id, prompt: text, ...detected });
-      triggersFired({ kind: "message", targetId: bot.id, text, fromUser: true });
-      return { ok: true, imagineJobId: job.id };
     }
   }
   if (lane.busy) {
@@ -4284,7 +4288,7 @@ function configStatus() {
     xai: { configured: Boolean(cfg.xai?.key) },
     composio: { configured: Boolean(cfg.composio?.key), apiKeyConfigured: Boolean(cfg.composio?.apiKey) },
     speech: speech.speechConfigured(cfg),
-    imagine: { configured: Boolean(cfg.imagine?.url), enabled: cfg.imagine?.enabled !== false },
+    imagine: { configured: Boolean(cfg.imagine?.url), enabled: DIZA_IMAGINE_ACTIVE },
     box: { configured: Boolean(cfg.box?.token) },
     // not a secret, the settings field prefills from it
     profile: { about: cfg.profile?.about ?? "", preferences: cfg.profile?.preferences ?? "" },
@@ -5486,6 +5490,9 @@ const server = createServer(async (req, res) => {
       return json(res, 202, result);
     }
     // ── DIZA Imagine: provider-independent media jobs/assets ──
+    if (!DIZA_IMAGINE_ACTIVE && path.startsWith("/api/imagine")) {
+      return json(res, 404, { error: "DIZA Imagine is temporarily disabled. Use normal chat media tools." });
+    }
     if (method === "POST" && path === "/api/imagine/jobs") {
       const body = await readBody(req);
       const botId = asAgent?.botId ?? (typeof body.botId === "string" ? body.botId : "");
