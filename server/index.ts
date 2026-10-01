@@ -1883,24 +1883,50 @@ async function startTurn(
     });
   }
 
-  // Respect the provider the user already chose. Diza only falls back
-  // before dispatch when that instance is genuinely absent; replaying a
-  // failed turn on another engine could duplicate tool side effects.
+  // Respect the engine the user chose unless it is explicitly cooling down
+  // after a capacity error, or this one retry already knows it cannot serve.
+  // Gemini CLI gets first refusal as Codex's fallback; everything else keeps
+  // the old registry-order fallback behind it.
+  const avoided = new Set(opts.avoidInstanceIds ?? []);
   const configuredInstance = registry.get(bot.modelSelection.instanceId);
-  const configuredHealth = configuredInstance && opts.intelligenceMode
+  const configuredNeedsProbe =
+    Boolean(opts.intelligenceMode) ||
+    avoided.has(bot.modelSelection.instanceId) ||
+    providerCoolingDown(bot.modelSelection.instanceId);
+  const configuredHealth = configuredInstance && configuredNeedsProbe
     ? await configuredInstance.snapshot().catch(() => ({ state: "unavailable" as const }))
     : null;
-  const selectedInstance = configuredInstance && (!configuredHealth || configuredHealth.state === "available")
-    ? configuredInstance
-    : null;
+  const selectedInstance =
+    configuredInstance &&
+    !avoided.has(bot.modelSelection.instanceId) &&
+    !providerCoolingDown(bot.modelSelection.instanceId) &&
+    (!configuredHealth || usableSnapshot(configuredHealth))
+      ? configuredInstance
+      : null;
+
   let fallbackInstance = null as ReturnType<typeof registry.get>;
-  if (!selectedInstance && opts.intelligenceMode) {
-    for (const candidate of registry.instances()) {
-      if (!candidate.enabled || candidate.instanceId === bot.modelSelection.instanceId) continue;
+  if (!selectedInstance) {
+    const orderedIds = [
+      ...fallbackOrder(bot.modelSelection.instanceId),
+      ...registry.instances().map((candidate) => candidate.instanceId),
+    ];
+    const seen = new Set<string>();
+    for (const candidateId of orderedIds) {
+      if (seen.has(candidateId)) continue;
+      seen.add(candidateId);
+      if (candidateId === bot.modelSelection.instanceId || avoided.has(candidateId) || providerCoolingDown(candidateId)) {
+        continue;
+      }
+      const candidate = registry.get(candidateId);
+      if (!candidate?.enabled) continue;
       const health = await candidate.snapshot().catch(() => ({ state: "unavailable" as const }));
-      if (health.state === "available") { fallbackInstance = candidate; break; }
+      if (usableSnapshot(health)) {
+        fallbackInstance = candidate;
+        break;
+      }
     }
   }
+
   const instance = selectedInstance ?? fallbackInstance;
   const turnModel = selectedInstance
     ? bot.modelSelection.model
