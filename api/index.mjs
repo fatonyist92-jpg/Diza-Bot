@@ -17,6 +17,19 @@ let bootPromise = null;
 
 const wait = (ms) => new Promise((resolveWait) => setTimeout(resolveWait, ms));
 
+async function syncDurably(reason) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await persistence.sync(reason);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await wait(150 * (attempt + 1));
+    }
+  }
+  throw lastError ?? new Error(`DIZA persistence sync failed: ${reason}`);
+}
+
 async function coreReady() {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     try {
@@ -64,7 +77,7 @@ async function boot() {
   await coreReady();
   // A fresh database is seeded by the unchanged core. Commit that seed
   // before the first browser request can race a cold sibling instance.
-  await persistence.sync('vercel-bootstrap');
+  await syncDurably('vercel-bootstrap');
 }
 
 function ensureBooted() {
@@ -141,7 +154,7 @@ export default async function handler(req, res) {
     await proxy(req, res, path);
     const oauthCallback = /^\/api\/oauth\/[\w-]+\/callback(?:\?|$)/.test(path);
     if (oauthCallback || (req.method && !['GET', 'HEAD', 'OPTIONS'].includes(req.method))) {
-      await persistence.sync(`vercel-${req.method.toLowerCase()}`);
+      await syncDurably(`vercel-${req.method.toLowerCase()}`);
     }
     res.end();
   } catch (error) {
