@@ -92,3 +92,13 @@ test("context compaction resets only the provider session and preserves chat his
   assert.match(store, /delete found\.task\.lastInstanceId/);
   assert.doesNotMatch(store, /resetTaskSession[\s\S]{0,500}this\.messages\.delete/);
 });
+
+
+test("full provider-side context triggers preflight compaction even when visible transcript still fits", async () => {
+  const { readFileSync } = await import("node:fs");
+  const server = readFileSync("server/index.ts", "utf8");
+
+  assert.match(server, /const providerSessionFull =[\s\S]{0,260}task\.lastInput[\s\S]{0,260}shouldCompact\(task\.lastInput/);
+  assert.match(server, /if \(!blok && \(built\.dropped > 0 \|\| providerSessionFull\)\)/);
+  assert.match(server, /foldContext\(bot\.id, task\.id, providerSessionFull\)/);
+});
