@@ -1507,7 +1507,8 @@ bus.subscribe((event: RuntimeEvent) => {
       retriedForContext.delete(event.threadId);
       // If this lane is filling up, fold its older half now rather than
       // on the way into the next turn, so nobody waits on a summary.
-      if (shouldCompact(store.taskByThread(event.threadId)?.task.lastInput ?? 0, contextLimitFor(bot.modelSelection.model))) {
+      const settledTask = store.taskByThread(event.threadId)?.task;
+      if (shouldCompact(settledTask?.lastInput ?? 0, contextLimitFor(settledTask?.lastModel ?? bot.modelSelection.model))) {
         void foldContext(bot.id, event.threadId).catch(() => {});
       } else {
         // Otherwise absorb one message into the running summary, if this
@@ -2111,7 +2112,7 @@ async function startTurn(
   // the summary itself at the front. What does not fit is summarised
   // rather than dropped, which happens after the turn so nothing waits on
   // it, and lands in the thread as a message people can read.
-  const contextLimit = contextLimitFor(bot.modelSelection.model);
+  const contextLimit = contextLimitFor(turnModel);
   // leave room for the system prompt and the reply
   const transcriptBudget = Math.max(2_000, Math.floor(contextLimit * COMPACT_AT) - 4_000);
   const buildTranscript = (): { turns: Turn[]; dropped: number } => {
@@ -2136,8 +2137,9 @@ async function startTurn(
   // window. Preflight the provider's last reported input before the next turn.
   const providerSessionFull =
     !blok &&
+    task.lastInstanceId === instance.instanceId &&
     (task.lastInput ?? 0) > 0 &&
-    shouldCompact(task.lastInput ?? 0, contextLimit);
+    shouldCompact(task.lastInput ?? 0, contextLimitFor(task.lastModel ?? turnModel));
 
   if (!blok && (built.dropped > 0 || providerSessionFull)) {
     const folded = await foldContext(bot.id, task.id, providerSessionFull).catch(() => false);
@@ -2509,7 +2511,7 @@ async function startTurn(
         integrations,
       });
       if (integrations.computer) startScreenPoller(bot.id);
-      store.markTaskDispatched(bot.id, task.id, instanceId);
+      store.markTaskDispatched(bot.id, task.id, instanceId, turnModel);
     } catch (e) {
       capacityRetryTurns.delete(task.id);
       const message = redactSecrets(e instanceof Error ? e.message : String(e));
@@ -8229,7 +8231,7 @@ const server = createServer(async (req, res) => {
       // The search route and the job board already draw the same line.
       for (const bot of store.bots.filter((b) => !b.archivedAt)) {
         for (const task of bot.tasks) {
-          const limit = contextLimitFor(bot.modelSelection?.model);
+          const limit = contextLimitFor(task.lastModel ?? bot.modelSelection?.model);
           const fill = pressure(task.lastInput ?? 0, limit);
           lanes.push({
             threadId: task.id,
