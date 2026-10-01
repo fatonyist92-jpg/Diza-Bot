@@ -292,7 +292,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }).catch(showError);
           break;
         case "interrupt":
-          api(`/api/bots/${action.botId}/interrupt`, { method: "POST" }).catch(showError);
+          api(`/api/bots/${action.botId}/interrupt`, {
+            method: "POST",
+            body: JSON.stringify(action.taskId ? { taskId: action.taskId } : {}),
+          }).catch(showError);
           break;
         case "updateBot": {
           const timers = patchTimers.current;
