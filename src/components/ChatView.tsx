@@ -8,7 +8,6 @@ import Loader2 from "lucide-react/dist/esm/icons/loader-2.mjs";
 import Monitor from "lucide-react/dist/esm/icons/monitor.mjs";
 import SquareTerminal from "lucide-react/dist/esm/icons/square-terminal.mjs";
 import Square from "lucide-react/dist/esm/icons/square.mjs";
-import Video from "lucide-react/dist/esm/icons/video.mjs";
 import X from "lucide-react/dist/esm/icons/x.mjs";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import { api, useStore, formatTime, type Bot, type Message } from "@/state/store";
