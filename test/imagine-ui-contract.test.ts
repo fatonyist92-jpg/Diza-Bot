@@ -3,38 +3,45 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-const card = fs.readFileSync(path.resolve("src/components/ImagineCard.tsx"), "utf8");
 const chat = fs.readFileSync(path.resolve("src/components/ChatView.tsx"), "utf8");
+const artifacts = fs.readFileSync(path.resolve("src/components/Artifacts.tsx"), "utf8");
+const artifactServer = fs.readFileSync(path.resolve("server/artifacts.ts"), "utf8");
 const cli = fs.readFileSync(path.resolve("bin/bloks.mjs"), "utf8");
 const agent = fs.readFileSync(path.resolve("server/agent-cli.ts"), "utf8");
+const server = fs.readFileSync(path.resolve("server/index.ts"), "utf8");
 
-test("Imagine has a real conversation card with stable asset ids and media previews", () => {
-  assert.match(chat, /case "imagine"/);
-  assert.match(card, /Asset #\{asset\.ordinal\}/);
-  assert.match(card, /api\/imagine\/assets\/\$\{asset\.id\}\/content/);
-  assert.match(card, /<video/);
-  assert.match(card, /<img/);
+test("Imagine UI is dormant while historical records remain harmless", () => {
+  assert.doesNotMatch(chat, /import \{ ImagineCard \}/);
+  assert.match(chat, /case "imagine":[\s\S]{0,260}return null/);
+  assert.match(server, /const DIZA_IMAGINE_ACTIVE = false/);
 });
 
-test("completed media can make a variation and video can extend +15 seconds", () => {
-  assert.match(card, /Create a variation of Asset/);
-  assert.match(card, /video-extend/);
-  assert.match(card, /extendSeconds: 15/);
+test("normal bot image and video attachments render directly in web chat", () => {
+  assert.match(chat, /function BotText/);
+  assert.match(chat, /splitAttachments\(text\)/);
+  assert.match(chat, /\/api\/attachments\/\$\{attachmentBasename\(attachment\.path\)\}/);
+  assert.match(chat, /<img/);
+  assert.match(chat, /<video/);
+  assert.match(chat, /playsInline/);
 });
 
-test("process-backed agents get an Imagine action while policy keeps one-turn scoping", () => {
-  assert.match(cli, /imagine: \{/);
-  assert.match(agent, /POST", path: "\/api\/imagine\/jobs/);
+test("image and video deliverables open in-app", () => {
+  assert.match(artifactServer, /mp4: "video\/mp4"/);
+  assert.match(artifactServer, /webm: "video\/webm"/);
+  assert.match(artifacts, /viewer: "video"/);
+  assert.match(artifacts, /mime\.startsWith\("video\/"\)/);
+  assert.match(artifacts, /<video/);
+  assert.match(artifacts, /controls/);
 });
 
-test("Imagine cannot bypass archived-project fail-closed behavior", () => {
-  const index = fs.readFileSync(path.resolve("server/index.ts"), "utf8");
-  assert.match(index, /project that is archived or no longer exists\. Restore the project before generating media/);
+test("agents no longer receive an active Imagine command or permission", () => {
+  assert.doesNotMatch(cli, /\bimagine:\s*\{/);
+  assert.doesNotMatch(agent, /path: "\/api\/imagine\/jobs"/);
 });
 
-test("restart recovery is idempotent and resumes a known remote job by polling", () => {
-  const index = fs.readFileSync(path.resolve("server/index.ts"), "utf8");
-  assert.match(index, /"idempotency-key": jobId/);
-  assert.match(index, /job\.remoteJobId/);
-  assert.match(index, /job\.status === "queued" \|\| job\.status === "processing"/);
+test("dormant Imagine source stays available for a future explicit restore", () => {
+  assert.match(server, /function createImagineJob/);
+  assert.match(server, /function imagineBridgeUrl/);
+  assert.match(server, /async function runImagineJob/);
+  assert.match(server, /if \(DIZA_IMAGINE_ACTIVE\)[\s\S]*for \(const job of imagine\.jobs\)/);
 });
