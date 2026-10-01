@@ -398,6 +398,58 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let streamFailures = 0;
+
+    // Providers do not all stream at the same granularity. Some send
+    // token deltas, while others hand us one complete assistant message.
+    // Feed both through one small client-side pump so replies always
+    // reveal progressively instead of appearing as a single wall of text.
+    const streamPumps = new Map<
+      string,
+      { pending: string; timer: ReturnType<typeof setTimeout> | null; clearWhenDone: boolean }
+    >();
+
+    const pumpStream = (threadId: string) => {
+      const pump = streamPumps.get(threadId);
+      if (!pump || pump.timer) return;
+      const step = () => {
+        pump.timer = null;
+        if (!alive) return;
+        if (pump.pending.length > 0) {
+          // Adaptive chunking keeps short answers readable while preventing
+          // very long replies from taking tens of seconds to finish typing.
+          const size = Math.max(3, Math.min(96, Math.ceil(pump.pending.length / 80)));
+          const chunk = pump.pending.slice(0, size);
+          pump.pending = pump.pending.slice(size);
+          rawDispatch({ type: "streamDelta", threadId, delta: chunk });
+          pump.timer = setTimeout(step, 20);
+          return;
+        }
+        if (pump.clearWhenDone) {
+          streamPumps.delete(threadId);
+          rawDispatch({ type: "streamClear", threadId });
+        }
+      };
+      // First characters land immediately; subsequent chunks are paced.
+      step();
+    };
+
+    const enqueueStream = (threadId: string, delta: string) => {
+      if (!delta) return;
+      const pump = streamPumps.get(threadId) ?? { pending: "", timer: null, clearWhenDone: false };
+      pump.pending += delta;
+      streamPumps.set(threadId, pump);
+      pumpStream(threadId);
+    };
+
+    const finishStream = (threadId: string) => {
+      const pump = streamPumps.get(threadId);
+      if (!pump) {
+        rawDispatch({ type: "streamClear", threadId });
+        return;
+      }
+      pump.clearWhenDone = true;
+      pumpStream(threadId);
+    };
     const startPollingFallback = () => {
       if (pollTimer) return;
       loadAll();
@@ -481,9 +533,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         case "runtime": {
           const event = frame.event;
           if (event.type === "content.delta" && event.streamKind === "assistant_text") {
-            rawDispatch({ type: "streamDelta", threadId: event.threadId, delta: event.delta });
+            enqueueStream(event.threadId, event.delta);
           } else if (event.type === "turn.completed") {
-            rawDispatch({ type: "streamClear", threadId: event.threadId });
+            finishStream(event.threadId);
           }
           break;
         }
@@ -546,6 +598,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
       if (retryTimer) clearTimeout(retryTimer);
+      for (const pump of streamPumps.values()) {
+        if (pump.timer) clearTimeout(pump.timer);
+      }
+      streamPumps.clear();
       stopPollingFallback();
       es?.close();
     };
