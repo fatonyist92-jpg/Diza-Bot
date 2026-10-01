@@ -1970,7 +1970,26 @@ async function startTurn(
   // the trimming is exactly the silent forgetting this replaces.
   let built = buildTranscript();
   if (!blok && built.dropped > 0) {
-    if (await foldContext(bot.id, task.id).catch(() => false)) built = buildTranscript();
+    const folded = await foldContext(bot.id, task.id).catch(() => false);
+    if (folded) {
+      built = buildTranscript();
+    } else {
+      // Availability beats a silent dead chat. If an internal summary
+      // call fails, retire only the oversized provider session and replay
+      // the bounded recent transcript into a fresh one. The complete
+      // history remains on disk/Neon and visible in the conversation.
+      const ownerId = task.lastInstanceId ?? bot.modelSelection.instanceId;
+      const owner = registry.get(ownerId);
+      if (owner && !owner.adapter.capabilities.replaysNatively && task.resumeCursors[ownerId] !== undefined) {
+        store.resetTaskSession(task.id, ownerId);
+        const notice = store.appendMessage(task.id, {
+          role: "bot",
+          kind: "notice",
+          text: "Percakapan ini sudah sangat panjang. Session AI direfresh agar tetap bisa menjawab; history chat tetap tersimpan.",
+        });
+        broadcast({ kind: "message", threadId: task.id, message: notice });
+      }
+    }
   }
   const transcript = built.turns;
 
