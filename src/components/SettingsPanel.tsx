@@ -18,7 +18,6 @@ import {
   BLOK_EXPRESSIONS,
   BLOK_SHAPES,
 } from "@/lib/mascot";
-import { ModelPicker } from "./ModelPicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VoiceCard } from "./Voice";
 import { Button } from "@/components/ui/button";
@@ -496,16 +495,6 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
                 </button>
               ))}
             </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 rounded-2xl border bg-card p-4">
-            <div>
-              <div className="text-[13.5px] font-semibold text-foreground">Model</div>
-              <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-                The provider this agent runs on
-              </div>
-            </div>
-            <ModelPicker bot={bot} />
           </div>
 
           <div className="rounded-2xl border bg-card p-4">
