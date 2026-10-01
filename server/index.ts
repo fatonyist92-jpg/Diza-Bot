@@ -2786,12 +2786,11 @@ function isSharedLane(laneId: string): boolean {
 }
 
 /** waitForIdle, for one shared room's lane rather than the whole agent. */
-function waitForLaneIdle(botId: string, roomId: string, timeoutMs = 120_000): Promise<void> {
+function waitForLaneIdle(botId: string, roomId: string): Promise<void> {
   return new Promise((resolve) => {
-    const started = Date.now();
     const tick = () => {
       const bot = store.bot(botId);
-      if (!bot || !laneBusy(bot, roomId) || Date.now() - started > timeoutMs) return resolve();
+      if (!bot || !laneBusy(bot, roomId)) return resolve();
       setTimeout(tick, 250);
     };
     setTimeout(tick, 250);
@@ -2874,11 +2873,10 @@ function unresume(threadId: string, error: unknown): boolean {
 }
 
 /** Resolves once an agent's turn has settled, so the next speaker sees it. */
-function waitForIdle(botId: string, timeoutMs = 120_000): Promise<void> {
+function waitForIdle(botId: string): Promise<void> {
   return new Promise((resolve) => {
-    const started = Date.now();
     const tick = () => {
-      if (!store.bot(botId)?.busy || Date.now() - started > timeoutMs) return resolve();
+      if (!store.bot(botId)?.busy) return resolve();
       setTimeout(tick, 250);
     };
     setTimeout(tick, 250);
@@ -6462,14 +6460,36 @@ const server = createServer(async (req, res) => {
       const bot = store.bot(m[1]);
       if (!bot) return json(res, 404, { error: "no such agent" });
       const body = await readBody(req).catch(() => ({}) as Record<string, unknown>);
-      // a named lane is interruptible even when another lane is on screen
+      // Stop the exact lane visible to the user. Falling back to threadId
+      // keeps older clients working, but current clients always send taskId.
       const laneId =
         typeof body.taskId === "string" && bot.tasks.some((t) => t.id === body.taskId)
           ? body.taskId
           : bot.threadId;
+      const lane = bot.tasks.find((t) => t.id === laneId);
+      if (!lane?.busy) return json(res, 200, { ok: true, alreadyStopped: true });
+
       const instance = instanceForTask(bot, laneId);
-      await instance?.adapter.interruptTurn(laneId);
-      return json(res, 200, { ok: true });
+      await instance?.adapter.interruptTurn(laneId).catch(() => {});
+
+      // Drivers normally emit turn.completed. If a dead transport has
+      // already forgotten the session, clear only that stale busy flag so
+      // Stop still recovers the composer instead of becoming a no-op.
+      setTimeout(() => {
+        const fresh = store.bot(bot.id);
+        const task = fresh?.tasks.find((t) => t.id === laneId);
+        if (!task?.busy) return;
+        if (instance?.adapter.hasSession?.(laneId)) return;
+        store.setTaskBusy(laneId, false);
+        turnStarted.delete(laneId);
+        agentTokens.revokeTask(laneId);
+        laneRequester.delete(laneId);
+        activeRoom.delete(laneId);
+        broadcast({ kind: "bot", bot: clientBot(store.bot(bot.id)) });
+        drainSteer(laneId);
+      }, 750).unref?.();
+
+      return json(res, 200, { ok: true, stopping: true, taskId: laneId });
     }
 
     // How the desktop shell recognises the server it just started. A
