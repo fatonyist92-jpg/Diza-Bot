@@ -52,6 +52,8 @@ export interface OptionCardData {
   /** Set when the agent is genuinely blocked on this card. Its absence
    * means the card is a setup question, which can be ignored. */
   requestId?: string;
+  /** Blocking requests are either human questions or permission gates. */
+  requestType?: "permission" | "question";
   /** The tool an approval card is about, so the answer can be
    * remembered as a rule about that tool. */
   tool?: string;
