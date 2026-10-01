@@ -12,6 +12,7 @@ import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import { api, useStore, type ProviderRow } from "@/state/store";
 import { CustomEndpoints } from "./CustomEndpoints";
 import { ProviderMark } from "./ProviderIcons";
+import { GlobalEnginePicker } from "./ModelPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -347,6 +348,18 @@ export function EnginesPanel() {
 
   return (
     <>
+      <div className="mt-4 rounded-2xl border bg-card p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="text-[13.5px] font-semibold text-foreground">Engine utama</div>
+            <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              Satu pilihan untuk semua agent. Jika engine utama kehabisan kuota, fallback aman tetap bisa mengambil alih turn.
+            </div>
+          </div>
+          <GlobalEnginePicker className="shrink-0" />
+        </div>
+      </div>
+
       <div className="mt-4 overflow-hidden rounded-2xl border bg-card">
         <div className="px-4 pb-3 pt-4">
           <div className="flex items-baseline justify-between gap-2">
