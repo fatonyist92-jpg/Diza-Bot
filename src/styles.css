@@ -264,6 +264,23 @@
   100% { transform: scale(1); }
 }
 
+/* JavaScript-triggered View Transitions for top-level mobile navigation.
+   Short distance + low scale keeps it polished rather than theatrical. */
+::view-transition-old(root) {
+  animation: ui-view-out 130ms ease-in both;
+}
+::view-transition-new(root) {
+  animation: ui-view-in 190ms var(--ease-out-quart) both;
+}
+@keyframes ui-view-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-3px) scale(0.997); }
+}
+@keyframes ui-view-in {
+  from { opacity: 0; transform: translateY(7px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* the halo an agent wears while its voice plays, in its own color */
 .call-speaking-ring {
   animation: call-ring 1.6s ease-in-out infinite;
@@ -417,6 +434,11 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(root) {
+    animation-duration: 0.01ms !important;
   }
 }
 
