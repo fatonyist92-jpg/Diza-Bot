@@ -597,6 +597,26 @@ export class Store {
     return bot;
   }
 
+  /** Apply the workspace engine choice to every agent in one write.
+   * Per-agent persona, memory, permissions and history are untouched.
+   * Changing model inside the same session-cursor engine retires that
+   * engine's old cursor so the new model starts clean and replays history. */
+  setGlobalModelSelection(selection: ModelSelection): BotRecord[] {
+    for (const bot of this.bots) {
+      const previous = bot.modelSelection;
+      bot.modelSelection = { ...selection };
+      if (previous?.instanceId === selection.instanceId && previous.model !== selection.model) {
+        for (const task of bot.tasks) {
+          delete task.resumeCursors[selection.instanceId];
+          if (task.lastInstanceId === selection.instanceId) delete task.lastInstanceId;
+          task.lastInput = 0;
+        }
+      }
+    }
+    this.saveBots();
+    return this.bots;
+  }
+
   /** Cursors are per-lane: the thread that produced the session owns it. */
   setResumeCursor(threadId: string, instanceId: string, cursor: unknown) {
     const found = this.taskByThread(threadId);
