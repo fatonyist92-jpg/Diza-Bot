@@ -336,9 +336,58 @@ function Group({ title, note, rows }: { title: string; note: string; rows: Provi
 }
 
 export function EnginesPanel() {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const providers = state.providers;
-  if (!providers.length) return null;
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const reload = () => {
+    setLoading(true);
+    setLoadError(null);
+    return Promise.all([
+      api("/api/providers").then(({ providers }) =>
+        dispatch({ type: "providers", providers: Array.isArray(providers) ? providers : [] }),
+      ),
+      api("/api/instances").then(({ instances }) =>
+        dispatch({ type: "instances", instances: Array.isArray(instances) ? instances : [] }),
+      ),
+      api("/api/config").then((config) => dispatch({ type: "configStatus", config })),
+    ])
+      .catch((error) => {
+        setLoadError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!providers.length && !loading && !loadError) void reload();
+    // The panel owns this recovery path: a transient first-load failure must
+    // not leave the Engine tab permanently blank.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providers.length]);
+
+  if (!providers.length) {
+    return (
+      <div className="mt-4 rounded-2xl border bg-card p-4">
+        <div className="text-[13.5px] font-semibold text-foreground">Engine</div>
+        <div className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+          {loading
+            ? "Memuat daftar engine…"
+            : loadError
+              ? "Daftar engine belum berhasil dimuat."
+              : "Menyiapkan daftar engine…"}
+        </div>
+        {loadError && (
+          <>
+            <div className="mt-2 break-words text-[11.5px] text-destructive">{loadError}</div>
+            <Button variant="secondary" size="sm" className="mt-3" onClick={() => void reload()}>
+              Coba lagi
+            </Button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   const connected = providers.filter((p) => p.connected).length;
   // Twelve flat rows is a list you scan past. The split is the one that
