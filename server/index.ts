@@ -970,6 +970,8 @@ bus.subscribe((event: RuntimeEvent) => {
       break;
     case "item.completed":
       if (event.itemType === "assistant_text") {
+        const retry = capacityRetryTurns.get(event.threadId);
+        if (retry) retry.hadEffects = true;
         let afterImagine = event.text;
         if (DIZA_IMAGINE_ACTIVE) {
           const parsedImagine = extractImagineDirectives(event.text);
@@ -1039,6 +1041,8 @@ bus.subscribe((event: RuntimeEvent) => {
       break;
     case "item.started":
       if (event.itemType === "tool") {
+        const retry = capacityRetryTurns.get(event.threadId);
+        if (retry) retry.hadEffects = true;
         const message = pushMessage({ role: "bot", kind: "activity", tool: { name: event.title ?? "tool" } });
         if (event.itemId) toolMessageByItem.set(event.itemId, message.id);
         // The browser is watched from its first use in a turn, not from the
@@ -1293,6 +1297,25 @@ bus.subscribe((event: RuntimeEvent) => {
     }
     case "runtime.error": {
       failures.record("provider");
+
+      // Capacity is a provider-health problem, not a bad user message.
+      // Cool the engine down so later turns do not keep walking into the
+      // same limit. A direct solo turn may be replayed once, but only if
+      // nothing from it has acted or spoken yet.
+      if (isProviderCapacityError(event.message) && event.providerInstanceId) {
+        providerCapacityCooldowns.set(event.providerInstanceId, Date.now() + CAPACITY_COOLDOWN_MS);
+        const retry = capacityRetryTurns.get(event.threadId);
+        if (
+          retry &&
+          retry.failedInstanceId === event.providerInstanceId &&
+          !retry.hadEffects &&
+          retry.fallbackDepth < 1
+        ) {
+          retry.error = event.message;
+          break;
+        }
+      }
+
       // The conversation being too big is the one failure this app should
       // fix rather than report. Our idea of a model's limit is a guess, so
       // when the provider disagrees, fold and try the same thing again
@@ -1358,8 +1381,50 @@ bus.subscribe((event: RuntimeEvent) => {
       turnStarted.delete(event.threadId);
       // whatever the agent was given to act with is spent
       agentTokens.revokeTask(event.threadId);
+
+      const capacityRetry = capacityRetryTurns.get(event.threadId);
+      const retryCapacity =
+        event.ok === false &&
+        Boolean(capacityRetry?.error) &&
+        !capacityRetry?.hadEffects &&
+        (capacityRetry?.fallbackDepth ?? 1) < 1;
+      capacityRetryTurns.delete(event.threadId);
+
       store.patchBot(bot.id, { unread: true });
       broadcast({ kind: "bot", bot: clientBot(store.bot(bot.id)) });
+
+      if (retryCapacity && capacityRetry) {
+        // Settle every trace of the failed provider turn before starting
+        // the replacement. The user message itself stays exactly once.
+        laneRequester.delete(event.threadId);
+        activeRoom.delete(event.threadId);
+        retriedForContext.delete(event.threadId);
+
+        const notice = store.appendMessage(event.threadId, {
+          role: "bot",
+          kind: "notice",
+          text: "Provider utama sedang kena limit. DIZA otomatis mencoba engine fallback untuk turn ini; memory dan history bot tetap sama.",
+        });
+        broadcast({ kind: "message", threadId: event.threadId, message: notice });
+
+        void startTurn(capacityRetry.botId, capacityRetry.text, {
+          taskId: capacityRetry.taskId,
+          presetMessage: true,
+          ...(capacityRetry.replyTo ? { replyTo: capacityRetry.replyTo } : {}),
+          intelligenceMode: capacityRetry.intelligenceMode,
+          avoidInstanceIds: [capacityRetry.failedInstanceId],
+          capacityFallbackDepth: capacityRetry.fallbackDepth + 1,
+        }).catch((error) => {
+          const failed = store.appendMessage(event.threadId, {
+            role: "bot",
+            kind: "notice",
+            text: `Fallback belum bisa dipakai: ${redactSecrets(error instanceof Error ? error.message : String(error)).slice(0, 300)}`,
+          });
+          broadcast({ kind: "message", threadId: event.threadId, message: failed });
+        });
+        break;
+      }
+
       // A routine's run ends where its turn does, and its summary is
       // what the agent actually said: a row that only says "ok" answers
       // half the question people are asking.
