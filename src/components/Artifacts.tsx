@@ -16,6 +16,7 @@ import X from "lucide-react/dist/esm/icons/x.mjs";
 import Download from "lucide-react/dist/esm/icons/download.mjs";
 import FileCode from "lucide-react/dist/esm/icons/file-code.mjs";
 import FileImage from "lucide-react/dist/esm/icons/file-image.mjs";
+import Film from "lucide-react/dist/esm/icons/film.mjs";
 import FileSpreadsheet from "lucide-react/dist/esm/icons/file-spreadsheet.mjs";
 import FileText from "lucide-react/dist/esm/icons/file-text.mjs";
 import Presentation from "lucide-react/dist/esm/icons/presentation.mjs";
@@ -36,13 +37,14 @@ function humanSize(bytes: number): string {
 function kindOf(artifact: ArtifactMeta): {
   label: string;
   icon: React.ReactNode;
-  viewer: "iframe" | "pdf" | "image" | "table" | "sheet" | "text" | "none";
+  viewer: "iframe" | "pdf" | "image" | "video" | "table" | "sheet" | "text" | "none";
 } {
   const { mime, name } = artifact;
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   if (mime === "text/html") return { label: "Web page", icon: <FileCode size={18} />, viewer: "iframe" };
   if (mime === "application/pdf") return { label: "PDF", icon: <FileText size={18} />, viewer: "pdf" };
-  if (mime.startsWith("image/")) return { label: "Image", icon: <FileImage size={18} />, viewer: "image" };
+  if (mime.startsWith("image/")) return { label: "Gambar", icon: <FileImage size={18} />, viewer: "image" };
+  if (mime.startsWith("video/")) return { label: "Video", icon: <Film size={18} />, viewer: "video" };
   if (ext === "csv" || ext === "tsv")
     return { label: "Spreadsheet", icon: <FileSpreadsheet size={18} />, viewer: "table" };
   if (ext === "xlsx")
@@ -76,13 +78,13 @@ export function ArtifactCard({ botId, artifact }: { botId: string; artifact: Art
         <span className="flex shrink-0 items-center gap-1">
           {kind.viewer !== "none" && (
             <Button size="sm" variant="secondary" onClick={() => setViewing(true)}>
-              View
+              Lihat
             </Button>
           )}
           <a
             href={`${href}?download`}
             download={artifact.name}
-            title="Download"
+            title="Unduh"
             className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Download size={15} />
@@ -300,7 +302,7 @@ export function ArtifactViewer({
             className="mr-6 flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Download size={14} />
-            Download
+            Unduh
           </a>
         </div>
 
@@ -325,6 +327,17 @@ export function ArtifactViewer({
           {kind.viewer === "image" && (
             <div className="flex size-full items-center justify-center overflow-auto p-4">
               <img src={href} alt={artifact.name} className="max-h-full max-w-full object-contain" />
+            </div>
+          )}
+          {kind.viewer === "video" && (
+            <div className="flex size-full items-center justify-center bg-black p-2">
+              <video
+                src={href}
+                controls
+                playsInline
+                preload="metadata"
+                className="max-h-full max-w-full object-contain"
+              />
             </div>
           )}
           {(kind.viewer === "table" || kind.viewer === "sheet") &&
