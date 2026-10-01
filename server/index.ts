@@ -1969,8 +1969,19 @@ async function startTurn(
   // limit would never fire, because trimming is what makes it fit, and
   // the trimming is exactly the silent forgetting this replaces.
   let built = buildTranscript();
-  if (!blok && built.dropped > 0) {
-    const folded = await foldContext(bot.id, task.id).catch(() => false);
+  // Native provider sessions can grow far beyond the visible transcript:
+  // tool calls, reasoning and provider-side state all count toward their
+  // window. So a transcript that still "fits" locally is not enough to
+  // prove the resumed provider session is healthy. When the provider's
+  // last reported input is already near the model limit, compact/roll it
+  // before sending the next user message.
+  const providerSessionFull =
+    !blok &&
+    (task.lastInput ?? 0) > 0 &&
+    shouldCompact(task.lastInput ?? 0, contextLimit);
+
+  if (!blok && (built.dropped > 0 || providerSessionFull)) {
+    const folded = await foldContext(bot.id, task.id, providerSessionFull).catch(() => false);
     if (folded) {
       built = buildTranscript();
     } else {
