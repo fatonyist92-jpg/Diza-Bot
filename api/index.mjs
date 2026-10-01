@@ -78,9 +78,25 @@ function upstreamPath(req) {
   return `${pathname}${query ? `?${query}` : ''}`;
 }
 
+function hasAllowedPublicOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin || origin === 'null') return true;
+  try {
+    const forwardedHost = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+      .split(',')[0]
+      .trim();
+    return new URL(origin).host === forwardedHost;
+  } catch {
+    return false;
+  }
+}
+
 function proxy(req, res, path) {
   return new Promise((resolveProxy, rejectProxy) => {
     const headers = { ...req.headers, host: `127.0.0.1:${innerPort}` };
+    // The public request has already passed the Vercel-host origin check.
+    // Do not forward its public Origin to the loopback-only core.
+    delete headers.origin;
     delete headers['x-vercel-id'];
     delete headers['x-vercel-forwarded-for'];
     const upstream = request({
@@ -107,6 +123,11 @@ function proxy(req, res, path) {
 
 export default async function handler(req, res) {
   try {
+    if (!hasAllowedPublicOrigin(req)) {
+      res.writeHead(403, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ error: 'cross-origin requests are not allowed' }));
+      return;
+    }
     await ensureBooted();
     const path = upstreamPath(req);
     await proxy(req, res, path);
