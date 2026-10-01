@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { chooseModels } from "../server/drivers/openai-compat.ts";
-import type { ProviderSpec } from "../server/providers.ts";
+import { PROVIDER_SPECS, type ProviderSpec } from "../server/providers.ts";
 
 const spec = (over: Partial<ProviderSpec> = {}): ProviderSpec => ({
   kind: "test",
@@ -113,6 +113,20 @@ test("free models get their own slots after the paid shortlist", () => {
   assert.deepEqual(got.slice(0, 2), ["google/gemini-flash", "google/gemini-pro"]);
   // preferred family first among the free ones, then alphabetical
   assert.deepEqual(got.slice(2), ["google/gemma-3:free", "deepseek/deepseek-chat:free"]);
+});
+
+test("OpenRouter's free router is the preferred zero-cost default", () => {
+  const openrouter = PROVIDER_SPECS.find((provider) => provider.kind === "openrouter");
+  assert.ok(openrouter);
+  const ids = [
+    "google/gemini-2.5-flash",
+    "anthropic/claude-fable-5",
+    "openrouter/free",
+    "qwen/qwen3.8-27b:free",
+  ];
+  const out = chooseModels(openrouter, ids, new Set(ids))!;
+  assert.equal(out.default, "openrouter/free");
+  assert.equal(out.options[0].id, "openrouter/free");
 });
 
 test("a free model is labelled as free", () => {
