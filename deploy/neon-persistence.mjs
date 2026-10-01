@@ -65,6 +65,38 @@ function targetFor(rootDir, relativePath) {
   return target;
 }
 
+function uniqueIds(values) {
+  return new Set(values.filter((value) => typeof value === 'string' && value.length > 0));
+}
+
+function needsBotRosterRecovery(bots, rooms) {
+  if (!Array.isArray(bots) || !Array.isArray(rooms)) return false;
+  const botIds = uniqueIds(bots.map((bot) => bot?.id));
+  const roomIds = uniqueIds(rooms.flatMap((room) => Array.isArray(room?.memberIds) ? room.memberIds : []));
+  if (!roomIds.size || !botIds.size) return false;
+  let overlap = 0;
+  let missing = 0;
+  for (const id of roomIds) {
+    if (botIds.has(id)) overlap += 1;
+    else missing += 1;
+  }
+  // Deliberately conservative: only repair the exact "fresh bootstrap over
+  // an existing workspace" shape, where none of the room's known agents
+  // exist in bots.json. A partial mismatch could be a legitimate edit and
+  // must never be silently rolled back.
+  return overlap === 0 && missing === roomIds.size;
+}
+
+function validRecoveryRoster(payload, rooms) {
+  if (!payload || payload.kind !== 'bots-recovery' || !Array.isArray(payload.bots)) return false;
+  const ids = payload.bots.map((bot) => bot?.id);
+  const candidateIds = uniqueIds(ids);
+  if (!candidateIds.size || candidateIds.size !== ids.length) return false;
+  const required = uniqueIds(rooms.flatMap((room) => Array.isArray(room?.memberIds) ? room.memberIds : []));
+  for (const id of required) if (!candidateIds.has(id)) return false;
+  return true;
+}
+
 function endpointFor(connectionString) {
   const url = new URL(connectionString);
   if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('DATABASE_URL must be a PostgreSQL URL');
@@ -226,6 +258,60 @@ class NeonPersistence {
     return { restored, skipped };
   }
 
+  async recoverBotRosterIfNeeded() {
+    const bloksRoot = this.rootList.find((root) => root.namespace === 'bloks');
+    if (!bloksRoot) return { recovered: false, reason: 'no-bloks-root' };
+    const botsPath = join(bloksRoot.dir, 'bots.json');
+    const roomsPath = join(bloksRoot.dir, 'bloks.json');
+
+    let bots;
+    let rooms;
+    try {
+      bots = JSON.parse(await readFile(botsPath, 'utf8'));
+      rooms = JSON.parse(await readFile(roomsPath, 'utf8'));
+    } catch {
+      return { recovered: false, reason: 'workspace-files-unreadable' };
+    }
+    if (!needsBotRosterRecovery(bots, rooms)) {
+      return { recovered: false, reason: 'roster-consistent' };
+    }
+
+    const rows = await this.query(`
+      SELECT slot, payload, sha256, updated_at
+      FROM public.diza_runtime_snapshots
+      WHERE slot LIKE 'recovery-bots-%'
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `);
+    const row = rows[0];
+    if (!row || typeof row.payload !== 'string' || typeof row.sha256 !== 'string') {
+      this.logger.warn?.('[diza-persist] bot roster mismatch detected but no recovery roster exists');
+      return { recovered: false, reason: 'no-recovery-roster' };
+    }
+    if (sha256(Buffer.from(row.payload)) !== row.sha256) {
+      this.logger.warn?.('[diza-persist] bot recovery roster failed checksum validation');
+      return { recovered: false, reason: 'recovery-checksum-mismatch' };
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(row.payload);
+    } catch {
+      return { recovered: false, reason: 'recovery-json-invalid' };
+    }
+    if (!validRecoveryRoster(payload, rooms)) {
+      this.logger.warn?.('[diza-persist] bot recovery roster does not cover the current room membership');
+      return { recovered: false, reason: 'recovery-roster-invalid' };
+    }
+
+    const recovered = Buffer.from(JSON.stringify(payload.bots, null, 2));
+    await atomicWrite(botsPath, recovered, 0o600);
+    this.logger.warn?.(
+      `[diza-persist] restored ${payload.bots.length} agents from ${row.slot} after detecting an empty-bootstrap roster`,
+    );
+    return { recovered: true, count: payload.bots.length, slot: row.slot };
+  }
+
   async sync(reason = 'interval') {
     if (!this.ready) return { synced: false, reason: 'not-ready' };
     if (this.inFlight) return this.inFlight;
@@ -385,6 +471,7 @@ export async function initializeNeonPersistence(logger = console) {
   const persistence = new NeonPersistence(connectionString, logger);
   try {
     await persistence.restore();
+    await persistence.recoverBotRosterIfNeeded();
   } catch (error) {
     logger.error?.(`[diza-persist] restore failed; persistence disabled for this process: ${error?.message || error}`);
     return disabled('restore-failed', logger);
@@ -392,4 +479,11 @@ export async function initializeNeonPersistence(logger = console) {
   return Object.assign(persistence, { enabled: true, reason: null });
 }
 
-export const __test = { safeRelativePath, targetFor, endpointFor, sha256 };
+export const __test = {
+  safeRelativePath,
+  targetFor,
+  endpointFor,
+  sha256,
+  needsBotRosterRecovery,
+  validRecoveryRoster,
+};
