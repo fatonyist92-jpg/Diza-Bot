@@ -40,6 +40,8 @@ test("empty bucket seeds the encrypted five-agent bootstrap then immediately per
 });
 
 test("snapshot upload is private S3 state and periodic persistence remains bounded", () => {
+  assert.match(source, /require\('@aws-sdk\/client-s3'\)/);
+  assert.doesNotMatch(source, /\.local[\s\S]{0,120}@aws-sdk\/client-s3/);
   assert.match(source, /new S3Client\(/);
   assert.match(source, /forcePathStyle: true/);
   assert.match(source, /new this\.PutObjectCommand/);
