@@ -4,6 +4,7 @@ import test from "node:test";
 
 const web = fs.readFileSync("deploy/web.mjs", "utf8");
 const start = fs.readFileSync("deploy/start-web.sh", "utf8");
+const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
 test("hosted DIZA restores the authoritative database first and falls back to object storage", () => {
   assert.match(web, /let persistence = await initializeNeonPersistence\(\)/);
@@ -17,11 +18,17 @@ test("hosted DIZA restores the authoritative database first and falls back to ob
   assert.match(web, /saved workspace cannot be replaced by an empty one/);
 });
 
-test("Faable runtime carries both S3 and direct Postgres persistence clients", () => {
-  assert.match(start, /PG_VERSION="8\.16\.3"/);
-  assert.match(start, /npm install -g --prefix "\$HOME\/\.local".*"pg@\$PG_VERSION"/);
-  assert.match(start, /AWS_S3_VERSION="3\.901\.0"/);
-  assert.match(start, /@aws-sdk\/client-s3@\$AWS_S3_VERSION/);
+test("Faable runtime uses build-installed provider and persistence dependencies", () => {
+  assert.equal(pkg.dependencies["@openai/codex"], "0.158.0");
+  assert.equal(pkg.dependencies["@google/gemini-cli"], "0.61.0");
+  assert.equal(pkg.dependencies.pg, "8.16.3");
+  assert.equal(pkg.dependencies["@aws-sdk/client-s3"], "3.901.0");
+  assert.match(start, /node_modules\/\.bin\/codex/);
+  assert.match(start, /node_modules\/\.bin\/gemini/);
+  assert.doesNotMatch(start, /npm install[^\n]*@openai\/codex/);
+  assert.doesNotMatch(start, /npm install[^\n]*@google\/gemini-cli/);
+  assert.doesNotMatch(start, /npm install[^\n]*["']?pg@/);
+  assert.doesNotMatch(start, /npm install[^\n]*@aws-sdk\/client-s3/);
 });
 
 
