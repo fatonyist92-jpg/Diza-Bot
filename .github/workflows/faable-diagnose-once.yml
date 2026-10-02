@@ -31,6 +31,10 @@ jobs:
         run: faable deploy logs -d deployment_6abf3038508116fe2b1e8bf6 || true
       - name: Final deployment raw inspect
         run: faable deploy inspect deployment_6abf3038508116fe2b1e8bf6 --json || true
+      - name: Inspect Codex-only deployment
+        run: faable deploy inspect deployment_6abf31fb57484ffe7f8ee8fa --json || true
+      - name: Codex-only deployment runtime log
+        run: faable deploy logs -d deployment_6abf31fb57484ffe7f8ee8fa || true
       - name: Latest build log
         run: faable deploy logs --build || true
       - name: Live runtime log
@@ -49,3 +53,5 @@ jobs:
 # scoped-runtime-log
 
 # poll-codex-only-final
+
+# poll-codex-only-runtime
