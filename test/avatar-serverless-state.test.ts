@@ -13,6 +13,6 @@ test("avatar upload and removal fold the returned bot into serverless UI state",
 
 test("avatar controls are localized consistently", () => {
   const source = fs.readFileSync("src/components/SettingsPanel.tsx", "utf8");
-  assert.match(source, />Hapus foto</);
+  assert.match(source, />\s*Hapus foto\s*</);
   assert.doesNotMatch(source, />Remove photo</);
 });
