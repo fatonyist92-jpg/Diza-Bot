@@ -2,15 +2,23 @@ import { createServer } from "node:http";
 
 const port = Number(process.env.PORT || 10000);
 const server = createServer((req, res) => {
-  const health = req.method === "GET" && (req.url === "/healthz" || req.url === "/api/health");
-  res.writeHead(200, {
-    "content-type": health ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
+  const url = req.url ?? "/";
+  const health = req.method === "GET" && (url === "/healthz" || url === "/api/health");
+  const api = url.startsWith("/api/");
+  const status = health ? 200 : api ? 503 : 200;
+  const json = health || api;
+
+  res.writeHead(status, {
+    "content-type": json ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
     "cache-control": "no-store",
+    ...(api && !health ? { "retry-after": "1" } : {}),
   });
   res.end(
     health
       ? JSON.stringify({ ok: true, starting: true })
-      : "DIZA is starting. Please retry in a moment.\n",
+      : api
+        ? JSON.stringify({ error: "DIZA is starting. Please retry in a moment.", starting: true })
+        : "DIZA is starting. Please retry in a moment.\n",
   );
 });
 

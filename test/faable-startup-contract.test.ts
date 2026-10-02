@@ -22,3 +22,12 @@ test("Faable opens the assigned port before slow CLI installation", () => {
   assert.match(warmup, /server\.listen\(port, "0\.0\.0\.0"/);
   assert.match(warmup, /starting: true/);
 });
+
+test("Faable warmup never returns a false-success payload to normal API routes", () => {
+  const warmup = fs.readFileSync("deploy/faable-warmup.mjs", "utf8");
+
+  assert.match(warmup, /const api = url\.startsWith\("\/api\/"\)/);
+  assert.match(warmup, /const status = health \? 200 : api \? 503 : 200/);
+  assert.match(warmup, /"retry-after": "1"/);
+  assert.match(warmup, /JSON\.stringify\(\{ error: "DIZA is starting\. Please retry in a moment\.", starting: true \}\)/);
+});
