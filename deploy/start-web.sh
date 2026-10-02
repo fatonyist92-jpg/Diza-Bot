@@ -1,6 +1,27 @@
 #!/bin/sh
 set -eu
 
+WARMUP_PID=""
+node deploy/faable-warmup.mjs &
+WARMUP_PID=$!
+
+cleanup_warmup() {
+  if [ -n "$WARMUP_PID" ] && kill -0 "$WARMUP_PID" 2>/dev/null; then
+    kill "$WARMUP_PID" 2>/dev/null || true
+    wait "$WARMUP_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup_warmup EXIT INT TERM
+
+# Give the warmup listener a moment to claim Faable's assigned port before
+# potentially slow npm installs begin. This keeps the deployment healthy
+# even when registry/network latency makes CLI installation take minutes.
+sleep 0.2
+if ! kill -0 "$WARMUP_PID" 2>/dev/null; then
+  echo "[diza-warmup] failed to start" >&2
+  exit 1
+fi
+
 CODEX_VERSION="0.158.0"
 CODEX_BIN="$HOME/.local/bin/codex"
 CODEX_PROXY="http://127.0.0.1:3129"
@@ -12,11 +33,19 @@ fi
 
 "$CODEX_BIN" --version
 
+# This Faable deployment is the Codex lane. Installing the Grok CLI in the
+# foreground can exceed the runtime startup window and keep the whole app in
+# INITIALIZING. Keep Grok available as an explicit opt-in without blocking
+# Codex/web startup.
 GROK_BIN="$HOME/.local/bin/grok"
-if [ ! -x "$GROK_BIN" ]; then
-  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@xai-official/grok@1.0.44"
+if [ "${DIZA_FAABLE_INSTALL_GROK_CLI:-0}" = "1" ]; then
+  if [ ! -x "$GROK_BIN" ]; then
+    npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@xai-official/grok@1.0.44"
+  fi
+  "$GROK_BIN" --version
+else
+  echo "[diza-faable] Grok CLI startup install skipped; Codex lane only"
 fi
-"$GROK_BIN" --version
 
 GEMINI_VERSION="0.61.0"
 GEMINI_BIN="$HOME/.local/bin/gemini"
@@ -77,4 +106,7 @@ CODEX_CA_CERTIFICATE=$CODEX_CA_BUNDLE
 EOF
 chmod 600 "$CODEX_HOME/.env" "$CODEX_CA_BUNDLE"
 
+cleanup_warmup
+WARMUP_PID=""
+trap - EXIT INT TERM
 exec node deploy/web.mjs

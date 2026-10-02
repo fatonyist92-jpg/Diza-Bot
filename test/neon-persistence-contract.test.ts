@@ -79,8 +79,16 @@ test("fresh PostgreSQL databases create the two persistence tables before restor
   const schemaAt = source.indexOf("await persistence.ensureSchema()");
   const restoreAt = source.indexOf("await persistence.restore()");
   assert.ok(schemaAt >= 0 && restoreAt > schemaAt);
-  assert.match(source, /CREATE TABLE IF NOT EXISTS public\.diza_persist_files/);
-  assert.match(source, /CREATE TABLE IF NOT EXISTS public\.diza_runtime_snapshots/);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS \$\{PERSIST_FILES_TABLE\}/);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS \$\{RUNTIME_SNAPSHOTS_TABLE\}/);
+});
+
+test("Faable defaults to its isolated Supabase schema", () => {
+  assert.match(source, /DIZA_PERSIST_SCHEMA \|\| 'diza_faable'/);
+  assert.match(source, /PERSIST_FILES_TABLE/);
+  assert.match(source, /RUNTIME_SNAPSHOTS_TABLE/);
+  assert.doesNotMatch(source, /FROM public\.diza_persist_files/);
+  assert.doesNotMatch(source, /INSERT INTO public\.diza_runtime_snapshots/);
 });
 
 test("non-Neon PostgreSQL uses the packaged direct driver", () => {

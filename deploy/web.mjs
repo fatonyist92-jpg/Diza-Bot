@@ -204,6 +204,20 @@ const gateway = createServer((req, res) => {
   delete headers.cookie;
   delete headers.forwarded;
   for (const key of Object.keys(headers)) if (key.startsWith('x-forwarded-')) delete headers[key];
+  // Never forward hop-by-hop transport metadata through the second HTTP
+  // connection. Faable terminates HTTP/2 at the edge; the inner DIZA core
+  // is plain HTTP/1.1, so carrying these headers across can leave either
+  // side waiting for framing that belongs to the other connection.
+  for (const key of [
+    'connection',
+    'proxy-connection',
+    'keep-alive',
+    'transfer-encoding',
+    'upgrade',
+    'te',
+    'trailer',
+  ]) delete headers[key];
+  if (req.method === 'GET' || req.method === 'HEAD') delete headers['content-length'];
   if (suppliedOrigin) headers.origin = `http://127.0.0.1:${innerPort}`;
   const upstream = request({ hostname: '127.0.0.1', port: innerPort, path: health ? '/api/health' : req.url, method: req.method, headers }, (incoming) => {
     if (health) {
@@ -221,11 +235,15 @@ const gateway = createServer((req, res) => {
       }));
     }
     const responseHeaders = { ...incoming.headers };
+    for (const key of ['connection', 'keep-alive', 'transfer-encoding', 'upgrade', 'te', 'trailer']) {
+      delete responseHeaders[key];
+    }
     if (url.pathname.startsWith('/api/') || url.pathname === '/sw.js') responseHeaders['cache-control'] = 'no-store';
     res.writeHead(incoming.statusCode || 502, responseHeaders);
     incoming.pipe(res);
     incoming.on('error', () => res.destroy());
   });
+  upstream.setTimeout(10_000, () => upstream.destroy(new Error('DIZA loopback upstream timed out')));
   upstream.on('error', () => {
     if (res.headersSent) return res.destroy();
     res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -233,7 +251,8 @@ const gateway = createServer((req, res) => {
   });
   req.on('aborted', () => upstream.destroy());
   res.on('close', () => upstream.destroy());
-  req.pipe(upstream);
+  if (req.method === 'GET' || req.method === 'HEAD') upstream.end();
+  else req.pipe(upstream);
 });
 
 gateway.listen(port, '0.0.0.0', () => console.log(`[diza-web] listening on port ${port}`));
