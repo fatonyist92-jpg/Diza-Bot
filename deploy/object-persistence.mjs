@@ -257,8 +257,7 @@ async function applyBootstrapFiles(bootstrap) {
 
 function loadS3() {
   const require = createRequire(import.meta.url);
-  const modulePath = join(homedir(), '.local', 'lib', 'node_modules', '@aws-sdk', 'client-s3');
-  return require(modulePath);
+  return require('@aws-sdk/client-s3');
 }
 
 function missingObject(error) {
