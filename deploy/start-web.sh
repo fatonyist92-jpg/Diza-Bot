@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$ROOT_DIR"
+export PATH="$ROOT_DIR/node_modules/.bin:$PATH"
+
 WARMUP_PID=""
 node deploy/faable-warmup.mjs &
 WARMUP_PID=$!
@@ -22,15 +26,14 @@ if ! kill -0 "$WARMUP_PID" 2>/dev/null; then
   exit 1
 fi
 
-CODEX_VERSION="0.158.0"
-CODEX_BIN="$HOME/.local/bin/codex"
+CODEX_BIN="$ROOT_DIR/node_modules/.bin/codex"
 CODEX_PROXY="http://127.0.0.1:3129"
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 
 if [ ! -x "$CODEX_BIN" ]; then
-  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@openai/codex@$CODEX_VERSION"
+  echo "[diza-faable] build-installed Codex CLI is missing" >&2
+  exit 1
 fi
-
 "$CODEX_BIN" --version
 
 # This Faable deployment is the Codex lane. Installing the Grok CLI in the
@@ -47,27 +50,16 @@ else
   echo "[diza-faable] Grok CLI startup install skipped; Codex lane only"
 fi
 
-GEMINI_VERSION="0.61.0"
-GEMINI_BIN="$HOME/.local/bin/gemini"
+GEMINI_BIN="$ROOT_DIR/node_modules/.bin/gemini"
 if [ ! -x "$GEMINI_BIN" ]; then
-  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@google/gemini-cli@$GEMINI_VERSION"
+  echo "[diza-faable] build-installed Gemini CLI is missing" >&2
+  exit 1
 fi
 "$GEMINI_BIN" --version
 
-# The HTTP SQL endpoint can refuse requests when Neon free-tier API quota is
-# exhausted even while the Postgres endpoint remains usable. Keep one tiny
-# direct driver available as a restore fallback; DIZA data itself stays in Neon.
-PG_VERSION="8.16.3"
-PG_MODULE="$HOME/.local/lib/node_modules/pg/package.json"
-if [ ! -f "$PG_MODULE" ]; then
-  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "pg@$PG_VERSION"
-fi
-
-AWS_S3_VERSION="3.901.0"
-AWS_S3_MODULE="$HOME/.local/lib/node_modules/@aws-sdk/client-s3/package.json"
-if [ ! -f "$AWS_S3_MODULE" ]; then
-  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@aws-sdk/client-s3@$AWS_S3_VERSION"
-fi
+# Faable installs manifest dependencies during the build. Validate the two
+# persistence clients cheaply here instead of downloading them during boot.
+node -e 'require("pg"); require("@aws-sdk/client-s3")'
 
 node deploy/codex-ipv4-proxy.mjs &
 
