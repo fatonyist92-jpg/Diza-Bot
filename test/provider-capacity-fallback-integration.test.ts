@@ -27,9 +27,11 @@ test("tool use or assistant output disables automatic replay", () => {
   assert.match(server, /case "item\.completed":[\s\S]{0,220}assistant_text[\s\S]{0,220}retry\.hadEffects = true/);
 });
 
-test("Faable runtime installs the pinned Gemini CLI fallback", () => {
+test("Faable runtime uses the build-installed pinned Gemini CLI fallback", () => {
   const start = readFileSync(new URL("../deploy/start-web.sh", import.meta.url), "utf8");
-  assert.match(start, /GEMINI_VERSION="0\.61\.0"/);
-  assert.match(start, /@google\/gemini-cli@\$GEMINI_VERSION/);
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(pkg.dependencies["@google/gemini-cli"], "0.61.0");
+  assert.match(start, /GEMINI_BIN="\$ROOT_DIR\/node_modules\/\.bin\/gemini"/);
   assert.match(start, /"\$GEMINI_BIN" --version/);
+  assert.doesNotMatch(start, /npm install[^\n]*@google\/gemini-cli/);
 });
