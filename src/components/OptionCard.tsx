@@ -1,7 +1,7 @@
 import { useState } from "react";
 import X from "lucide-react/dist/esm/icons/x.mjs";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check.mjs";
-import { isPermissionCard, isQuestionCard, useStore, type Message, type TeamPlan } from "@/state/store";
+import { api, isPermissionCard, isQuestionCard, useStore, type Message, type TeamPlan } from "@/state/store";
 import { BlokAvatar } from "@/components/Avatar";
 import { BLOK_COLOR_NAMES, shapeForBot, type BlokColor } from "@/lib/mascot";
 import { cn } from "@/lib/cn";
@@ -22,6 +22,8 @@ export function OptionCard({
 }) {
   const { state, dispatch } = useStore();
   const [custom, setCustom] = useState("");
+  const [savingRule, setSavingRule] = useState(false);
+  const [ruleError, setRuleError] = useState<string | null>(null);
   const card = message.card;
   if (!card || card.dismissed) return null;
 
@@ -122,19 +124,39 @@ export function OptionCard({
       </div>
 
       {!card.answered && permission && card.tool && (
-        <button
-          onClick={() => {
-            void fetch("/api/rules", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ effect: "allow", field: "tool", op: "equals", value: card.tool, botId, enabled: true }),
-            }).catch(() => {});
-            answer("Allow");
-          }}
-          className="w-full border-t border-border/60 px-4 py-3 text-left text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-        >
-          Selalu izinkan {card.tool} untuk agen ini
-        </button>
+        <div className="border-t border-border/60">
+          <button
+            disabled={savingRule}
+            onClick={() => {
+              setSavingRule(true);
+              setRuleError(null);
+              void api("/api/rules", {
+                method: "POST",
+                body: JSON.stringify({
+                  effect: "allow",
+                  field: "tool",
+                  op: "equals",
+                  value: card.tool,
+                  botId,
+                  enabled: true,
+                }),
+              })
+                .then(() => answer("Allow"))
+                .catch((error) =>
+                  setRuleError(error instanceof Error ? error.message : "Aturan gagal disimpan."),
+                )
+                .finally(() => setSavingRule(false));
+            }}
+            className="w-full px-4 py-3 text-left text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground disabled:cursor-wait disabled:opacity-50"
+          >
+            {savingRule ? "Menyimpan aturan…" : `Selalu izinkan ${card.tool} untuk agen ini`}
+          </button>
+          {ruleError && (
+            <div className="px-4 pb-3 text-[11.5px] text-destructive">
+              {ruleError}
+            </div>
+          )}
+        </div>
       )}
 
       {!card.answered && !card.runId && !permission && (
