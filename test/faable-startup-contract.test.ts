@@ -13,8 +13,10 @@ test("Faable opens the assigned port before slow CLI installation", () => {
 
   assert.ok(warmupAt >= 0, "warmup listener must start");
   assert.ok(codexInstallAt > warmupAt, "Codex install must happen after the port is open");
-  assert.ok(grokInstallAt > warmupAt, "Grok install must happen after the port is open");
-  assert.ok(handoffAt > grokInstallAt, "warmup must stay alive throughout CLI setup");
+  assert.ok(grokInstallAt > warmupAt, "optional Grok install must remain behind the warmup listener");
+  assert.match(start, /DIZA_FAABLE_INSTALL_GROK_CLI:-0/);
+  assert.match(start, /Grok CLI startup install skipped; Codex lane only/);
+  assert.ok(handoffAt > grokInstallAt, "warmup must stay alive throughout optional CLI setup");
   assert.ok(webAt > handoffAt, "the real web gateway must take over after warmup closes");
   assert.match(warmup, /process\.env\.PORT \|\| 10000/);
   assert.match(warmup, /server\.listen\(port, "0\.0\.0\.0"/);
