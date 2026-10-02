@@ -176,10 +176,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               body: JSON.stringify({ answer: action.answer }),
             }).catch(showError);
           } else if (card?.requestId) {
-            // a live provider ask settles against the agent that raised it,
-            // wherever the card happens to be shown
-            const behavior =
-              action.answer === "Allow" ? "allow" : action.answer === "Deny" ? "deny" : "answer";
+            // A live provider ask settles against the agent that raised it,
+            // wherever the card happens to be shown. Classify by the card,
+            // never by button text: a legitimate human question can itself
+            // have choices named "Allow" or "Deny".
+            const permission = isPermissionCard(card);
+            const behavior = permission
+              ? action.answer === "Allow"
+                ? "allow"
+                : action.answer === "Deny"
+                  ? "deny"
+                  : "answer"
+              : "answer";
             api(`/api/bots/${action.botId}/respond`, {
               method: "POST",
               body: JSON.stringify({
