@@ -48,3 +48,12 @@ test("legacy per-agent model changes are promoted to the whole workspace", () =>
   assert.match(server, /saveConfig\(\{ engine: selection \}\)/);
   assert.match(server, /store\.setGlobalModelSelection\(selection\)/);
 });
+
+
+test("global engine routes reject unavailable engines and unknown models", () => {
+  assert.match(server, /const snapshot = await instance\.snapshot\(\)/);
+  assert.match(server, /snapshot\.state !== "available" \|\| snapshot\.authenticated === false/);
+  assert.match(server, /that model is not available on the selected engine/);
+  const snapshots = server.match(/const snapshot = await instance\.snapshot\(\)/g) ?? [];
+  assert.ok(snapshots.length >= 2, "both Settings and legacy global-engine routes must validate readiness");
+});
