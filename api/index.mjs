@@ -152,7 +152,10 @@ export default async function handler(req, res) {
       return;
     }
     const path = upstreamPath(req);
-    if (req.method === 'POST' && path === '/api/__diza/faable-supabase-bootstrap') {
+    const bootstrapRequest =
+      req.method === 'POST' &&
+      (path.includes('faable-supabase-bootstrap') || String(req.url || '').includes('faable-supabase-bootstrap'));
+    if (bootstrapRequest) {
       const authorization = String(req.headers.authorization || '');
       if (!authorization.startsWith('Bearer ')) {
         res.writeHead(401, { 'content-type': 'application/json', 'cache-control': 'no-store' });
