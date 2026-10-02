@@ -60,9 +60,9 @@ export function OptionCard({
         <div className="min-w-0 flex-1">
           <div className={cn(
             "flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em]",
-            permission ? "text-muted-foreground" : card.runId ? "text-warning" : "text-brand-ink",
+            liveRequest ? "text-muted-foreground" : card.runId ? "text-warning" : "text-brand-ink",
           )}>
-            {permission && <span className="flex size-8 items-center justify-center rounded-xl border border-border/60 bg-foreground text-background shadow-sm"><ShieldCheck size={16} /></span>}
+            {liveRequest && <span className="flex size-8 items-center justify-center rounded-xl border border-border/60 bg-foreground text-background shadow-sm"><ShieldCheck size={16} /></span>}
             <span>{permission ? "Perlu persetujuan" : question ? "Pertanyaan" : card.runId ? "Alur kerja" : "Pertanyaan"}</span>
           </div>
           <div className={cn("break-words font-semibold text-foreground [overflow-wrap:anywhere]", liveRequest ? "mt-3.5 text-[15.5px] tracking-[-0.01em]" : "mt-1 text-[14.5px]")}>
@@ -89,7 +89,7 @@ export function OptionCard({
       </div>
 
       <div className={cn(
-        permission ? "grid grid-cols-2 gap-2.5 border-t border-border/60 bg-muted/15 p-3.5" : liveRequest ? "flex flex-col gap-1 border-t border-border/60 bg-muted/15 p-3.5" : "mt-3 flex flex-col gap-1",
+        liveRequest ? "grid grid-cols-2 gap-2.5 border-t border-border/60 bg-muted/15 p-3.5" : "mt-3 flex flex-col gap-1",
       )}>
         {card.options.map((opt, i) => (
           <button
@@ -97,20 +97,20 @@ export function OptionCard({
             disabled={!!card.answered}
             onClick={() => answer(opt)}
             className={cn(
-              permission
+              liveRequest
                 ? "flex min-h-11 items-center justify-center rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.98]"
                 : "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[14px] transition-colors duration-150",
               card.answered === opt
                 ? "bg-foreground text-background"
-                : permission
+                : liveRequest
                   ? i === 0
                     ? "bg-foreground text-background hover:opacity-90 disabled:opacity-45"
                     : "border bg-background text-foreground hover:bg-accent disabled:opacity-45"
                   : "text-foreground hover:bg-accent disabled:hover:bg-transparent",
-              !permission && card.answered && card.answered !== opt && "opacity-45",
+              !liveRequest && card.answered && card.answered !== opt && "opacity-45",
             )}
           >
-            {!permission && (
+            {!liveRequest && (
               <span className={cn(
                 "flex size-6 shrink-0 items-center justify-center rounded-lg text-[11.5px] font-semibold",
                 card.answered === opt ? "bg-brand-ink text-brand-foreground" : "bg-muted text-muted-foreground",
