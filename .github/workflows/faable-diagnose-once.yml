@@ -3,7 +3,7 @@ name: DIZA Faable runtime diagnose once
 on:
   push:
     branches:
-      - live-test-bab14
+      - faable-diagnose-20261002
     paths:
       - ".github/workflows/faable-diagnose-once.yml"
 
