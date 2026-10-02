@@ -25,6 +25,8 @@ jobs:
         run: faable deploy status || true
       - name: Faable deployments
         run: faable deploy deployments || true
+      - name: Inspect final warmup deployment
+        run: faable deploy inspect deployment_6abf3038508116fe2b1e8bf6 || true
       - name: Latest build log
         run: faable deploy logs --build || true
       - name: Live runtime log
@@ -37,3 +39,5 @@ jobs:
 # poll-3
 
 # poll-4
+
+# inspect-final-4d5
