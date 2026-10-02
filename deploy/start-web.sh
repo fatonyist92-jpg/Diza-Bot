@@ -33,11 +33,19 @@ fi
 
 "$CODEX_BIN" --version
 
+# This Faable deployment is the Codex lane. Installing the Grok CLI in the
+# foreground can exceed the runtime startup window and keep the whole app in
+# INITIALIZING. Keep Grok available as an explicit opt-in without blocking
+# Codex/web startup.
 GROK_BIN="$HOME/.local/bin/grok"
-if [ ! -x "$GROK_BIN" ]; then
-  npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@xai-official/grok@1.0.44"
+if [ "${DIZA_FAABLE_INSTALL_GROK_CLI:-0}" = "1" ]; then
+  if [ ! -x "$GROK_BIN" ]; then
+    npm install -g --prefix "$HOME/.local" --no-audit --no-fund "@xai-official/grok@1.0.44"
+  fi
+  "$GROK_BIN" --version
+else
+  echo "[diza-faable] Grok CLI startup install skipped; Codex lane only"
 fi
-"$GROK_BIN" --version
 
 node deploy/codex-ipv4-proxy.mjs &
 
