@@ -37,6 +37,20 @@ jobs:
         run: faable deploy logs -d deployment_6abf31fb57484ffe7f8ee8fa || true
       - name: Latest build log
         run: faable deploy logs --build || true
+      - name: Public endpoint probe
+        shell: bash
+        run: |
+          set +e
+          echo "=== DNS ==="
+          getent ahosts diza-bot-5eoll.faable.link || true
+          echo "=== HEALTH ==="
+          curl -vk --connect-timeout 10 --max-time 20 https://diza-bot-5eoll.faable.link/healthz -o /tmp/faable-health.txt
+          echo "curl_health_exit=$?"
+          cat /tmp/faable-health.txt 2>/dev/null || true
+          echo
+          echo "=== ROOT HEADERS ==="
+          curl -vkI --connect-timeout 10 --max-time 20 https://diza-bot-5eoll.faable.link/
+          echo "curl_root_exit=$?"
       - name: Live runtime log
         run: faable deploy logs || true
 
@@ -55,3 +69,5 @@ jobs:
 # poll-codex-only-final
 
 # poll-codex-only-runtime
+
+# public-probe-after-ready
