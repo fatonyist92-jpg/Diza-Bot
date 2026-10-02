@@ -1,0 +1,54 @@
+name: Audit Faable cold-start lock
+
+on:
+  push:
+    branches:
+      - audit-faable-coldstart-20261002
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Resolve lockfile
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Startup script syntax
+        run: sh -n deploy/start-web.sh
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Commit generated lockfile
+        shell: bash
+        run: |
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Refresh lockfile for Faable cold-start dependencies"
+          git push
