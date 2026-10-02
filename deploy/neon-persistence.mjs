@@ -11,6 +11,13 @@ const MAX_FILE_BYTES = 128 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 384 * 1024 * 1024;
 const RESTORE_CHUNK_BYTES = 512 * 1024;
 const SNAPSHOT_SLOT = 'primary';
+const PERSIST_SCHEMA = process.env.DIZA_PERSIST_SCHEMA || 'diza_faable';
+if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(PERSIST_SCHEMA)) {
+  throw new Error('DIZA_PERSIST_SCHEMA must be a simple PostgreSQL identifier');
+}
+const quoteIdentifier = (value) => `"${value.replaceAll('"', '""')}"`;
+const PERSIST_FILES_TABLE = `${quoteIdentifier(PERSIST_SCHEMA)}."diza_persist_files"`;
+const RUNTIME_SNAPSHOTS_TABLE = `${quoteIdentifier(PERSIST_SCHEMA)}."diza_runtime_snapshots"`;
 
 const roots = () => [
   {
@@ -245,7 +252,7 @@ class NeonPersistence {
 
   async ensureSchema() {
     await this.query(`
-      CREATE TABLE IF NOT EXISTS public.diza_persist_files (
+      CREATE TABLE IF NOT EXISTS ${PERSIST_FILES_TABLE} (
         namespace text NOT NULL,
         path text NOT NULL,
         sha256 text NOT NULL,
@@ -258,7 +265,7 @@ class NeonPersistence {
       )
     `);
     await this.query(`
-      CREATE TABLE IF NOT EXISTS public.diza_runtime_snapshots (
+      CREATE TABLE IF NOT EXISTS ${RUNTIME_SNAPSHOTS_TABLE} (
         slot text PRIMARY KEY,
         payload text NOT NULL,
         sha256 text NOT NULL,
@@ -280,7 +287,7 @@ class NeonPersistence {
       const length = Math.min(RESTORE_CHUNK_BYTES, storedBytes - received);
       const rows = await this.query(`
         SELECT encode(substring(data from $3::integer for $4::integer), 'hex') AS data_hex
-        FROM public.diza_persist_files
+        FROM ${PERSIST_FILES_TABLE}
         WHERE namespace = $1 AND path = $2
       `, [row.namespace, row.path, received + 1, length]);
       const hex = rows[0]?.data_hex;
@@ -304,7 +311,7 @@ class NeonPersistence {
     const rows = await this.query(`
       SELECT namespace, path, sha256, compressed, mode, size_bytes,
              octet_length(data) AS stored_bytes
-      FROM public.diza_persist_files
+      FROM ${PERSIST_FILES_TABLE}
       WHERE namespace IN ('bloks', 'grok', 'codex')
       ORDER BY namespace, path
     `);
@@ -354,7 +361,7 @@ class NeonPersistence {
 
     const rows = await this.query(`
       SELECT slot, payload, sha256, updated_at
-      FROM public.diza_runtime_snapshots
+      FROM ${RUNTIME_SNAPSHOTS_TABLE}
       WHERE slot LIKE 'recovery-bots-%'
       ORDER BY updated_at DESC
       LIMIT 1
@@ -454,7 +461,7 @@ class NeonPersistence {
     // explicit maintenance decision. We simply stop rewriting them.
     const existingRows = await this.query(`
       SELECT namespace, path, sha256
-      FROM public.diza_persist_files
+      FROM ${PERSIST_FILES_TABLE}
       WHERE namespace IN ('bloks', 'grok', 'codex')
     `);
     const existing = new Map(existingRows.map((row) => [`${row.namespace}\0${row.path}`, row.sha256]));
@@ -497,7 +504,7 @@ class NeonPersistence {
           }
         }
         await this.query(`
-          INSERT INTO public.diza_persist_files
+          INSERT INTO ${PERSIST_FILES_TABLE}
             (namespace, path, sha256, data, compressed, mode, size_bytes, updated_at)
           VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, now())
           ON CONFLICT (namespace, path) DO UPDATE SET
@@ -518,7 +525,7 @@ class NeonPersistence {
       if (!root || root.exclude(row.path)) continue;
       if (seen.has(key) || this.restoreFailures.has(key)) continue;
       await this.query(
-        'DELETE FROM public.diza_persist_files WHERE namespace = $1 AND path = $2',
+        `DELETE FROM ${PERSIST_FILES_TABLE} WHERE namespace = $1 AND path = $2`,
         [row.namespace, row.path],
       );
       deletes += 1;
@@ -536,7 +543,7 @@ class NeonPersistence {
       skipped,
     });
     await this.query(`
-      INSERT INTO public.diza_runtime_snapshots (slot, payload, sha256, updated_at)
+      INSERT INTO ${RUNTIME_SNAPSHOTS_TABLE} (slot, payload, sha256, updated_at)
       VALUES ($1, $2, $3, now())
       ON CONFLICT (slot) DO UPDATE SET
         payload = EXCLUDED.payload,
