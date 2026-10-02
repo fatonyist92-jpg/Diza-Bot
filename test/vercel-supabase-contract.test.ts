@@ -44,6 +44,15 @@ test("serverless chat carries existing runtime frames on its own request", () =>
   assert.match(client, /type: "messageAdded"/);
 });
 
+test("serverless connected status waits for successful bot hydration and retries transient reads", () => {
+  assert.match(client, /const loadAll = async \(\): Promise<boolean>/);
+  assert.match(client, /return results\[0\] === true/);
+  assert.match(client, /const hydrateServerless = async \(\) =>/);
+  assert.match(client, /attempt < 3/);
+  assert.match(client, /if \(await loadAll\(\)\)/);
+  assert.match(client, /type: "connected", value: true/);
+});
+
 test("serverless chat reconciles durable state after both success and provider failure", () => {
   assert.match(client, /reconcileServerlessTurn/);
   assert.match(client, /finally\(\(\) => reconcileServerlessTurn\(action\.botId\)\)/);
