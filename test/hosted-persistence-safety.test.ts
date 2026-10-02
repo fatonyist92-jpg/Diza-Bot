@@ -5,9 +5,10 @@ import test from "node:test";
 const web = fs.readFileSync("deploy/web.mjs", "utf8");
 const start = fs.readFileSync("deploy/start-web.sh", "utf8");
 
-test("hosted DIZA restores object storage first and still fails closed if every durable backend fails", () => {
-  assert.match(web, /let persistence = await initializeObjectPersistence\(\)/);
-  assert.match(web, /const postgresPersistence = await initializeNeonPersistence\(\)/);
+test("hosted DIZA restores the authoritative database first and falls back to object storage", () => {
+  assert.match(web, /let persistence = await initializeNeonPersistence\(\)/);
+  assert.match(web, /const objectPersistence = await initializeObjectPersistence\(\)/);
+  assert.match(web, /if \(!persistence\.enabled \|\| !persistence\.ready\)/);
   assert.match(web, /const persistenceRequired = true/);
   assert.match(web, /function startCore\(\)[\s\S]{0,260}spawn\(/);
   assert.match(web, /if \(persistenceHealthy\) \{[\s\S]{0,120}startCore\(\)/);
