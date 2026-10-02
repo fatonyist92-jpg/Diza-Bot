@@ -2160,14 +2160,21 @@ describe("the tool loop for API engines", () => {
     assert.ok(reply, "the final answer never landed");
     assert.equal(sawToolResult, "Friday");
 
-    // and the decision is in the record, with who made it
-    const decision = await waitFor(async () => {
-      const { entries } = await h.json("/api/ledger?limit=50");
-      return entries.find((e: any) => e.kind === "approval") ?? null;
-    }, 4_000);
-    assert.ok(decision, "an answered ask left no trace in the record");
-    assert.match(decision.summary, /Ship it today/);
-    assert.equal(decision.detail.decidedBy, "you");
+    // A question is conversation, not permission to perform an action.
+    // Its durable trace is the settled card itself; it must not pollute
+    // the consequential-action approval ledger.
+    const settled = await waitFor(async () => {
+      const { bots } = await h.json("/api/bots");
+      const bot = bots.find((b: any) => b.id === made.bot.id);
+      return bot.messages.find((m: any) => m.kind === "options" && m.card?.requestId === card.requestId)?.card ?? null;
+    });
+    assert.equal(settled?.answered, "Friday");
+    const { entries } = await h.json("/api/ledger?limit=50");
+    assert.equal(
+      entries.some((e: any) => e.kind === "approval" && /Ship it today/.test(String(e.summary ?? ""))),
+      false,
+      "a human question must not be recorded as an approval",
+    );
     const { result } = await h.json("/api/ledger/verify");
     assert.equal(result.ok, true);
   });
