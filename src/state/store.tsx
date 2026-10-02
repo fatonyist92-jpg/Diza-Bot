@@ -466,22 +466,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    const loadAll = () => {
-      api("/api/bots")
-        .then(({ bots }) => alive && rawDispatch({ type: "hydrate", bots }))
-        .catch(() => {});
-      api("/api/bloks")
-        .then(({ bloks }) => alive && rawDispatch({ type: "hydrateBloks", bloks }))
-        .catch(() => {});
-      api("/api/instances")
-        .then(({ instances }) => alive && rawDispatch({ type: "instances", instances }))
-        .catch(() => {});
-      api("/api/providers")
-        .then(({ providers }) => alive && rawDispatch({ type: "providers", providers }))
-        .catch(() => {});
-      api("/api/config")
-        .then((config) => alive && rawDispatch({ type: "configStatus", config }))
-        .catch(() => {});
+    const loadAll = async (): Promise<boolean> => {
+      const results = await Promise.all([
+        api("/api/bots")
+          .then(({ bots }) => {
+            if (alive) rawDispatch({ type: "hydrate", bots });
+            return true;
+          })
+          .catch(() => false),
+        api("/api/bloks")
+          .then(({ bloks }) => {
+            if (alive) rawDispatch({ type: "hydrateBloks", bloks });
+            return true;
+          })
+          .catch(() => false),
+        api("/api/instances")
+          .then(({ instances }) => {
+            if (alive) rawDispatch({ type: "instances", instances });
+            return true;
+          })
+          .catch(() => false),
+        api("/api/providers")
+          .then(({ providers }) => {
+            if (alive) rawDispatch({ type: "providers", providers });
+            return true;
+          })
+          .catch(() => false),
+        api("/api/config")
+          .then((config) => {
+            if (alive) rawDispatch({ type: "configStatus", config });
+            return true;
+          })
+          .catch(() => false),
+      ]);
+      // Bot state is the minimum truthful definition of "connected":
+      // without it the shell can look healthy while showing stale/empty chat.
+      return results[0] === true;
     };
     // The stream carries sequence numbers, and reconnecting with the last
     // one seen replays exactly the missed frames. Only when the server
@@ -648,8 +668,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // cost without improving delivery. A refresh rehydrates from the
     // database-backed core, while the turn request carries live frames.
     if (import.meta.env.VITE_DIZA_SERVERLESS === "1") {
-      loadAll();
-      rawDispatch({ type: "connected", value: true });
+      rawDispatch({ type: "connected", value: false });
+      const hydrateServerless = async () => {
+        for (let attempt = 0; attempt < 3 && alive; attempt += 1) {
+          if (await loadAll()) {
+            if (alive) rawDispatch({ type: "connected", value: true });
+            return;
+          }
+          if (attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+          }
+        }
+        if (alive) {
+          rawDispatch({ type: "connected", value: false });
+          rawDispatch({
+            type: "error",
+            message: "DIZA belum berhasil memuat chat. Mencoba lagi saat halaman dimuat ulang.",
+          });
+        }
+      };
+      void hydrateServerless();
     } else {
       connect();
     }
