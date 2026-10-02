@@ -4,6 +4,7 @@ import test from "node:test";
 
 const web = fs.readFileSync("deploy/web.mjs", "utf8");
 const start = fs.readFileSync("deploy/start-web.sh", "utf8");
+const warmup = fs.readFileSync("deploy/faable-warmup.mjs", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
 test("hosted DIZA restores the authoritative database first and falls back to object storage", () => {
@@ -43,4 +44,13 @@ test("offline recovery bridge exposes only an ephemeral RSA public key and start
   assert.match(web, /persistence = recovered/);
   assert.match(web, /startCore\(\)/);
   assert.match(web, /recoveryKeys = null/);
+});
+
+
+test("Faable warmup rejects API reads until the real DIZA core owns the port", () => {
+  assert.match(warmup, /url\.startsWith\("\/api\/"\)/);
+  assert.match(warmup, /res\.writeHead\(503/);
+  assert.match(warmup, /"content-type": "application\/json; charset=utf-8"/);
+  assert.match(warmup, /"retry-after": "1"/);
+  assert.match(warmup, /starting: true/);
 });
