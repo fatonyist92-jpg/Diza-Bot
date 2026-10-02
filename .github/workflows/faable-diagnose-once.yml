@@ -21,6 +21,22 @@ jobs:
         with:
           node-version: "22"
       - run: npm install -g @faable/faable@latest
+      - name: Faable CLI help
+        shell: bash
+        run: |
+          set +e
+          echo "=== faable --help ==="
+          faable --help
+          echo "=== faable env --help ==="
+          faable env --help
+          echo "=== faable secret --help ==="
+          faable secret --help
+          echo "=== faable secrets --help ==="
+          faable secrets --help
+          echo "=== faable app --help ==="
+          faable app --help
+          echo "=== faable deploy --help ==="
+          faable deploy --help
       - name: Faable status
         run: faable deploy status || true
       - name: Faable deployments
@@ -73,3 +89,5 @@ jobs:
 # public-probe-after-ready
 
 # poll-proxy-fix-aa12
+
+# faable-env-help
