@@ -30,7 +30,7 @@ test("Vercel retries transient persistence failures before giving up", () => {
 
 test("mutating requests sync before their streamed response completes", () => {
   const proxyAt = adapter.indexOf("await proxy(req, res, path)");
-  const syncAt = adapter.indexOf("await persistence.sync(`vercel-");
+  const syncAt = adapter.indexOf("await syncDurably(`vercel-");
   const endAt = adapter.indexOf("res.end();", syncAt);
   assert.ok(proxyAt >= 0 && syncAt > proxyAt && endAt > syncAt);
 });
