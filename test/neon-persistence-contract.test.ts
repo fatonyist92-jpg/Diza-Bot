@@ -18,17 +18,83 @@ test("large restore payloads are fetched in bounded chunks", () => {
   assert.doesNotMatch(source, /SELECT namespace, path, sha256, encode\(data, 'hex'\) AS data_hex/);
 });
 
-test("DIZA core files are retained while rebuildable Codex caches are excluded", () => {
-  assert.match(source, /path === 'cache'/);
-  assert.match(source, /path\.startsWith\('cache\/'\)/);
-  assert.match(source, /path === 'plugins\/cache'/);
-  assert.match(source, /path\.startsWith\('plugins\/cache\/'\)/);
-  assert.match(source, /MAX_FILE_BYTES = 128 \* 1024 \* 1024/);
-  assert.doesNotMatch(source, /namespace: 'bloks'[\s\S]{0,180}exclude: \(path\)/);
+test("persistence keeps durable workspace/auth state and skips rebuildable native traces", () => {
+  assert.match(source, /path === 'native'/);
+  assert.match(source, /path\.startsWith\('native\/'\)/);
+  assert.match(source, /path === 'events'/);
+  assert.match(source, /path\.startsWith\('events\/'\)/);
+  assert.match(source, /namespace: 'grok'[\s\S]{0,420}path !== 'auth\.json'/);
+  assert.match(source, /\['auth\.json', 'config\.toml', 'environments\.toml'\]/);
+  assert.match(source, /DEFAULT_INTERVAL_MS = 30_000/);
+});
+
+test("a mutation arriving during another sync gets a fresh persistence pass", () => {
+  assert.match(source, /if \(this\.inFlight\) \{[\s\S]{0,220}await running/);
+  assert.match(source, /if \(reason === 'interval'\) return running/);
+  assert.match(source, /return this\.sync\(reason\)/);
 });
 
 test("a failed restore row cannot be deleted by the next sync", () => {
   assert.match(source, /this\.restoreFailures = new Set\(\)/);
   assert.match(source, /this\.restoreFailures\.add\(key\)/);
   assert.match(source, /seen\.has\(key\) \|\| this\.restoreFailures\.has\(key\)/);
+});
+
+
+test("bot roster recovery is conservative and requires zero overlap with persisted room agents", () => {
+  assert.match(source, /return overlap === 0 && missing === roomIds\.size/);
+  assert.match(source, /if \(!roomIds\.size \|\| !botIds\.size\) return false/);
+});
+
+test("recovery roster must uniquely cover every persisted room member", () => {
+  assert.match(source, /candidateIds\.size !== ids\.length/);
+  assert.match(source, /for \(const id of required\) if \(!candidateIds\.has\(id\)\) return false/);
+  assert.match(source, /payload\.kind !== 'bots-recovery'/);
+});
+
+test("startup invokes roster repair only after normal Neon restore", () => {
+  const restoreAt = source.indexOf("await persistence.restore()");
+  const repairAt = source.indexOf("await persistence.recoverBotRosterIfNeeded()");
+  assert.ok(restoreAt >= 0 && repairAt > restoreAt);
+  assert.match(source, /WHERE slot LIKE 'recovery-bots-%'/);
+  assert.match(source, /sha256\(Buffer\.from\(row\.payload\)\) !== row\.sha256/);
+  assert.match(source, /await atomicWrite\(botsPath, recovered, 0o600\)/);
+});
+
+
+test("excluded legacy rows are preserved rather than silently deleted", () => {
+  assert.match(source, /const root = this\.rootList\.find\(\(item\) => item\.namespace === row\.namespace\)/);
+  assert.match(source, /if \(!root \|\| root\.exclude\(row\.path\)\) continue/);
+  assert.doesNotMatch(source, /DELETE FROM public\.diza_persist_files[\s\S]{0,300}path = 'cache'/);
+});
+
+test("HTTP SQL failure can fall back to the same database over direct Postgres", () => {
+  assert.match(source, /createRequire/);
+  assert.match(source, /require\('pg'\)/);
+  assert.match(source, /new Pool\(/);
+  assert.match(source, /direct Postgres also failed/);
+});
+
+test("fresh PostgreSQL databases create the two persistence tables before restore", () => {
+  const schemaAt = source.indexOf("await persistence.ensureSchema()");
+  const restoreAt = source.indexOf("await persistence.restore()");
+  assert.ok(schemaAt >= 0 && restoreAt > schemaAt);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS public\.diza_persist_files/);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS public\.diza_runtime_snapshots/);
+});
+
+test("non-Neon PostgreSQL uses the packaged direct driver", () => {
+  assert.match(source, /databaseUrl\.hostname\.endsWith\('\.neon\.tech'\)/);
+  assert.match(source, /if \(!neonHttpAvailable\) return directQuery\(query, params\)/);
+  assert.match(source, /max: 1/);
+  assert.match(source, /allowExitOnIdle: true/);
+});
+
+test("native provider cursors are retired after restore so transcript can replay", () => {
+  const restoreAt = source.indexOf("await persistence.restore()");
+  const retireAt = source.indexOf("await persistence.retireProviderCursorsAfterRestore()");
+  assert.ok(restoreAt >= 0 && retireAt > restoreAt);
+  assert.match(source, /task\.resumeCursors = \{\}/);
+  assert.match(source, /delete task\.lastInstanceId/);
+  assert.match(source, /task\.lastInput = 0/);
 });
