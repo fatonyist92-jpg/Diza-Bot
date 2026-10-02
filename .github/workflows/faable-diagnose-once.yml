@@ -37,6 +37,14 @@ jobs:
           faable app --help
           echo "=== faable deploy --help ==="
           faable deploy --help
+          echo "=== faable deploy secrets --help ==="
+          faable deploy secrets --help
+          echo "=== faable deploy secrets set --help ==="
+          faable deploy secrets set --help
+          echo "=== faable deploy secrets add --help ==="
+          faable deploy secrets add --help
+          echo "=== faable deploy secrets list --help ==="
+          faable deploy secrets list --help
       - name: Faable status
         run: faable deploy status || true
       - name: Faable deployments
