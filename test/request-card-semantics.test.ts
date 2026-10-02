@@ -50,6 +50,20 @@ test("question cards do not enter the bulk approval controls", () => {
   assert.match(chat, /Menunggu jawaban Anda/);
 });
 
+test("question choices named Allow or Deny still travel as answers", () => {
+  const client = fs.readFileSync("src/state/store.tsx", "utf8");
+  assert.match(client, /const permission = isPermissionCard\(card\)/);
+  assert.match(client, /const behavior = permission[\s\S]{0,220}: "answer"/);
+});
+
+test("always-allow waits for rule persistence and reports failure", () => {
+  const cardUi = fs.readFileSync("src/components/OptionCard.tsx", "utf8");
+  assert.match(cardUi, /api\("\/api\/rules"/);
+  assert.match(cardUi, /\.then\(\(\) => answer\("Allow"\)\)/);
+  assert.match(cardUi, /setRuleError/);
+  assert.match(cardUi, /Menyimpan aturan/);
+});
+
 test("dismissing a question answers it as skipped rather than denying permission", () => {
   const client = fs.readFileSync("src/state/store.tsx", "utf8");
   const server = fs.readFileSync("server/index.ts", "utf8");
