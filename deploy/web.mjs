@@ -27,10 +27,10 @@ delete env.DIZA_WEB_PASSWORD;
 // On an ephemeral hosted runtime a configured database is authoritative:
 // if it cannot be restored, starting an empty core is destructive-looking
 // and may later overwrite good state. Fail closed instead.
-let persistence = await initializeObjectPersistence();
+let persistence = await initializeNeonPersistence();
 if (!persistence.enabled || !persistence.ready) {
-  const postgresPersistence = await initializeNeonPersistence();
-  if (postgresPersistence.enabled && postgresPersistence.ready) persistence = postgresPersistence;
+  const objectPersistence = await initializeObjectPersistence();
+  if (objectPersistence.enabled && objectPersistence.ready) persistence = objectPersistence;
 }
 const persistenceRequired = true;
 const persistenceHealthy = persistence.enabled && persistence.ready;

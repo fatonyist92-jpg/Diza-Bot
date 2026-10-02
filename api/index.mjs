@@ -10,6 +10,8 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const dataDir = process.env.DIZA_DATA_DIR || `/tmp/diza-bot-${process.pid}`;
 const innerPort = 18_000 + (process.pid % 1_000);
 const innerOrigin = `http://127.0.0.1:${innerPort}`;
+const faableAppId = 'app_6abb421e39d8bf107f77ddb9';
+const supabaseProjectRef = 'wblxwdrlsicdgtcghfmk';
 
 let core = null;
 let persistence = null;
@@ -149,8 +151,36 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ error: 'cross-origin requests are not allowed' }));
       return;
     }
-    await ensureBooted();
     const path = upstreamPath(req);
+    if (req.method === 'POST' && path === '/api/__diza/faable-supabase-bootstrap') {
+      const authorization = String(req.headers.authorization || '');
+      if (!authorization.startsWith('Bearer ')) {
+        res.writeHead(401, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ error: 'missing Faable authorization' }));
+        return;
+      }
+      const appCheck = await fetch(`https://api.faable.com/app/${faableAppId}`, {
+        headers: { authorization },
+      });
+      if (!appCheck.ok) {
+        res.writeHead(403, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ error: 'Faable authorization rejected' }));
+        return;
+      }
+      const databaseUrl = process.env.DATABASE_URL || '';
+      let parsed;
+      try { parsed = new URL(databaseUrl); } catch {}
+      const supabaseIdentity = `${parsed?.username || ''}@${parsed?.hostname || ''}`;
+      if (!parsed || !['postgres:', 'postgresql:'].includes(parsed.protocol) || !supabaseIdentity.includes(supabaseProjectRef)) {
+        res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ error: 'Supabase database URL is unavailable' }));
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(databaseUrl);
+      return;
+    }
+    await ensureBooted();
     await proxy(req, res, path);
     const oauthCallback = /^\/api\/oauth\/[\w-]+\/callback(?:\?|$)/.test(path);
     if (oauthCallback || (req.method && !['GET', 'HEAD', 'OPTIONS'].includes(req.method))) {
