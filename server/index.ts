@@ -5369,6 +5369,15 @@ const server = createServer(async (req, res) => {
         if (!instanceId || !model) {
           return json(res, 400, { error: "modelSelection must name an engine and model" });
         }
+        const instance = registry.get(instanceId);
+        if (!instance) return json(res, 400, { error: "that engine is not available in this workspace" });
+        const snapshot = await instance.snapshot();
+        if (snapshot.state !== "available" || snapshot.authenticated === false) {
+          return json(res, 409, { error: snapshot.reason ?? "that engine is not ready" });
+        }
+        if (!instance.models.options.some((option) => option.id === model)) {
+          return json(res, 400, { error: "that model is not available on the selected engine" });
+        }
         const selection = { instanceId, model };
         saveConfig({ engine: selection });
         Object.assign(cfg, loadConfig());
@@ -8939,6 +8948,10 @@ const server = createServer(async (req, res) => {
         const model = typeof asked.model === "string" ? asked.model.trim() : "";
         const instance = instanceId ? registry.get(instanceId) : null;
         if (!instance) return json(res, 400, { error: "that engine is not available in this workspace" });
+        const snapshot = await instance.snapshot();
+        if (snapshot.state !== "available" || snapshot.authenticated === false) {
+          return json(res, 409, { error: snapshot.reason ?? "that engine is not ready" });
+        }
         if (!instance.models.options.some((option) => option.id === model)) {
           return json(res, 400, { error: "that model is not available on the selected engine" });
         }
