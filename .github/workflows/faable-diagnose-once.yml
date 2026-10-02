@@ -29,3 +29,5 @@ jobs:
         run: faable deploy logs --build || true
       - name: Live runtime log
         run: faable deploy logs || true
+
+# revive-check-2026-10-02
