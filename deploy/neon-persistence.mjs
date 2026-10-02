@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, stat, unlink, writeFile, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
+import { createRequire } from 'node:module';
 import { dirname, join, posix, resolve, sep } from 'node:path';
 import { gzipSync, gunzipSync } from 'node:zlib';
 
 const VERSION = 1;
-const DEFAULT_INTERVAL_MS = 5_000;
+const DEFAULT_INTERVAL_MS = 30_000;
 const MAX_FILE_BYTES = 128 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 384 * 1024 * 1024;
 const RESTORE_CHUNK_BYTES = 512 * 1024;
@@ -15,27 +16,29 @@ const roots = () => [
   {
     namespace: 'bloks',
     dir: process.env.DIZA_DATA_DIR || join(homedir(), '.bloks'),
-    exclude: () => false,
+    // Provider/native traces are diagnostics, not DIZA memory. Persisting
+    // them rewrites tens or hundreds of MB every few seconds and can burn
+    // through a free database quota while bots/messages themselves are tiny.
+    exclude: (path) =>
+      path === 'native' ||
+      path.startsWith('native/') ||
+      path === 'events' ||
+      path.startsWith('events/'),
   },
   {
     namespace: 'grok',
-    dir: process.env.GROK_HOME || join(homedir(), '.grok'),
-    exclude: () => false,
+    dir: process.env.DIZA_PERSIST_GROK_HOME || process.env.GROK_HOME || join(homedir(), '.grok'),
+    // Grok continuity can be rebuilt from DIZA's transcript. Only the login
+    // credential needs to survive an ephemeral Faable restart.
+    exclude: (path) => path !== 'auth.json',
   },
   {
     namespace: 'codex',
-    dir: process.env.CODEX_HOME || join(homedir(), '.codex'),
-    exclude: (path) =>
-      path === '.env' ||
-      path === 'node-root-ca.pem' ||
-      path === '.tmp' ||
-      path.startsWith('.tmp/') ||
-      path === 'cache' ||
-      path.startsWith('cache/') ||
-      path === 'plugins/cache' ||
-      path.startsWith('plugins/cache/') ||
-      path.endsWith('.sqlite-wal') ||
-      path.endsWith('.sqlite-shm'),
+    dir: process.env.DIZA_PERSIST_CODEX_HOME || process.env.CODEX_HOME || join(homedir(), '.codex'),
+    // Same rule as Grok: keep credentials/config, not provider session logs.
+    // DIZA retires provider cursors after restore so the next turn safely
+    // replays transcript into a fresh native session.
+    exclude: (path) => !['auth.json', 'config.toml', 'environments.toml'].includes(path),
   },
 ];
 
@@ -65,6 +68,38 @@ function targetFor(rootDir, relativePath) {
   return target;
 }
 
+function uniqueIds(values) {
+  return new Set(values.filter((value) => typeof value === 'string' && value.length > 0));
+}
+
+function needsBotRosterRecovery(bots, rooms) {
+  if (!Array.isArray(bots) || !Array.isArray(rooms)) return false;
+  const botIds = uniqueIds(bots.map((bot) => bot?.id));
+  const roomIds = uniqueIds(rooms.flatMap((room) => Array.isArray(room?.memberIds) ? room.memberIds : []));
+  if (!roomIds.size || !botIds.size) return false;
+  let overlap = 0;
+  let missing = 0;
+  for (const id of roomIds) {
+    if (botIds.has(id)) overlap += 1;
+    else missing += 1;
+  }
+  // Deliberately conservative: only repair the exact "fresh bootstrap over
+  // an existing workspace" shape, where none of the room's known agents
+  // exist in bots.json. A partial mismatch could be a legitimate edit and
+  // must never be silently rolled back.
+  return overlap === 0 && missing === roomIds.size;
+}
+
+function validRecoveryRoster(payload, rooms) {
+  if (!payload || payload.kind !== 'bots-recovery' || !Array.isArray(payload.bots)) return false;
+  const ids = payload.bots.map((bot) => bot?.id);
+  const candidateIds = uniqueIds(ids);
+  if (!candidateIds.size || candidateIds.size !== ids.length) return false;
+  const required = uniqueIds(rooms.flatMap((room) => Array.isArray(room?.memberIds) ? room.memberIds : []));
+  for (const id of required) if (!candidateIds.has(id)) return false;
+  return true;
+}
+
 function endpointFor(connectionString) {
   const url = new URL(connectionString);
   if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('DATABASE_URL must be a PostgreSQL URL');
@@ -72,33 +107,82 @@ function endpointFor(connectionString) {
   return `https://${url.hostname}/sql`;
 }
 
-function makeClient(connectionString) {
-  const endpoint = endpointFor(connectionString);
-  return async (query, params = []) => {
+function makeClient(connectionString, logger = console) {
+  const databaseUrl = new URL(connectionString);
+  const neonHttpAvailable = databaseUrl.hostname.endsWith('.neon.tech');
+  const endpoint = neonHttpAvailable ? endpointFor(connectionString) : null;
+  let directPool = null;
+  let announcedDirect = false;
+
+  const directQuery = async (query, params) => {
+    if (!directPool) {
+      const require = createRequire(import.meta.url);
+      const { Pool } = require('pg');
+      directPool = new Pool({
+        connectionString,
+        max: 1,
+        idleTimeoutMillis: 10_000,
+        connectionTimeoutMillis: 12_000,
+        allowExitOnIdle: true,
+      });
+    }
+    if (!announcedDirect) {
+      announcedDirect = true;
+      logger.warn?.('[diza-persist] Neon HTTP SQL unavailable; using direct Postgres restore/sync path');
+    }
+    const result = await directPool.query(query, params);
+    return result.rows ?? [];
+  };
+
+  const queryFn = async (query, params = []) => {
+    if (!neonHttpAvailable) return directQuery(query, params);
     const encoded = params.map((value) => {
       if (Buffer.isBuffer(value)) return `\\x${value.toString('hex')}`;
       if (value instanceof Date) return value.toISOString();
       return value;
     });
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'Neon-Connection-String': connectionString,
-        'Neon-Raw-Text-Output': 'true',
-        'Neon-Array-Mode': 'true',
-      },
-      body: JSON.stringify({ query, params: encoded }),
-    });
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`Neon HTTP ${response.status}: ${body.slice(0, 240)}`);
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'Neon-Connection-String': connectionString,
+          'Neon-Raw-Text-Output': 'true',
+          'Neon-Array-Mode': 'true',
+        },
+        body: JSON.stringify({ query, params: encoded }),
+      });
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        const error = new Error(`Neon HTTP ${response.status}: ${body.slice(0, 240)}`);
+        error.status = response.status;
+        throw error;
+      }
+      const raw = await response.json();
+      const names = Array.isArray(raw.fields) ? raw.fields.map((field) => field.name) : [];
+      const rows = Array.isArray(raw.rows) ? raw.rows : [];
+      return rows.map((row) => Object.fromEntries(row.map((value, index) => [names[index], value])));
+    } catch (error) {
+      // A free-tier HTTP SQL quota refusal should not strand an otherwise
+      // reachable Postgres database. Direct TCP uses the same DATABASE_URL
+      // and the same role; there is no second copy of user data.
+      try {
+        return await directQuery(query, params);
+      } catch (directError) {
+        const http = error?.message || String(error);
+        const direct = directError?.message || String(directError);
+        throw new Error(`${http}; direct Postgres also failed: ${direct}`);
+      }
     }
-    const raw = await response.json();
-    const names = Array.isArray(raw.fields) ? raw.fields.map((field) => field.name) : [];
-    const rows = Array.isArray(raw.rows) ? raw.rows : [];
-    return rows.map((row) => Object.fromEntries(row.map((value, index) => [names[index], value])));
   };
+
+  queryFn.close = async () => {
+    if (!directPool) return;
+    const pool = directPool;
+    directPool = null;
+    await pool.end().catch(() => {});
+  };
+  return queryFn;
 }
 
 async function atomicWrite(target, data, mode) {
@@ -147,8 +231,8 @@ async function collectFiles(root) {
 
 class NeonPersistence {
   constructor(connectionString, logger = console) {
-    this.query = makeClient(connectionString);
     this.logger = logger;
+    this.query = makeClient(connectionString, logger);
     this.ready = false;
     this.timer = null;
     this.inFlight = null;
@@ -157,6 +241,30 @@ class NeonPersistence {
     // because the local copy is absent. Keep it until a later healthy
     // runtime successfully recreates/syncs that exact path.
     this.restoreFailures = new Set();
+  }
+
+  async ensureSchema() {
+    await this.query(`
+      CREATE TABLE IF NOT EXISTS public.diza_persist_files (
+        namespace text NOT NULL,
+        path text NOT NULL,
+        sha256 text NOT NULL,
+        data bytea NOT NULL,
+        compressed boolean NOT NULL DEFAULT false,
+        mode integer NOT NULL DEFAULT 384,
+        size_bytes bigint NOT NULL DEFAULT 0,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (namespace, path)
+      )
+    `);
+    await this.query(`
+      CREATE TABLE IF NOT EXISTS public.diza_runtime_snapshots (
+        slot text PRIMARY KEY,
+        payload text NOT NULL,
+        sha256 text NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
   }
 
   async #readStoredData(row) {
@@ -226,27 +334,124 @@ class NeonPersistence {
     return { restored, skipped };
   }
 
+  async recoverBotRosterIfNeeded() {
+    const bloksRoot = this.rootList.find((root) => root.namespace === 'bloks');
+    if (!bloksRoot) return { recovered: false, reason: 'no-bloks-root' };
+    const botsPath = join(bloksRoot.dir, 'bots.json');
+    const roomsPath = join(bloksRoot.dir, 'bloks.json');
+
+    let bots;
+    let rooms;
+    try {
+      bots = JSON.parse(await readFile(botsPath, 'utf8'));
+      rooms = JSON.parse(await readFile(roomsPath, 'utf8'));
+    } catch {
+      return { recovered: false, reason: 'workspace-files-unreadable' };
+    }
+    if (!needsBotRosterRecovery(bots, rooms)) {
+      return { recovered: false, reason: 'roster-consistent' };
+    }
+
+    const rows = await this.query(`
+      SELECT slot, payload, sha256, updated_at
+      FROM public.diza_runtime_snapshots
+      WHERE slot LIKE 'recovery-bots-%'
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `);
+    const row = rows[0];
+    if (!row || typeof row.payload !== 'string' || typeof row.sha256 !== 'string') {
+      this.logger.warn?.('[diza-persist] bot roster mismatch detected but no recovery roster exists');
+      return { recovered: false, reason: 'no-recovery-roster' };
+    }
+    if (sha256(Buffer.from(row.payload)) !== row.sha256) {
+      this.logger.warn?.('[diza-persist] bot recovery roster failed checksum validation');
+      return { recovered: false, reason: 'recovery-checksum-mismatch' };
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(row.payload);
+    } catch {
+      return { recovered: false, reason: 'recovery-json-invalid' };
+    }
+    if (!validRecoveryRoster(payload, rooms)) {
+      this.logger.warn?.('[diza-persist] bot recovery roster does not cover the current room membership');
+      return { recovered: false, reason: 'recovery-roster-invalid' };
+    }
+
+    const recovered = Buffer.from(JSON.stringify(payload.bots, null, 2));
+    await atomicWrite(botsPath, recovered, 0o600);
+    this.logger.warn?.(
+      `[diza-persist] restored ${payload.bots.length} agents from ${row.slot} after detecting an empty-bootstrap roster`,
+    );
+    return { recovered: true, count: payload.bots.length, slot: row.slot };
+  }
+
+  async retireProviderCursorsAfterRestore() {
+    const bloksRoot = this.rootList.find((root) => root.namespace === 'bloks');
+    if (!bloksRoot) return { changed: false };
+    const botsPath = join(bloksRoot.dir, 'bots.json');
+    let bots;
+    try {
+      bots = JSON.parse(await readFile(botsPath, 'utf8'));
+    } catch {
+      return { changed: false };
+    }
+    if (!Array.isArray(bots)) return { changed: false };
+
+    let changed = false;
+    for (const bot of bots) {
+      if (bot && typeof bot === 'object' && bot.resumeCursors && Object.keys(bot.resumeCursors).length) {
+        bot.resumeCursors = {};
+        changed = true;
+      }
+      for (const task of Array.isArray(bot?.tasks) ? bot.tasks : []) {
+        if (task.resumeCursors && Object.keys(task.resumeCursors).length) {
+          task.resumeCursors = {};
+          changed = true;
+        }
+        if (task.lastInstanceId !== undefined) {
+          delete task.lastInstanceId;
+          changed = true;
+        }
+        if (task.lastModel !== undefined) {
+          delete task.lastModel;
+          changed = true;
+        }
+        if ((task.lastInput ?? 0) !== 0) {
+          task.lastInput = 0;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      await atomicWrite(botsPath, Buffer.from(JSON.stringify(bots, null, 2)), 0o600);
+      this.logger.log?.('[diza-persist] retired native provider cursors; transcript will replay into fresh sessions');
+    }
+    return { changed };
+  }
+
   async sync(reason = 'interval') {
     if (!this.ready) return { synced: false, reason: 'not-ready' };
-    if (this.inFlight) return this.inFlight;
+    if (this.inFlight) {
+      const running = this.inFlight;
+      await running;
+      // An interval may safely share another scan. A mutation may not:
+      // the running scan could have enumerated the filesystem before the
+      // mutation landed, so give every mutation a pass that starts after
+      // the previous scan has completely settled.
+      if (reason === 'interval') return running;
+      return this.sync(reason);
+    }
     this.inFlight = this.#sync(reason).finally(() => { this.inFlight = null; });
     return this.inFlight;
   }
 
   async #sync(reason) {
-    // Rebuildable Codex caches are not DIZA memory. Prune them server-side
-    // in one statement so an old cache-heavy snapshot cannot require
-    // hundreds of delete round-trips before the useful state is synced.
-    await this.query(`
-      DELETE FROM public.diza_persist_files
-      WHERE namespace = 'codex' AND (
-        path = '.tmp' OR path LIKE '.tmp/%' OR
-        path = 'cache' OR path LIKE 'cache/%' OR
-        path = 'plugins/cache' OR path LIKE 'plugins/cache/%' OR
-        path LIKE '%.sqlite-wal' OR path LIKE '%.sqlite-shm'
-      )
-    `);
-
+    // Never prune old excluded rows automatically. They may be useful for
+    // forensic recovery, and deleting user/provider history is a separate,
+    // explicit maintenance decision. We simply stop rewriting them.
     const existingRows = await this.query(`
       SELECT namespace, path, sha256
       FROM public.diza_persist_files
@@ -309,6 +514,8 @@ class NeonPersistence {
 
     for (const row of existingRows) {
       const key = `${row.namespace}\0${row.path}`;
+      const root = this.rootList.find((item) => item.namespace === row.namespace);
+      if (!root || root.exclude(row.path)) continue;
       if (seen.has(key) || this.restoreFailures.has(key)) continue;
       await this.query(
         'DELETE FROM public.diza_persist_files WHERE namespace = $1 AND path = $2',
@@ -363,6 +570,8 @@ class NeonPersistence {
       await this.sync('shutdown');
     } catch (error) {
       this.logger.error?.(`[diza-persist] shutdown sync failed: ${error?.message || error}`);
+    } finally {
+      await this.query.close?.();
     }
   }
 }
@@ -384,7 +593,10 @@ export async function initializeNeonPersistence(logger = console) {
   }
   const persistence = new NeonPersistence(connectionString, logger);
   try {
+    await persistence.ensureSchema();
     await persistence.restore();
+    await persistence.recoverBotRosterIfNeeded();
+    await persistence.retireProviderCursorsAfterRestore();
   } catch (error) {
     logger.error?.(`[diza-persist] restore failed; persistence disabled for this process: ${error?.message || error}`);
     return disabled('restore-failed', logger);
@@ -392,4 +604,11 @@ export async function initializeNeonPersistence(logger = console) {
   return Object.assign(persistence, { enabled: true, reason: null });
 }
 
-export const __test = { safeRelativePath, targetFor, endpointFor, sha256 };
+export const __test = {
+  safeRelativePath,
+  targetFor,
+  endpointFor,
+  sha256,
+  needsBotRosterRecovery,
+  validRecoveryRoster,
+};
