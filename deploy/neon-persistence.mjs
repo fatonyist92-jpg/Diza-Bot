@@ -114,109 +114,7 @@ function endpointFor(connectionString) {
   return `https://${url.hostname}/sql`;
 }
 
-function makeRpcClient(logger = console) {
-  const baseUrl = String(process.env.DIZA_PERSIST_API_URL || '').replace(/\/$/, '');
-  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
-  const token = process.env.DIZA_PERSIST_TOKEN;
-  if (!baseUrl || !publishableKey || !token) {
-    throw new Error('Supabase persistence RPC requires DIZA_PERSIST_API_URL, SUPABASE_PUBLISHABLE_KEY, and DIZA_PERSIST_TOKEN');
-  }
-
-  let announced = false;
-  const call = async (name, body = {}) => {
-    const response = await fetch(`${baseUrl}/rest/v1/rpc/${name}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        apikey: publishableKey,
-        'x-diza-token': token,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(`Supabase persistence RPC ${name} failed (${response.status}): ${text.slice(0, 240)}`);
-    }
-    if (!announced) {
-      announced = true;
-      logger.log?.('[diza-persist] using authenticated Supabase RPC persistence path');
-    }
-    const raw = await response.text();
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  };
-
-  const queryFn = async (query, params = []) => {
-    const normalized = query.replace(/\s+/g, ' ').trim();
-
-    if (/^CREATE TABLE IF NOT EXISTS /i.test(normalized)) return [];
-
-    if (normalized.includes('octet_length(data) AS stored_bytes')) {
-      return call('diza_faable_list_meta');
-    }
-    if (normalized.includes('substring(data from $3::integer for $4::integer)')) {
-      return call('diza_faable_read_chunk', {
-        p_namespace: params[0],
-        p_path: params[1],
-        p_offset: params[2],
-        p_length: params[3],
-      });
-    }
-    if (normalized.includes("WHERE slot LIKE 'recovery-bots-%'")) {
-      return call('diza_faable_latest_recovery');
-    }
-    if (normalized.startsWith('SELECT namespace, path, sha256') && normalized.includes(PERSIST_FILES_TABLE)) {
-      return call('diza_faable_list_existing');
-    }
-    if (normalized.startsWith(`INSERT INTO ${PERSIST_FILES_TABLE}`)) {
-      const payload = params[3];
-      if (!Buffer.isBuffer(payload)) throw new Error('Supabase persistence RPC expected a Buffer payload');
-      await call('diza_faable_upsert_file', {
-        p_namespace: params[0],
-        p_path: params[1],
-        p_sha256: params[2],
-        p_data_hex: payload.toString('hex'),
-        p_compressed: Boolean(params[4]),
-        p_mode: Number(params[5]),
-        p_size_bytes: Number(params[6]),
-      });
-      return [];
-    }
-    if (normalized.startsWith(`DELETE FROM ${PERSIST_FILES_TABLE}`)) {
-      await call('diza_faable_delete_file', {
-        p_namespace: params[0],
-        p_path: params[1],
-      });
-      return [];
-    }
-    if (normalized.startsWith(`INSERT INTO ${RUNTIME_SNAPSHOTS_TABLE}`)) {
-      await call('diza_faable_upsert_snapshot', {
-        p_slot: params[0],
-        p_payload: params[1],
-        p_sha256: params[2],
-      });
-      return [];
-    }
-
-    throw new Error(`Unsupported Supabase persistence RPC query: ${normalized.slice(0, 160)}`);
-  };
-
-  queryFn.close = async () => {};
-  return queryFn;
-}
-
 function makeClient(connectionString, logger = console) {
-  const rpcEnv = [
-    process.env.DIZA_PERSIST_API_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
-    process.env.DIZA_PERSIST_TOKEN,
-  ];
-  if (rpcEnv.every(Boolean)) return makeRpcClient(logger);
-  if (rpcEnv.some(Boolean)) {
-    throw new Error('Supabase persistence RPC is only partially configured');
-  }
-  if (!connectionString) throw new Error('DATABASE_URL is not configured');
   const databaseUrl = new URL(connectionString);
   const neonHttpAvailable = databaseUrl.hostname.endsWith('.neon.tech');
   const endpoint = neonHttpAvailable ? endpointFor(connectionString) : null;
@@ -695,19 +593,13 @@ const disabled = (reason, logger = console) => ({
 });
 
 export async function initializeNeonPersistence(logger = console) {
-  const connectionString = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL || null;
-  const rpcConfigured = Boolean(
-    process.env.DIZA_PERSIST_API_URL &&
-    process.env.SUPABASE_PUBLISHABLE_KEY &&
-    process.env.DIZA_PERSIST_TOKEN
-  );
-  if (!connectionString && !rpcConfigured) {
-    logger.warn?.('[diza-persist] no persistence backend is configured');
-    return disabled('missing-persistence-config', logger);
+  const connectionString = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+  if (!connectionString) {
+    logger.warn?.('[diza-persist] DATABASE_URL is not configured; Neon persistence is disabled');
+    return disabled('missing-database-url', logger);
   }
-  let persistence;
+  const persistence = new NeonPersistence(connectionString, logger);
   try {
-    persistence = new NeonPersistence(connectionString, logger);
     await persistence.ensureSchema();
     await persistence.restore();
     await persistence.recoverBotRosterIfNeeded();
