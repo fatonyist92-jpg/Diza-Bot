@@ -1099,7 +1099,7 @@ function RoomFolderButton({ blok }: { blok: Blok }) {
         variant="ghost"
         size="icon"
         onClick={() => setOpen(!open)}
-        title={shown ? `Shared folder: ${shown}` : "Shared working folder"}
+        title={shown ? `Folder bersama: ${shown}` : "Folder kerja bersama"}
       >
         <FolderOpen size={16} className={shown ? "text-brand-ink" : undefined} />
       </Button>
@@ -1112,7 +1112,7 @@ function RoomFolderButton({ blok }: { blok: Blok }) {
                 {blok.pinnedCwd ?? "Each member uses its own folder."}
               </div>
               <div className="mt-1.5 text-[11.5px] text-muted-foreground/70">
-                Fixed since this room first worked. Make a new room to work elsewhere.
+                Folder ini terkunci sejak Ruang mulai digunakan. Buat Ruang baru untuk bekerja di lokasi lain.
               </div>
             </>
           ) : (
@@ -1136,7 +1136,7 @@ function RoomFolderButton({ blok }: { blok: Blok }) {
                   Batal
                 </Button>
                 <Button size="sm" onClick={save}>
-                  Save
+                  Simpan
                 </Button>
               </div>
             </>
@@ -1185,7 +1185,7 @@ function RoomMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSave}>
           {justSaved ? <Check size={15} className="text-success" /> : <BookmarkPlus size={15} />}
-          Save this team
+          Simpan tim ini
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onExport}>
           <Download size={15} />
@@ -1197,7 +1197,7 @@ function RoomMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onClose}>
           <Trash2 size={15} />
-          Archive or delete
+          Arsipkan atau hapus
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
