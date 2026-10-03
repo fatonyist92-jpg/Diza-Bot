@@ -1014,18 +1014,18 @@ export function Sidebar() {
           >
             <Icon size={16} />
             {!rail && label}
-            {((label === "Activity" && (activity.waiting > 0 || activity.running > 0)) ||
-              (label === "Skills" && activity.suggested > 0)) && (
+            {((label === "Aktivitas" && (activity.waiting > 0 || activity.running > 0)) ||
+              (label === "Keahlian" && activity.suggested > 0)) && (
               <span
                 className={cn(
                   "ml-auto rounded-md px-1.5 py-0.5 text-[10.5px] tabular-nums",
-                  label === "Skills" || activity.waiting > 0
+                  label === "Keahlian" || activity.waiting > 0
                     ? "bg-warning/15 text-warning"
                     : "bg-muted text-muted-foreground",
                   rail && "absolute right-1 top-0.5 ml-0 px-1",
                 )}
               >
-                {label === "Skills"
+                {label === "Keahlian"
                   ? activity.suggested
                   : activity.waiting > 0
                     ? activity.waiting
