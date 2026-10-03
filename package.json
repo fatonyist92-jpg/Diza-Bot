@@ -49,7 +49,9 @@
     "package:linux": "pnpm package:prep:xplat && electron-builder --linux --publish never",
     "package:win": "pnpm package:prep:xplat && electron-builder --win --publish never",
     "bundle:updater": "node scripts/bundle-updater.mjs",
-    "screenshots": "node scripts/shoot-screenshots.mjs"
+    "screenshots": "node scripts/shoot-screenshots.mjs",
+    "start:termux": "sh deploy/start-termux.sh",
+    "start:termux:no-tunnel": "DIZA_START_HOSTC=0 sh deploy/start-termux.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.901.0",
