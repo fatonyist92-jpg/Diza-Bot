@@ -115,7 +115,7 @@ test("free models get their own slots after the paid shortlist", () => {
   assert.deepEqual(got.slice(2), ["google/gemma-3:free", "deepseek/deepseek-chat:free"]);
 });
 
-test("OpenRouter keeps the locked catalog default from the Faable Codex baseline", () => {
+test("OpenRouter's free router is the preferred zero-cost default", () => {
   const openrouter = PROVIDER_SPECS.find((provider) => provider.kind === "openrouter");
   assert.ok(openrouter);
   const ids = [
@@ -125,8 +125,8 @@ test("OpenRouter keeps the locked catalog default from the Faable Codex baseline
     "qwen/qwen3.8-27b:free",
   ];
   const out = chooseModels(openrouter, ids, new Set(ids))!;
-  assert.equal(out.default, "google/gemini-2.5-flash");
-  assert.equal(out.options[0].id, "google/gemini-2.5-flash");
+  assert.equal(out.default, "openrouter/free");
+  assert.equal(out.options[0].id, "openrouter/free");
 });
 
 test("a free model is labelled as free", () => {
