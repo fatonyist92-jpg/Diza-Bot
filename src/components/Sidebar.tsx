@@ -46,7 +46,7 @@ function preview(bot: Bot): string {
   // a lane waiting on a human outranks everything: that is the row the
   // user should open next
   if (bot.tasks?.some((t) => t.state === "needs-you")) return "Waiting for you…";
-  if (bot.busy) return "Working…";
+  if (bot.busy) return "Sedang bekerja…";
   return previewLine(bot.messages[bot.messages.length - 1]);
 }
 
@@ -140,7 +140,7 @@ function SectionPicker({ filing, onClose }: { filing: FilingState; onClose: () =
             onClick={() => fileTo(null)}
             className="mt-2 w-full rounded-lg px-2.5 py-1.5 text-left text-[12.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            Remove from {filing.current}
+            Hapus dari {filing.current}
           </button>
         )}
       </div>
@@ -403,7 +403,7 @@ function RoomListItem({
         </div>
         <div className="mt-px truncate text-[13px] text-muted-foreground">
           {working.length
-            ? `${working.map((m) => m.name).join(", ")} working…`
+            ? `${working.map((m) => m.name).join(", ")} sedang bekerja…`
             : last
               ? previewLine(last)
               : `${members.length} agents`}
@@ -596,7 +596,7 @@ export function Sidebar() {
 
   const deleteConversation = (taskId: string, title: string) => {
     if (!selectedBot) return;
-    const sure = window.confirm(`Delete “${title}” permanently? This removes the conversation history.`);
+    const sure = window.confirm(`Hapus “${title}” secara permanen? Riwayat percakapan juga akan dihapus.`);
     if (!sure) return;
     void api(`/api/bots/${selectedBot.id}/tasks/${taskId}`, { method: "DELETE" })
       .then(({ bot }) => bot && dispatch({ type: "botPatched", bot }))
@@ -666,7 +666,7 @@ export function Sidebar() {
       {(selectedBot?.tasks ?? []).some((task) => task.archivedAt) && (
         <DropdownMenuItem onClick={() => setShowArchivedChats(true)}>
           <Archive size={15} />
-          Archived chats
+          Arsipkand chats
           <span className="ml-auto pl-3 text-[11px] text-muted-foreground">
             {(selectedBot?.tasks ?? []).filter((task) => task.archivedAt).length}
           </span>
@@ -675,7 +675,7 @@ export function Sidebar() {
       {state.bots.some((b) => b.hidden) && (
         <DropdownMenuItem onClick={() => setShowArchived(true)}>
           <Archive size={15} />
-          Archived agents
+          Arsipkand agents
           <span className="ml-auto pl-3 text-[11px] text-muted-foreground">
             {state.bots.filter((b) => b.hidden).length}
           </span>
@@ -916,18 +916,18 @@ export function Sidebar() {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => shareConversation(task.id)}>
                         <Share2 size={14} />
-                        Share chat
+                        Bagikan chat
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => patchConversation(task.id, { archived: true })}>
                         <Archive size={14} />
-                        Archive
+                        Arsipkan
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => deleteConversation(task.id, task.title)}
                       >
                         <Trash2 size={14} />
-                        Delete permanently
+                        Hapus permanen
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -996,11 +996,11 @@ export function Sidebar() {
       <div className={cn("border-t pb-2 pt-1.5", rail ? "px-2" : "px-2")}>
         {(
           [
-            [Activity, "Activity", () => dispatch({ type: "toggleActivity", open: true })],
-            [FolderKanban, "Projects", () => dispatch({ type: "toggleProjects", open: true })],
-            [CalendarClock, "Routines", () => dispatch({ type: "toggleRoutines", open: true })],
-            [Sparkles, "Skills", () => dispatch({ type: "toggleSkills", open: true })],
-            [Puzzle, "Plugins", () => dispatch({ type: "togglePlugins", open: true })],
+            [Activity, "Aktivitas", () => dispatch({ type: "toggleActivity", open: true })],
+            [FolderKanban, "Proyek", () => dispatch({ type: "toggleProjects", open: true })],
+            [CalendarClock, "Rutinitas", () => dispatch({ type: "toggleRoutines", open: true })],
+            [Sparkles, "Keahlian", () => dispatch({ type: "toggleSkills", open: true })],
+            [Puzzle, "Aplikasi", () => dispatch({ type: "togglePlugins", open: true })],
           ] as const
         ).map(([Icon, label, onClick]) => (
           <button
@@ -1089,7 +1089,7 @@ function ArchivedChats({ botId, onClose }: { botId: string; onClose: () => void 
   };
 
   const remove = (taskId: string, title: string) => {
-    if (!window.confirm(`Delete “${title}” permanently? This cannot be undone.`)) return;
+    if (!window.confirm(`Hapus “${title}” secara permanen? Tindakan ini tidak dapat dibatalkan.`)) return;
     void api(`/api/bots/${botId}/tasks/${taskId}`, { method: "DELETE" })
       .then(({ bot: patched }) => patched && dispatch({ type: "botPatched", bot: patched }))
       .catch(() => {});
@@ -1106,17 +1106,17 @@ function ArchivedChats({ botId, onClose }: { botId: string; onClose: () => void 
       >
         <div className="text-[16px] font-semibold text-foreground">Chat diarsipkan</div>
         <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-          Archived chats keep their full conversation and can be restored.
+          Arsipkand chats keep their full conversation and can be restored.
         </div>
         <div className="mt-3 flex max-h-[48vh] flex-col gap-1 overflow-y-auto">
           {archived.map((task) => (
             <div key={task.id} className="flex items-center gap-2 rounded-xl px-2.5 py-2 hover:bg-accent/60">
               <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">{task.title}</span>
               <Button variant="ghost" size="sm" onClick={() => restore(task.id)}>
-                Restore
+                Pulihkan
               </Button>
               <Button variant="ghost" size="sm" onClick={() => remove(task.id, task.title)}>
-                Delete
+                Hapus
               </Button>
             </div>
           ))}
@@ -1170,7 +1170,7 @@ function ArchivedAgents({ onClose }: { onClose: () => void }) {
                   onClose();
                 }}
               >
-                Restore
+                Pulihkan
               </Button>
               {/* The only door to a real delete, and it says what goes.
                   The key is the part worth naming: every entry this agent
@@ -1180,12 +1180,12 @@ function ArchivedAgents({ onClose }: { onClose: () => void }) {
               <Button
                 size="icon-sm"
                 variant="ghost"
-                title={`Delete ${bot.name} for good`}
-                aria-label={`Delete ${bot.name} for good`}
+                title={`Hapus ${bot.name} secara permanen`}
+                aria-label={`Hapus ${bot.name} secara permanen`}
                 className="text-muted-foreground hover:text-destructive"
                 onClick={() => {
                   const sure = confirm(
-                    `Delete ${bot.name} for good?\n\nIts conversations go, and so does the key it signs with, which cannot be remade. What it already signed in the record stays readable but can never be re-signed.\n\nThis cannot be undone.`,
+                    `Hapus ${bot.name} secara permanen?\n\nSeluruh percakapannya akan dihapus, termasuk key tanda tangannya yang tidak dapat dibuat ulang. Catatan yang sudah ditandatangani tetap dapat dibaca, tetapi tidak dapat ditandatangani ulang.\n\nTindakan ini tidak dapat dibatalkan.`,
                   );
                   if (sure) dispatch({ type: "deleteBot", botId: bot.id, forget: true });
                 }}
