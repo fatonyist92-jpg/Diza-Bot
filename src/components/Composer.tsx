@@ -326,8 +326,8 @@ export function Composer({
         <div className="mx-auto flex max-w-[760px] items-center gap-3 rounded-2xl border bg-muted/40 px-3.5 py-3">
           <Archive size={15} className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 text-[13px] leading-relaxed text-muted-foreground">
-            {bot.name} is archived. Everything it said is still here, and it will not take new work
-            until you restore it.
+            {bot.name} telah diarsipkan. Semua percakapannya tetap ada, tetapi agen ini tidak menerima tugas baru
+            sampai Anda memulihkannya.
           </span>
           <Button
             size="sm"
