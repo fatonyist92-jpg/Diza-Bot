@@ -1,0 +1,26 @@
+name: DIZA inspect 47b6953 live once
+
+on:
+  push:
+    branches:
+      - inspect-47b6953-live-20261003
+    paths:
+      - ".github/workflows/inspect-47b6953-live-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+      - run: faable deploy status || true
+      - run: faable deploy deployments || true
+      - run: faable deploy logs || true
