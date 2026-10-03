@@ -35,9 +35,11 @@ if (!persistence.enabled || !persistence.ready) {
 const persistenceRequired = true;
 const persistenceHealthy = persistence.enabled && persistence.ready;
 let core = null;
+let coreRestartTimer = null;
 let recoveryKeys = null;
 let recoveryInFlight = false;
 let closing = false;
+const coreRestartHistory = [];
 
 function workspacePersistenceSummary() {
   const dataDir = process.env.DIZA_DATA_DIR || join(homedir(), '.bloks');
@@ -85,13 +87,45 @@ function workspacePersistenceSummary() {
   };
 }
 
+function scheduleCoreRestart(reason) {
+  if (closing || coreRestartTimer) return;
+
+  const now = Date.now();
+  while (coreRestartHistory.length && now - coreRestartHistory[0] > 60_000) coreRestartHistory.shift();
+  coreRestartHistory.push(now);
+
+  // One isolated core crash should not force a full Faable cold boot and
+  // persistence restore. Repeated crashes still hand control back to the
+  // platform rather than hiding a real crash loop forever.
+  if (coreRestartHistory.length >= 3) {
+    console.error(`[diza-web] core crashed repeatedly; leaving recovery to Faable (${reason})`);
+    void stop(1);
+    return;
+  }
+
+  const delay = Math.min(4_000, 750 * coreRestartHistory.length);
+  console.warn(`[diza-web] core stopped unexpectedly; restarting in ${delay}ms (${reason})`);
+  coreRestartTimer = setTimeout(() => {
+    coreRestartTimer = null;
+    if (!closing) startCore();
+  }, delay);
+  coreRestartTimer.unref?.();
+}
+
 function wireCore(child) {
-  child.on('error', () => void stop(1));
-  child.on('exit', (code) => void stop(code || 0));
+  let settled = false;
+  const gone = (reason) => {
+    if (settled) return;
+    settled = true;
+    if (core === child) core = null;
+    scheduleCoreRestart(reason);
+  };
+  child.once('error', (error) => gone(`spawn error: ${error?.message || error}`));
+  child.once('exit', (code, signal) => gone(`exit code=${code ?? 'null'} signal=${signal ?? 'none'}`));
 }
 
 function startCore() {
-  if (core) return core;
+  if (core || closing) return core;
   core = spawn(process.execPath, ['--experimental-strip-types', 'server/index.ts'], { cwd: root, env, stdio: 'inherit' });
   wireCore(core);
   persistence.start();
@@ -259,6 +293,8 @@ gateway.listen(port, '0.0.0.0', () => console.log(`[diza-web] listening on port 
 async function stop(code = 0) {
   if (closing) return;
   closing = true;
+  if (coreRestartTimer) clearTimeout(coreRestartTimer);
+  coreRestartTimer = null;
   gateway.close();
   gateway.closeAllConnections();
   core?.kill('SIGTERM');
