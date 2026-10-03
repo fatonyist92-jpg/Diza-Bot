@@ -447,7 +447,7 @@ export function NewAgentScreen() {
                   </div>
                 )}
                 <div className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                  Everything here is editable now and in the agent's settings later.
+                  Semua bagian di sini dapat diedit sekarang atau nanti melalui Pengaturan Agen.
                 </div>
               </div>
             )}
