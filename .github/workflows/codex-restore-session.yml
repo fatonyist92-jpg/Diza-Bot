@@ -1,4 +1,5 @@
 name: DIZA Codex restore session
+# retry after Faable reached READY
 
 on:
   push:
