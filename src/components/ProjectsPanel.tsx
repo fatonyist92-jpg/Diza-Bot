@@ -93,15 +93,15 @@ export function ProjectsPanel() {
             <div className="text-[16px] font-semibold text-foreground">Projects</div>
             <div className="mt-0.5 text-[13px] text-muted-foreground">
               {editing
-                ? "Where the work happens, who is on it, and what they should know."
-                : "Switch into one and the app shows its people and its folders."}
+                ? "Tempat pekerjaan berlangsung, siapa yang terlibat, dan apa yang perlu mereka ketahui."
+                : "Buka salah satu proyek untuk melihat orang dan folder yang terkait."}
             </div>
           </div>
           <div className="flex items-center gap-1">
             {!editing && (
               <Button variant="secondary" size="sm" onClick={() => setEditing("new")}>
                 <Plus size={13} />
-                New
+                Baru
               </Button>
             )}
             <Button variant="ghost" size="icon-sm" aria-label="Tutup proyek" onClick={close}>
@@ -430,7 +430,7 @@ function ProjectForm({
 
       <div className="flex items-center justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          Batal
         </Button>
         <Button disabled={saving || !name.trim()} onClick={save}>
           {saving && <Loader2 size={12} className="animate-spin" />}
