@@ -335,28 +335,52 @@ function Group({ title, note, rows }: { title: string; note: string; rows: Provi
   );
 }
 
+const ENGINE_LOAD_ATTEMPTS = 12;
+const ENGINE_LOAD_RETRY_MS = 1_500;
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export function EnginesPanel() {
   const { state, dispatch } = useStore();
   const providers = state.providers;
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const reload = () => {
+  const reload = async () => {
     setLoading(true);
     setLoadError(null);
-    return Promise.all([
-      api("/api/providers").then(({ providers }) =>
-        dispatch({ type: "providers", providers: Array.isArray(providers) ? providers : [] }),
-      ),
-      api("/api/instances").then(({ instances }) =>
-        dispatch({ type: "instances", instances: Array.isArray(instances) ? instances : [] }),
-      ),
-      api("/api/config").then((config) => dispatch({ type: "configStatus", config })),
-    ])
-      .catch((error) => {
-        setLoadError(error instanceof Error ? error.message : String(error));
-      })
-      .finally(() => setLoading(false));
+    let lastError: unknown = null;
+
+    try {
+      for (let attempt = 0; attempt < ENGINE_LOAD_ATTEMPTS; attempt += 1) {
+        try {
+          const [providerPayload, instancePayload, config] = await Promise.all([
+            api("/api/providers"),
+            api("/api/instances"),
+            api("/api/config"),
+          ]);
+          const nextProviders = Array.isArray(providerPayload?.providers) ? providerPayload.providers : [];
+          const nextInstances = Array.isArray(instancePayload?.instances) ? instancePayload.instances : [];
+          if (!nextProviders.length || !nextInstances.length) {
+            throw new Error("Daftar engine belum siap.");
+          }
+
+          dispatch({ type: "providers", providers: nextProviders });
+          dispatch({ type: "instances", instances: nextInstances });
+          dispatch({ type: "configStatus", config });
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt + 1 < ENGINE_LOAD_ATTEMPTS) {
+            await wait(ENGINE_LOAD_RETRY_MS);
+          }
+        }
+      }
+
+      setLoadError(lastError instanceof Error ? lastError.message : String(lastError));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
