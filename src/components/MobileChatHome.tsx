@@ -1,139 +1,229 @@
 import { useState } from "react";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import Search from "lucide-react/dist/esm/icons/search.mjs";
-import Settings from "lucide-react/dist/esm/icons/settings-2.mjs";
-import BotIcon from "lucide-react/dist/esm/icons/bot.mjs";
-import DoorOpen from "lucide-react/dist/esm/icons/door-open.mjs";
-import UserRound from "lucide-react/dist/esm/icons/user-round.mjs";
+import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal.mjs";
 import MessageCircle from "lucide-react/dist/esm/icons/message-circle.mjs";
+import Users from "lucide-react/dist/esm/icons/users.mjs";
 import { AgentAvatar } from "./Avatar";
-import { useStore, formatWhen, type Bot, type TaskSummary } from "@/state/store";
+import { useStore, formatWhen, type Bot, type Blok } from "@/state/store";
 import { previewLine } from "@/lib/preview";
 import { simpleIndonesianText } from "@/lib/uiLanguage";
+import { cn } from "@/lib/cn";
 
-type ChatRow = { bot: Bot; task: TaskSummary | null; updatedAt: number; preview: string };
+type HomeTab = "agents" | "rooms";
 
-export function MobileChatHome({ onOpenChat, onOpenRooms, onOpenBots, onOpenProfile }: { onOpenChat: () => void; onOpenRooms: () => void; onOpenBots: () => void; onOpenProfile: () => void }) {
+function agentUpdatedAt(bot: Bot): number {
+  return bot.messages.at(-1)?.at ?? bot.tasks?.reduce((latest, task) => Math.max(latest, task.updatedAt ?? task.createdAt), 0) ?? 0;
+}
+
+function roomUpdatedAt(room: Blok): number {
+  return room.messages.at(-1)?.at ?? room.createdAt;
+}
+
+export function MobileChatHome({ onOpenChat }: { onOpenChat: () => void }) {
   const { state, dispatch } = useStore();
+  const [tab, setTab] = useState<HomeTab>("agents");
   const [query, setQuery] = useState("");
 
-  const rows: ChatRow[] = state.bots
-    .filter((bot) => !bot.hidden)
-    .flatMap<ChatRow>((bot) => {
-      const tasks = (bot.tasks ?? []).filter((task) => !task.archivedAt);
-      if (!tasks.length) {
-        const last = bot.messages.at(-1);
-        return [{ bot, task: null, updatedAt: last?.at ?? 0, preview: simpleIndonesianText(previewLine(last)) }];
-      }
-      return tasks.map((task) => {
-        const active = task.id === bot.activeTaskId || task.id === bot.threadId;
-        const last = active ? bot.messages.at(-1) : undefined;
-        return {
-          bot,
-          task,
-          updatedAt: task.updatedAt ?? task.createdAt,
-          preview: active && last ? simpleIndonesianText(previewLine(last)) : simpleIndonesianText(bot.title) || "Percakapan DIZA",
-        };
-      });
-    })
-    .filter((row) => {
-      const needle = query.trim().toLowerCase();
+  const needle = query.trim().toLowerCase();
+  const agents = state.bots
+    .filter((bot) => !bot.hidden && !bot.archivedAt)
+    .filter((bot) => {
       if (!needle) return true;
-      return `${row.task?.title ?? ""} ${row.bot.name} ${row.bot.title} ${row.preview}`
-        .toLowerCase()
-        .includes(needle);
+      const last = simpleIndonesianText(previewLine(bot.messages.at(-1)));
+      return `${bot.name} ${bot.title} ${last}`.toLowerCase().includes(needle);
     })
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort((a, b) => agentUpdatedAt(b) - agentUpdatedAt(a));
 
-  const open = (row: ChatRow) => {
-    dispatch({ type: "select", id: row.bot.id });
-    if (row.task && row.bot.activeTaskId !== row.task.id) {
-      dispatch({ type: "selectTask", botId: row.bot.id, taskId: row.task.id });
-    }
+  const rooms = state.bloks
+    .filter((room) => {
+      if (!needle) return true;
+      const last = simpleIndonesianText(previewLine(room.messages.at(-1)));
+      return `${room.name} ${last}`.toLowerCase().includes(needle);
+    })
+    .sort((a, b) => roomUpdatedAt(b) - roomUpdatedAt(a));
+
+  const openAgent = (bot: Bot) => {
+    dispatch({ type: "select", id: bot.id });
     onOpenChat();
+  };
+
+  const openRoom = (room: Blok) => {
+    dispatch({ type: "select", id: room.id });
+    onOpenChat();
+  };
+
+  const createNew = () => {
+    dispatch({
+      type: tab === "agents" ? "toggleNewAgent" : "toggleNewRoom",
+      open: true,
+    });
   };
 
   return (
     <main className="flex h-full min-h-0 w-full flex-col bg-background text-foreground">
-      <header className="shrink-0 border-b border-border/60 bg-background/95 px-5 pb-3 pt-4 backdrop-blur-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[23px] font-semibold tracking-[-0.04em]">DIZA</div>
-            <div className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              AI PRIBADI
-            </div>
-          </div>
+      <header className="shrink-0 bg-background px-5 pb-3 pt-5">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-[31px] font-semibold leading-none tracking-[-0.045em]">Obrolan</h1>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => dispatch({ type: "toggleNewAgent", open: true })}
-              className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Chat baru"
+              type="button"
+              onClick={createNew}
+              className="flex size-10 items-center justify-center rounded-full text-foreground transition-colors active:bg-accent"
+              aria-label={tab === "agents" ? "Buat agen" : "Buat ruang"}
+              title={tab === "agents" ? "Buat agen" : "Buat ruang"}
             >
-              <Plus size={21} />
+              <Plus size={24} strokeWidth={1.8} />
             </button>
             <button
-              onClick={() => dispatch({ type: "toggleAppSettings" })}
-              className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+              type="button"
+              onClick={() => dispatch({ type: "toggleAppSettings", open: true })}
+              className="flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-accent active:text-foreground"
               aria-label="Pengaturan"
+              title="Pengaturan"
             >
-              <Settings size={19} />
+              <SlidersHorizontal size={21} strokeWidth={1.8} />
             </button>
           </div>
         </div>
-        <div className="mt-4 flex h-10 items-center gap-2 rounded-xl bg-accent/70 px-3 focus-within:bg-accent">
-          <Search size={16} className="shrink-0 text-muted-foreground" />
+
+        <div className="mt-5 grid grid-cols-2">
+          {([
+            ["agents", "Agen"],
+            ["rooms", "Ruang"],
+          ] as const).map(([value, label]) => {
+            const active = tab === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setTab(value);
+                  setQuery("");
+                }}
+                className={cn(
+                  "relative h-11 text-[16px] font-medium transition-colors",
+                  active ? "text-foreground" : "text-muted-foreground",
+                )}
+                aria-pressed={active}
+              >
+                {label}
+                <span
+                  className={cn(
+                    "absolute bottom-0 left-1/2 h-[2px] w-12 -translate-x-1/2 rounded-full bg-foreground transition-opacity",
+                    active ? "opacity-100" : "opacity-0",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex h-12 items-center gap-3 rounded-[18px] bg-muted px-4">
+          <Search size={20} strokeWidth={1.8} className="shrink-0 text-muted-foreground" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari chat"
-            className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground"
+            placeholder={tab === "agents" ? "Cari agen" : "Cari ruang"}
+            className="min-w-0 flex-1 bg-transparent text-[15.5px] text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
       </header>
 
-      <nav className="grid grid-cols-3 gap-2 border-b border-border/55 px-4 py-3">
-        <button onClick={onOpenRooms} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><DoorOpen size={15} /> Ruang</button>
-        <button onClick={onOpenBots} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><BotIcon size={15} /> Bot</button>
-        <button onClick={onOpenProfile} className="flex items-center justify-center gap-1.5 rounded-xl bg-accent/60 px-2 py-2 text-[12px] font-medium transition-all duration-200 active:scale-[0.97]"><UserRound size={15} /> Akun</button>
-      </nav>
-
-      <section className="min-h-0 flex-1 overflow-y-auto animate-fade-in">
-        {rows.length ? (
-          rows.map((row) => (
-            <button
-              key={row.task?.id ?? row.bot.id}
-              onClick={() => open(row)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-accent/70"
-            >
-              <AgentAvatar bot={row.bot} size={50} />
-              <div className="min-w-0 flex-1 border-b border-border/55 pb-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="truncate text-[15.5px] font-semibold">
-                    {row.bot.name}
-                  </span>
-                  {row.updatedAt > 0 && (
-                    <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">
-                      {formatWhen(row.updatedAt)}
+      <section className="min-h-0 flex-1 overflow-y-auto">
+        {tab === "agents" ? (
+          agents.length ? (
+            agents.map((bot) => {
+              const last = bot.messages.at(-1);
+              const updatedAt = agentUpdatedAt(bot);
+              const preview = simpleIndonesianText(previewLine(last)) || "Belum ada pesan";
+              return (
+                <button
+                  key={bot.id}
+                  type="button"
+                  onClick={() => openAgent(bot)}
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors active:bg-accent/70"
+                >
+                  <AgentAvatar bot={bot} size={54} className="rounded-full" />
+                  <span className="min-w-0 flex-1 border-b border-border/70 pb-3">
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span className="truncate text-[16px] font-semibold tracking-[-0.015em]">{bot.name}</span>
+                      {updatedAt > 0 && (
+                        <span className="shrink-0 text-[12.5px] tabular-nums text-muted-foreground">
+                          {formatWhen(updatedAt)}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
-                    {row.task ? `${simpleIndonesianText(row.task.title)} · ${row.preview}` : row.preview}
+                    <span className="mt-1 flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[14.5px] text-muted-foreground">{preview}</span>
+                      {bot.unread && <span className="size-2.5 shrink-0 rounded-full bg-foreground" />}
+                    </span>
                   </span>
-                  {row.bot.unread && <span className="size-2.5 shrink-0 rounded-full bg-foreground" />}
-                </div>
-              </div>
-            </button>
-          ))
+                </button>
+              );
+            })
+          ) : (
+            <EmptyState
+              icon={<MessageCircle size={28} strokeWidth={1.5} />}
+              title={needle ? "Agen tidak ditemukan" : "Belum ada agen"}
+              subtitle={needle ? "Coba kata pencarian lain." : "Tekan + untuk membuat agen baru."}
+            />
+          )
+        ) : rooms.length ? (
+          rooms.map((room) => {
+            const last = room.messages.at(-1);
+            const updatedAt = roomUpdatedAt(room);
+            const preview = simpleIndonesianText(previewLine(last)) || "Belum ada pesan";
+            return (
+              <button
+                key={room.id}
+                type="button"
+                onClick={() => openRoom(room)}
+                className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors active:bg-accent/70"
+              >
+                <span className="flex size-[54px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+                  <Users size={23} strokeWidth={1.7} />
+                </span>
+                <span className="min-w-0 flex-1 border-b border-border/70 pb-3">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="truncate text-[16px] font-semibold tracking-[-0.015em]">{room.name}</span>
+                    {updatedAt > 0 && (
+                      <span className="shrink-0 text-[12.5px] tabular-nums text-muted-foreground">
+                        {formatWhen(updatedAt)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="mt-1 block truncate text-[14.5px] text-muted-foreground">{preview}</span>
+                </span>
+              </button>
+            );
+          })
         ) : (
-          <div className="flex h-full flex-col items-center justify-center px-8 text-center text-muted-foreground">
-            <MessageCircle size={28} strokeWidth={1.5} />
-            <div className="mt-3 text-[14px] font-medium text-foreground">Belum ada chat</div>
-            <div className="mt-1 text-[12.5px]">Buat bot pertama untuk memulai percakapan.</div>
-          </div>
+          <EmptyState
+            icon={<Users size={28} strokeWidth={1.5} />}
+            title={needle ? "Ruang tidak ditemukan" : "Belum ada ruang"}
+            subtitle={needle ? "Coba kata pencarian lain." : "Tekan + untuk membuat ruang baru."}
+          />
         )}
       </section>
     </main>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-8 pb-20 text-center text-muted-foreground">
+      {icon}
+      <div className="mt-3 text-[14px] font-medium text-foreground">{title}</div>
+      <div className="mt-1 text-[12.5px]">{subtitle}</div>
+    </div>
   );
 }
