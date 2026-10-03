@@ -1,0 +1,52 @@
+name: DIZA diagnose engine unreachable once
+
+on:
+  push:
+    branches:
+      - diagnose-engine-unreachable-20261003
+    paths:
+      - ".github/workflows/diagnose-engine-unreachable-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+      - name: Probe engine endpoints repeatedly
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          for (let i = 1; i <= 30; i++) {
+            const row = {i};
+            for (const path of ["/healthz","/api/providers","/api/instances","/api/config"]) {
+              const t = Date.now();
+              try {
+                const r = await fetch(base + path, {headers:{accept:"application/json"}});
+                const text = await r.text();
+                row[path] = {status:r.status, ms:Date.now()-t, body:text.slice(0,120)};
+              } catch (e) {
+                row[path] = {error:String(e), ms:Date.now()-t};
+              }
+            }
+            console.log(JSON.stringify(row));
+            await sleep(1000);
+          }
+          NODE
+      - name: Faable status
+        run: faable deploy status || true
+      - name: Faable deployments
+        run: faable deploy deployments || true
+      - name: Runtime logs
+        run: faable deploy logs || true
