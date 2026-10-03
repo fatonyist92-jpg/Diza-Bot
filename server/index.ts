@@ -258,6 +258,7 @@ const PORT = Number(process.env.BLOKS_PORT || process.env.PORT || 8799);
 // Temporarily retired: media requests stay in normal chat/web tooling.
 const DIZA_IMAGINE_ACTIVE = false;
 const STATIC_DIR = process.env.BLOKS_STATIC_DIR || null;
+const RESOURCE_CONSTRAINED = process.env.DIZA_RESOURCE_CONSTRAINED === "1";
 const MIME: Record<string, string> = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -1537,24 +1538,28 @@ bus.subscribe((event: RuntimeEvent) => {
         workflowTurns.delete(event.threadId);
       }
       retriedForContext.delete(event.threadId);
-      // If this lane is filling up, fold its older half now rather than
-      // on the way into the next turn, so nobody waits on a summary.
-      const settledTask = store.taskByThread(event.threadId)?.task;
-      if (shouldCompact(settledTask?.lastInput ?? 0, contextLimitFor(settledTask?.lastModel ?? bot.modelSelection.model))) {
-        void foldContext(bot.id, event.threadId).catch(() => {});
-      } else {
-        // Otherwise absorb one message into the running summary, if this
-        // workspace asked for that. Deliberately in the else: a lane that
-        // is already over the threshold wants the whole fold, not one
-        // message at a time.
-        void microFold(bot.id, event.threadId).catch(() => {});
+      // Hosted Faable has a much smaller process budget than a desktop.
+      // A Codex turn already owns an app-server process; immediately starting
+      // compaction/review app-servers behind it can overlap with the next user
+      // turn and push the runtime into a restart loop. On constrained hosting
+      // we defer this model housekeeping. startTurn() already preflights an
+      // oversized native session and folds it before dispatch, preserving the
+      // same context/history semantics without overlapping Codex processes.
+      if (!RESOURCE_CONSTRAINED) {
+        // If this lane is filling up, fold its older half now rather than
+        // on the way into the next turn, so nobody waits on a summary.
+        const settledTask = store.taskByThread(event.threadId)?.task;
+        if (shouldCompact(settledTask?.lastInput ?? 0, contextLimitFor(settledTask?.lastModel ?? bot.modelSelection.model))) {
+          void foldContext(bot.id, event.threadId).catch(() => {});
+        } else {
+          // Otherwise absorb one message into the running summary, if this
+          // workspace asked for that.
+          void microFold(bot.id, event.threadId).catch(() => {});
+        }
+        // Skill review is another model process, so it follows the same
+        // constrained-runtime rule. Desktop/local behavior is unchanged.
+        if (!isSharedLane(event.threadId)) void reviewForSkill(bot.id, event.threadId).catch(() => {});
       }
-      // And read the session back, if this workspace asked for that. After
-      // the fold on purpose: a review reads what is actually in the lane,
-      // and a summarised lane is a smaller thing to read.
-      // Never a shared room's lane: what other people said there is not
-      // the owner's to turn into the agent's standing skills.
-      if (!isSharedLane(event.threadId)) void reviewForSkill(bot.id, event.threadId).catch(() => {});
       // A job ends where its turn does too, and whether the agent took it
       // or handed it back is in the same last thing they said.
       if (openJobs.has(event.threadId)) {
