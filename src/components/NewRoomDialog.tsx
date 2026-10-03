@@ -135,7 +135,7 @@ export function NewRoomDialog() {
               Agents talk to each other here. The most senior one reviews the rest.
             </div>
           </div>
-          <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={close}>
+          <Button variant="ghost" size="icon-sm" aria-label="Tutup" onClick={close}>
             <X size={16} />
           </Button>
         </div>
@@ -207,7 +207,7 @@ export function NewRoomDialog() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            title="Remove from library"
+                            title="Hapus dari pustaka"
                             onClick={() => removeSaved(team.id)}
                           >
                             <X size={13} />
@@ -320,13 +320,13 @@ export function NewRoomDialog() {
         </div>
 
         <div className="mt-2.5 text-[11.5px] leading-relaxed text-muted-foreground">
-          Seniority is set per agent in its settings. Give the reviewer your most capable model and
+          Senioritas diatur pada Pengaturan tiap Agen. Berikan model paling mampu kepada peninjau dan
           the rest cheaper ones, so the expensive thinking is spent on checking the work.
         </div>
 
         <div className="mt-3 flex gap-2">
           <Button variant="secondary" onClick={close} className="flex-1">
-            Cancel
+            Batal
           </Button>
           <Button onClick={create} disabled={picked.length < 2} className="flex-1">
             Create room
