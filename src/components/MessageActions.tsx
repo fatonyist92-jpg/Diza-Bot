@@ -413,7 +413,7 @@ export function ForwardDialog({
                   </span>
                 )}
               </span>
-              {sent === bot.id && <span className="text-[11.5px] text-success">Sent</span>}
+              {sent === bot.id && <span className="text-[11.5px] text-success">Terkirim</span>}
             </button>
           ))}
         </div>
