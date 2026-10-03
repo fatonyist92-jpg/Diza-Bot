@@ -27,11 +27,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/cn";
 import { thisComputer } from "@/lib/thisComputer";
+import { getServerUrl, normalizeServerUrl, saveServerUrl, testServer } from "@/lib/serverUrl";
 
 const THEME_OPTIONS: Array<{ value: Theme; label: string; icon: React.ReactNode }> = [
-  { value: "light", label: "Light", icon: <Sun size={14} /> },
-  { value: "dark", label: "Dark", icon: <Moon size={14} /> },
-  { value: "system", label: "System", icon: <Monitor size={14} /> },
+  { value: "light", label: "Terang", icon: <Sun size={14} /> },
+  { value: "dark", label: "Gelap", icon: <Moon size={14} /> },
+  { value: "system", label: "Sistem", icon: <Monitor size={14} /> },
 ];
 
 /**
@@ -337,6 +338,95 @@ function DizaPreferences() {
 
 
 
+function ServerConnection() {
+  const [draft, setDraft] = useState(() => getServerUrl());
+  const [saved, setSaved] = useState(() => getServerUrl());
+  const [testing, setTesting] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const test = async () => {
+    setTesting(true);
+    setMessage(null);
+    const result = await testServer(draft);
+    setMessage({ ok: result.ok, text: result.message });
+    setTesting(false);
+  };
+
+  const save = () => {
+    const trimmed = draft.trim();
+    const normalized = trimmed ? normalizeServerUrl(trimmed) : "";
+    if (trimmed && !normalized) {
+      setMessage({ ok: false, text: "Alamat server tidak valid. Gunakan http:// atau https://." });
+      return;
+    }
+    const next = saveServerUrl(normalized);
+    setDraft(next);
+    setSaved(next);
+    setMessage({
+      ok: true,
+      text: next
+        ? "Alamat server tersimpan. Koneksi baru akan memakai server ini."
+        : "Mode server lokal/satu-origin aktif.",
+    });
+  };
+
+  return (
+    <div className="mt-4 rounded-2xl border bg-card p-4">
+      <div className="text-[13.5px] font-semibold text-foreground">Server DIZA</div>
+      <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+        Alamat backend yang dipakai APK/PWA. Untuk server sementara di HP, masukkan URL tunnel hostc.app.
+      </div>
+      <div className="mt-3">
+        <label className="text-[11.5px] font-medium text-muted-foreground" htmlFor="diza-server-url">
+          Alamat server
+        </label>
+        <input
+          id="diza-server-url"
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setMessage(null);
+          }}
+          placeholder="https://xxxxxxxx.hostc.app"
+          className="mt-1.5 h-10 w-full rounded-xl border border-input bg-background px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-ring/60"
+        />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <Button variant="secondary" size="sm" onClick={() => void test()} disabled={testing || !draft.trim()}>
+          {testing ? "Menguji…" : "Tes"}
+        </Button>
+        <Button size="sm" onClick={save} disabled={draft.trim() === saved}>
+          Simpan
+        </Button>
+        {saved && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft("");
+              saveServerUrl("");
+              setSaved("");
+              setMessage({ ok: true, text: "Alamat server dihapus. Mode satu-origin aktif." });
+            }}
+            className="ml-auto rounded-lg px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Hapus
+          </button>
+        )}
+      </div>
+      {message && (
+        <div className={cn("mt-2 text-[12px]", message.ok ? "text-success" : "text-destructive")}>
+          {message.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const SETTINGS_TABS = [
   ["general", "Umum"],
   ["engines", "Engine"],
@@ -500,7 +590,7 @@ export function AppSettingsPanel() {
                 <div className="mt-4 rounded-2xl border bg-card p-4">
                   <div className="text-[13.5px] font-semibold text-foreground">Tampilan</div>
                   <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-                    How Bloks looks on {thisComputer()}
+                    Pilih tampilan DIZA di {thisComputer()}
                   </div>
                   <div className="mt-3 flex gap-1 rounded-xl bg-muted p-1">
                     {THEME_OPTIONS.map((option) => (
@@ -520,6 +610,7 @@ export function AppSettingsPanel() {
                     ))}
                   </div>
                 </div>
+                <ServerConnection />
                 <QuickAskShortcut />
                 <Compaction />
                 <ProposeSkills />
