@@ -1,0 +1,87 @@
+name: DIZA verify Engine UI live once
+
+on:
+  push:
+    branches:
+      - verify-engine-ui-live-20261003
+    paths:
+      - ".github/workflows/verify-engine-ui-live-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify mobile Engine UI on live Faable
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import { chromium } from "playwright-core";
+
+          const base = process.env.LIVE_URL;
+          const executablePath =
+            ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"]
+              .find((path) => fs.existsSync(path));
+          assert.ok(executablePath, "Chrome/Chromium not found");
+
+          const browser = await chromium.launch({ headless: true, executablePath, args: ["--no-sandbox"] });
+          const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+          const page = await context.newPage();
+          const errors = [];
+          page.on("pageerror", (error) => errors.push(String(error)));
+
+          try {
+            await page.goto(base, { waitUntil: "domcontentloaded", timeout: 60_000 });
+            await page.waitForFunction(() => document.body.innerText.includes("DIZA"), null, { timeout: 30_000 });
+
+            const settings = page.locator('button[title="Pengaturan"]').first();
+            await settings.waitFor({ state: "visible", timeout: 30_000 });
+            await settings.click();
+
+            const engineTab = page.getByRole("button", { name: "Engine", exact: true });
+            await engineTab.waitFor({ state: "visible", timeout: 20_000 });
+            await engineTab.click();
+
+            await page.waitForFunction(
+              () => {
+                const text = document.body.innerText;
+                return text.includes("Codex") && text.includes("GPT-5.6 Sol");
+              },
+              null,
+              { timeout: 45_000 },
+            );
+
+            const text = await page.locator("body").innerText();
+            assert.doesNotMatch(text, /APP_UNREACHABLE/);
+            assert.doesNotMatch(text, /Daftar engine belum berhasil dimuat/);
+            assert.match(text, /Codex/);
+            assert.match(text, /GPT-5\.6 Sol/);
+
+            console.log("ENGINE_UI_LIVE_PASS", JSON.stringify({
+              mobileViewport: "390x844",
+              codexVisible: true,
+              gpt56SolVisible: true,
+              appUnreachableVisible: false,
+              pageErrors: errors,
+            }));
+            assert.deepEqual(errors, []);
+          } finally {
+            await browser.close();
+          }
+          NODE
