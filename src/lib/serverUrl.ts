@@ -52,7 +52,8 @@ export function installServerFetchRouter() {
       return nativeFetch(serverUrl(input), init);
     }
     if (input instanceof URL && input.pathname.startsWith("/api/") && input.origin === location.origin) {
-      return nativeFetch(new URL(serverUrl(`${input.pathname}${input.search}`)), init);
+      const routed = serverUrl(`${input.pathname}${input.search}`);
+      return nativeFetch(routed.startsWith("http") ? routed : new URL(routed, location.origin), init);
     }
     return nativeFetch(input, init);
   }) as typeof window.fetch;
