@@ -5,6 +5,10 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT_DIR"
 export PATH="$ROOT_DIR/node_modules/.bin:$PATH"
 
+# Faable is a small shared runtime. Keep model housekeeping out of the hot path;
+# context compaction still runs synchronously before the next turn when needed.
+export DIZA_RESOURCE_CONSTRAINED=1
+
 WARMUP_PID=""
 node deploy/faable-warmup.mjs &
 WARMUP_PID=$!
