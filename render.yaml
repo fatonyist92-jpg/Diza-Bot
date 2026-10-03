@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: diza-bot-bab14
+    runtime: node
+    plan: free
+    region: singapore
+    repo: https://github.com/fatonyist92-jpg/Diza-Bot
+    branch: live-test-bab14
+    buildCommand: corepack pnpm install --frozen-lockfile && corepack pnpm build
+    startCommand: node deploy/web.mjs
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 24.19.0
+      - key: NODE_ENV
+        value: production
+      - key: ELECTRON_SKIP_BINARY_DOWNLOAD
+        value: '1'
+      - key: DIZA_WEB_USERNAME
+        value: diza
+      - key: DIZA_WEB_PASSWORD
+        generateValue: true

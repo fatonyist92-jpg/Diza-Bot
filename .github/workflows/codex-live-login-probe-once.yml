@@ -1,0 +1,94 @@
+name: DIZA Codex live login probe once
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - live-test-bab14
+    paths:
+      - ".github/workflows/codex-live-login-probe-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+
+      - name: Wait for a ready Faable release
+        shell: bash
+        run: |
+          set -euo pipefail
+          wanted="${GITHUB_SHA:0:7}"
+          for i in $(seq 1 72); do
+            out="$(faable deploy status 2>&1 || true)"
+            echo "$out"
+            deployments="$(faable deploy deployments 2>&1 || true)"
+            echo "$deployments"
+            if echo "$out" | grep -q "READY" && echo "$deployments" | grep -E "READY.*${wanted}.*live"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "This commit did not become the READY live deployment in time" >&2
+          exit 1
+
+      - name: Start Codex ChatGPT device login
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://diza-bot-5eoll.faable.link"
+          curl -fsS "$base/healthz"
+          echo
+          response="$(curl -fsS -X POST "$base/api/providers/codex/login" -H 'content-type: application/json' --data '{}')"
+          printf '%s' "$response" > /tmp/codex-login.json
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const x = JSON.parse(fs.readFileSync("/tmp/codex-login.json","utf8"));
+          console.log("CODEX_LOGIN_STATUS=" + String(x.status ?? ""));
+          if (x.verificationUrl) console.log("CODEX_VERIFICATION_URL_AVAILABLE=1");
+          if (x.userCode) console.log("CODEX_USER_CODE_AVAILABLE=1");
+          if (x.error) console.log("CODEX_LOGIN_ERROR=" + x.error);
+          if (x.status !== "pending" && x.status !== "connected") process.exitCode = 2;
+          NODE
+
+      - name: Store private login challenge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-login-challenge
+          path: /tmp/codex-login.json
+          retention-days: 1
+          if-no-files-found: warn
+
+      - name: Poll Codex login completion
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://diza-bot-5eoll.faable.link"
+          for i in $(seq 1 120); do
+            response="$(curl -fsS "$base/api/providers/codex/login")"
+            printf '%s' "$response" > /tmp/codex-status.json
+            status="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/codex-status.json','utf8')).status")"
+            echo "CODEX_LOGIN_POLL=$status"
+            if [ "$status" = "connected" ]; then
+              echo "CODEX_LOGIN_CONNECTED=1"
+              exit 0
+            fi
+            if [ "$status" = "failed" ]; then
+              node -e "const x=JSON.parse(require('fs').readFileSync('/tmp/codex-status.json','utf8')); console.log('CODEX_LOGIN_ERROR='+(x.error||'unknown'))"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "CODEX_LOGIN_TIMEOUT=1"
+          exit 1

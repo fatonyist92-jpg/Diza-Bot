@@ -1,0 +1,3 @@
+DIZA_CHAT_WIDTH_FIX_20260929_1259
+parent transcript: w-full
+message wrapper: w-full min-w-0

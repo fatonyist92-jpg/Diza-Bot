@@ -1,0 +1,90 @@
+name: DIZA Faable runtime diagnose once
+# Recovery diagnostic refresh: 2026-10-01
+
+on:
+  push:
+    branches:
+      - live-test-bab14
+    paths:
+      - ".github/workflows/faable-diagnose-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+      - name: Faable status
+        run: faable deploy status || true
+      - name: Faable deployments
+        run: faable deploy deployments || true
+      - name: Verify live persistence roster and global engine
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          async function get(path) {
+            const response = await fetch(base + path, { headers: { accept: "application/json" } });
+            const text = await response.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = { raw: text.slice(0, 200) }; }
+            if (!response.ok) throw new Error(path + " HTTP " + response.status + ": " + JSON.stringify(body));
+            return body;
+          }
+          let health = null;
+          let lastError = null;
+          for (let attempt = 1; attempt <= 24; attempt++) {
+            try {
+              health = await get("/healthz");
+              if (health?.ok === true) break;
+            } catch (error) {
+              lastError = error;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5_000));
+          }
+          if (!health?.ok) throw lastError ?? new Error("live health did not become ready");
+          console.log("LIVE_HEALTH_READY");
+          
+          if (health?.ok !== true || health?.persistence?.enabled !== true || health?.persistence?.ready !== true) {
+            throw new Error("durable persistence is not healthy: " + JSON.stringify(health));
+          }
+          const config = await get("/api/config");
+          const engine = config?.engine;
+          if (!engine?.instanceId || !engine?.model) throw new Error("global engine is missing");
+          const botsPayload = await get("/api/bots?messages=0");
+          const bots = Array.isArray(botsPayload?.bots) ? botsPayload.bots : [];
+          if (bots.length < 5) throw new Error("legacy bot roster is incomplete: " + bots.length);
+          const mismatches = bots.filter((bot) =>
+            bot?.modelSelection?.instanceId !== engine.instanceId ||
+            bot?.modelSelection?.model !== engine.model
+          );
+          if (mismatches.length) throw new Error("global engine mismatch on " + mismatches.length + " bot(s)");
+          const providerPayload = await get("/api/providers");
+          const instancePayload = await get("/api/instances");
+          const providers = Array.isArray(providerPayload?.providers) ? providerPayload.providers : [];
+          const instances = Array.isArray(instancePayload?.instances) ? instancePayload.instances : [];
+          console.log(JSON.stringify({
+            health_ok: true,
+            persistence_ready: true,
+            workspace: health.workspace ?? null,
+            bot_count: bots.length,
+            provider_count: providers.length,
+            instance_count: instances.length,
+            engine,
+            all_bots_follow_global_engine: true
+          }));
+          NODE
+
+      - name: Latest build log
+        run: faable deploy logs --build || true
+      - name: Live runtime log
+        run: faable deploy logs || true
