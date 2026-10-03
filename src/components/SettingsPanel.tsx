@@ -738,7 +738,7 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && save(value.trim() || null)}
-          placeholder="~/Projects/my-app"
+          placeholder="~/Proyek/aplikasi-saya"
           spellCheck={false}
           className="h-8 font-mono text-[12px]"
         />
@@ -749,7 +749,7 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
           }}
         />
         <Button variant="secondary" size="sm" onClick={() => save(value.trim() || null)}>
-          Save
+          Simpan
         </Button>
       </div>
       {error && <div className="mt-1.5 text-[12px] text-destructive">{error}</div>}
