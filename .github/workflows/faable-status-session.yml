@@ -24,8 +24,6 @@ jobs:
       - name: Status
         run: |
           faable deploy status || true
-          echo "=== INSPECT LIVE ==="
-          faable deploy inspect deployment_6ac05d50035fdf6607458d70 || true
           echo "=== DEPLOYMENTS ==="
           faable deploy deployments || true
           echo "=== BUILD LOG ==="
