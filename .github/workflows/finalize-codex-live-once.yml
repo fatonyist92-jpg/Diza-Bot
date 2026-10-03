@@ -1,0 +1,178 @@
+name: DIZA finalize Codex live once
+
+on:
+  push:
+    branches:
+      - finalize-codex-live-20261003
+    paths:
+      - ".github/workflows/finalize-codex-live-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait for Codex live readiness
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          async function get(path) {
+            const r = await fetch(base + path, { headers: { accept: "application/json" } });
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            return { status: r.status, body, text };
+          }
+          for (let i = 0; i < 60; i++) {
+            const [health, login, instances] = await Promise.all([
+              get("/healthz"),
+              get("/api/providers/codex/login"),
+              get("/api/instances"),
+            ]);
+            const codex = Array.isArray(instances.body?.instances)
+              ? instances.body.instances.find(x => x.instanceId === "codex")
+              : null;
+            if (
+              health.status === 200 && health.body?.ok === true &&
+              login.status === 200 && login.body?.status === "connected" &&
+              instances.status === 200 &&
+              codex?.snapshot?.state === "available" &&
+              codex?.snapshot?.authenticated === true
+            ) {
+              console.log("CODEX_READY", JSON.stringify({
+                version: codex.snapshot.version,
+                model: codex.models?.default,
+              }));
+              process.exit(0);
+            }
+            await sleep(5000);
+          }
+          throw new Error("Codex did not become authenticated/available in time");
+          NODE
+
+      - name: Set Codex GPT-5.6 Sol as global engine
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const response = await fetch(base + "/api/config", {
+            method: "PATCH",
+            headers: { "content-type": "application/json", accept: "application/json" },
+            body: JSON.stringify({ engine: { instanceId: "codex", model: "gpt-5.6-sol" } }),
+          });
+          const text = await response.text();
+          let body = null;
+          try { body = JSON.parse(text); } catch {}
+          if (!response.ok) throw new Error("config update failed " + response.status + ": " + text);
+          if (body?.engine?.instanceId !== "codex" || body?.engine?.model !== "gpt-5.6-sol") {
+            throw new Error("config response did not lock Codex GPT-5.6 Sol: " + text);
+          }
+          console.log("GLOBAL_ENGINE_SET", JSON.stringify(body.engine));
+          NODE
+
+      - name: Verify global engine and run a real Codex chat turn
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          async function json(path, init) {
+            const r = await fetch(base + path, init);
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            if (!r.ok) throw new Error(path + " HTTP " + r.status + ": " + text.slice(0,500));
+            return body;
+          }
+
+          for (let i = 0; i < 20; i++) {
+            const cfg = await json("/api/config");
+            if (cfg?.engine?.instanceId === "codex" && cfg?.engine?.model === "gpt-5.6-sol") break;
+            if (i === 19) throw new Error("global engine did not settle to Codex");
+            await sleep(1500);
+          }
+
+          const payload = await json("/api/bots?messages=100");
+          const bots = Array.isArray(payload?.bots) ? payload.bots : [];
+          if (!bots.length) throw new Error("no live bot available for Codex test");
+          const mismatch = bots.filter(b =>
+            b?.modelSelection?.instanceId !== "codex" ||
+            b?.modelSelection?.model !== "gpt-5.6-sol"
+          );
+          if (mismatch.length) throw new Error("one or more bots do not follow the global Codex engine");
+
+          const bot = bots[0];
+          const before = new Set((bot.messages ?? []).map(m => m.id));
+          const marker = "DIZA_CODEX_LIVE_OK_" + Date.now();
+          const sent = await fetch(base + "/api/bots/" + bot.id + "/messages", {
+            method: "POST",
+            headers: { "content-type": "application/json", accept: "application/json" },
+            body: JSON.stringify({ text: "Balas singkat dengan teks: " + marker }),
+          });
+          const sentText = await sent.text();
+          if (!sent.ok) throw new Error("live Codex send failed " + sent.status + ": " + sentText);
+
+          let reply = null;
+          for (let i = 0; i < 60; i++) {
+            await sleep(2000);
+            const latest = await json("/api/bots?messages=140");
+            const current = latest.bots?.find(b => b.id === bot.id);
+            reply = (current?.messages ?? []).find(m =>
+              !before.has(m.id) &&
+              m.role === "bot" &&
+              m.kind === "text" &&
+              String(m.text ?? "").trim()
+            );
+            const busy = (current?.tasks ?? []).some(t => t.state === "working" || t.busy === true);
+            if (reply && !busy) break;
+          }
+          if (!reply?.text) throw new Error("Codex produced no live reply");
+          console.log("CODEX_LIVE_CHAT_PASS", JSON.stringify({
+            botId: bot.id,
+            reply: String(reply.text).slice(0,240),
+          }));
+          NODE
+
+      - name: Allow persistence sync window
+        run: sleep 45
+
+      - name: Final live verification
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          async function get(path) {
+            const r = await fetch(base + path, { headers: { accept: "application/json" } });
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            if (!r.ok) throw new Error(path + " HTTP " + r.status + ": " + text);
+            return body;
+          }
+          const [health, config, login, instances] = await Promise.all([
+            get("/healthz"),
+            get("/api/config"),
+            get("/api/providers/codex/login"),
+            get("/api/instances"),
+          ]);
+          const codex = instances.instances?.find(x => x.instanceId === "codex");
+          if (health?.ok !== true || health?.persistence?.ready !== true) throw new Error("persistence not ready");
+          if (config?.engine?.instanceId !== "codex" || config?.engine?.model !== "gpt-5.6-sol") throw new Error("global engine drifted");
+          if (login?.status !== "connected") throw new Error("Codex login is not connected");
+          if (codex?.snapshot?.authenticated !== true) throw new Error("Codex is not authenticated");
+          console.log("FINAL_LIVE_PASS", JSON.stringify({
+            health: true,
+            persistence: true,
+            engine: config.engine,
+            codexAuthenticated: true,
+          }));
+          NODE
