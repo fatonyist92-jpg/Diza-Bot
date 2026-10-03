@@ -1,0 +1,114 @@
+name: DIZA Codex restore session
+
+on:
+  push:
+    branches:
+      - restore-faable-codex-lock-20261003
+    paths:
+      - ".github/workflows/codex-restore-session.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  start-codex-login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for Faable live handoff and start Codex device login
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+          async function request(path, init = {}) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 15000);
+            try {
+              const response = await fetch(base + path, {
+                ...init,
+                signal: controller.signal,
+                headers: {
+                  accept: "application/json",
+                  ...(init.body ? { "content-type": "application/json" } : {}),
+                  ...(init.headers || {}),
+                },
+              });
+              const text = await response.text();
+              let body = null;
+              try { body = JSON.parse(text); } catch { body = { raw: text.slice(0, 300) }; }
+              return { status: response.status, body };
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+
+          let ready = false;
+          let last = null;
+          for (let attempt = 1; attempt <= 72; attempt++) {
+            try {
+              const [health, instances, providers] = await Promise.all([
+                request("/healthz"),
+                request("/api/instances"),
+                request("/api/providers"),
+              ]);
+              last = {
+                health: health.status,
+                instances: instances.status,
+                providers: providers.status,
+              };
+              if (
+                health.status === 200 &&
+                health.body?.ok === true &&
+                health.body?.persistence?.enabled === true &&
+                health.body?.persistence?.ready === true &&
+                instances.status === 200 &&
+                providers.status === 200
+              ) {
+                const codex = Array.isArray(instances.body?.instances)
+                  ? instances.body.instances.find((row) => row.instanceId === "codex")
+                  : null;
+                if (!codex) throw new Error("Codex instance is missing from live");
+                console.log("LIVE_READY", JSON.stringify({
+                  persistence: health.body.persistence,
+                  codex: {
+                    state: codex.snapshot?.state ?? null,
+                    authenticated: codex.snapshot?.authenticated ?? null,
+                    version: codex.snapshot?.version ?? null,
+                    defaultModel: codex.models?.default ?? null,
+                  },
+                }));
+                ready = true;
+                break;
+              }
+            } catch (error) {
+              last = { error: error instanceof Error ? error.message : String(error) };
+            }
+            await sleep(5000);
+          }
+          if (!ready) throw new Error("Faable live handoff did not settle: " + JSON.stringify(last));
+
+          const config = await request("/api/config");
+          console.log("CURRENT_ENGINE", JSON.stringify(config.body?.engine ?? null));
+
+          const started = await request("/api/providers/codex/login", { method: "POST", body: "{}" });
+          if (started.status !== 200) {
+            throw new Error("Codex login start failed HTTP " + started.status + ": " + JSON.stringify(started.body));
+          }
+          if (started.body?.status === "connected") {
+            console.log("CODEX_ALREADY_CONNECTED");
+            process.exit(0);
+          }
+          if (
+            started.body?.status !== "pending" ||
+            typeof started.body?.verificationUrl !== "string" ||
+            typeof started.body?.userCode !== "string"
+          ) {
+            throw new Error("Codex did not return a device challenge: " + JSON.stringify(started.body));
+          }
+          console.log("CODEX_VERIFY_URL=" + started.body.verificationUrl);
+          console.log("CODEX_USER_CODE=" + started.body.userCode);
+          console.log("CODEX_LOGIN_PENDING");
+          NODE
