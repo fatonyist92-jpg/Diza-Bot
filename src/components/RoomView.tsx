@@ -3,7 +3,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.mjs";
 import ArrowUp from "lucide-react/dist/esm/icons/arrow-up.mjs";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
+import Camera from "lucide-react/dist/esm/icons/camera.mjs";
+import ImageIcon from "lucide-react/dist/esm/icons/image.mjs";
+import Video from "lucide-react/dist/esm/icons/video.mjs";
 import FileIcon from "lucide-react/dist/esm/icons/file.mjs";
 import X from "lucide-react/dist/esm/icons/x.mjs";
 import BookmarkPlus from "lucide-react/dist/esm/icons/bookmark-plus.mjs";
@@ -333,12 +337,16 @@ function RoomMessage({
   );
 }
 
-export function RoomView({ blok }: { blok: Blok }) {
+export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: () => void }) {
   const { state, dispatch } = useStore();
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachNotice, setAttachNotice] = useState<string | null>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
+  const imagePickerRef = useRef<HTMLInputElement>(null);
+  const cameraPickerRef = useRef<HTMLInputElement>(null);
+  const videoPickerRef = useRef<HTMLInputElement>(null);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   // Typing @ opens a list of the people in this room. Naming somebody is
   // how a room decides who answers, so guessing the spelling should
   // never be part of it: the list filters as you type, Tab or Enter
@@ -573,6 +581,17 @@ export function RoomView({ blok }: { blok: Blok }) {
     <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <div className="titlebar-drag flex h-[52px] shrink-0 items-center justify-between gap-2 border-b px-3 md:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
+          {onMobileBack && (
+            <button
+              type="button"
+              onClick={onMobileBack}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground active:bg-accent sm:hidden"
+              aria-label="Kembali"
+              title="Kembali"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <Users size={15} />
           </span>
@@ -881,21 +900,81 @@ export function RoomView({ blok }: { blok: Blok }) {
             type="file"
             multiple
             className="hidden"
-            accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm,video/quicktime,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept="text/plain,text/markdown,text/csv,application/json,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={(e) => {
               intake([...(e.target.files ?? [])]);
               e.target.value = "";
+              setAttachmentMenuOpen(false);
             }}
           />
-          <button
-            type="button"
-            onClick={() => pickerRef.current?.click()}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
-            aria-label="Pilih file"
-            title="Pilih file"
-          >
-            <Plus size={18} />
-          </button>
+          <input
+            ref={imagePickerRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              intake([...(e.target.files ?? [])]);
+              e.target.value = "";
+              setAttachmentMenuOpen(false);
+            }}
+          />
+          <input
+            ref={cameraPickerRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              intake([...(e.target.files ?? [])]);
+              e.target.value = "";
+              setAttachmentMenuOpen(false);
+            }}
+          />
+          <input
+            ref={videoPickerRef}
+            type="file"
+            accept="video/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              intake([...(e.target.files ?? [])]);
+              e.target.value = "";
+              setAttachmentMenuOpen(false);
+            }}
+          />
+          <div className="relative shrink-0">
+            {attachmentMenuOpen && (
+              <div className="absolute bottom-11 left-0 z-40 w-44 overflow-hidden rounded-2xl border bg-popover p-1.5 shadow-xl shadow-[--shadow-color]">
+                {[
+                  ["Foto", <ImageIcon key="foto" size={17} />, () => imagePickerRef.current?.click()],
+                  ["Kamera", <Camera key="kamera" size={17} />, () => cameraPickerRef.current?.click()],
+                  ["Video", <Video key="video" size={17} />, () => videoPickerRef.current?.click()],
+                  ["File", <FileIcon key="file" size={17} />, () => pickerRef.current?.click()],
+                ].map(([label, icon, run]) => (
+                  <button
+                    key={String(label)}
+                    type="button"
+                    onClick={() => (run as () => void)()}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13.5px] text-foreground transition-colors active:bg-accent"
+                  >
+                    <span className="text-muted-foreground">{icon as React.ReactNode}</span>
+                    <span>{String(label)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setAttachmentMenuOpen((open) => !open)}
+              className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+              aria-label="Lampirkan"
+              title="Lampirkan"
+              aria-expanded={attachmentMenuOpen}
+            >
+              <Plus size={18} />
+            </button>
+          </div>
           <textarea
             ref={inputRef}
             rows={1}
