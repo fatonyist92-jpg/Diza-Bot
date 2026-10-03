@@ -1,0 +1,165 @@
+name: DIZA verify runtime stability live once
+
+on:
+  push:
+    branches:
+      - verify-runtime-stability-live-20261003
+    paths:
+      - ".github/workflows/verify-runtime-stability-live-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+
+      - name: Wait for target deployment
+        run: |
+          target="af1f653"
+          ready=0
+          for i in $(seq 1 70); do
+            deployments="$(faable deploy deployments 2>&1 || true)"
+            echo "$deployments"
+            if printf '%s\n' "$deployments" | grep -E "READY.*$target.*live" >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 10
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "TARGET_NOT_LIVE"
+            exit 1
+          fi
+
+      - name: Baseline restart markers
+        run: |
+          logs="$(faable deploy logs 2>&1 || true)"
+          printf '%s\n' "$logs" > /tmp/diza-before.log
+          core_restarts="$(grep -c "\[diza-web\] core stopped unexpectedly" /tmp/diza-before.log || true)"
+          cloud_starts="$(grep -c "Faable Cloud" /tmp/diza-before.log || true)"
+          echo "CORE_RESTARTS_BEFORE=$core_restarts" >> "$GITHUB_ENV"
+          echo "CLOUD_STARTS_BEFORE=$cloud_starts" >> "$GITHUB_ENV"
+
+      - name: Run repeated Codex turns on temporary bot
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          async function json(path, init) {
+            const r = await fetch(base + path, init);
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            if (!r.ok) throw new Error(path + " HTTP " + r.status + ": " + text.slice(0,500));
+            return body;
+          }
+
+          const health = await json("/healthz");
+          if (health?.ok !== true || health?.persistence?.ready !== true) throw new Error("live health/persistence not ready");
+          const cfg = await json("/api/config");
+          if (cfg?.engine?.instanceId !== "codex" || cfg?.engine?.model !== "gpt-5.6-sol") {
+            throw new Error("global engine drifted from Codex GPT-5.6 Sol");
+          }
+
+          const created = await json("/api/bots", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              name: "Runtime Probe",
+              title: "Temporary stability probe",
+              description: "Temporary verification bot. Reply concisely and do not use tools unless explicitly asked."
+            })
+          });
+          const botId = created?.bot?.id;
+          if (!botId) throw new Error("temporary bot was not created");
+
+          try {
+            for (let turn = 1; turn <= 3; turn++) {
+              const before = await json("/api/bots?messages=100");
+              const bot = before.bots?.find(b => b.id === botId);
+              const seen = new Set((bot?.messages ?? []).map(m => m.id));
+              const marker = "DIZA_RUNTIME_STABLE_" + turn + "_" + Date.now();
+
+              const sent = await fetch(base + "/api/bots/" + botId + "/messages", {
+                method: "POST",
+                headers: { "content-type": "application/json", accept: "application/json" },
+                body: JSON.stringify({ text: "Reply exactly with this text and nothing else: " + marker })
+              });
+              if (!sent.ok) throw new Error("turn " + turn + " send failed " + sent.status + ": " + await sent.text());
+
+              let reply = null;
+              for (let i = 0; i < 75; i++) {
+                await sleep(2000);
+                const latest = await json("/api/bots?messages=120");
+                const current = latest.bots?.find(b => b.id === botId);
+                reply = (current?.messages ?? []).find(m =>
+                  !seen.has(m.id) &&
+                  m.role === "bot" &&
+                  m.kind === "text" &&
+                  String(m.text ?? "").includes(marker)
+                );
+                const busy = (current?.tasks ?? []).some(t => t.state === "working" || t.busy === true);
+                if (reply && !busy) break;
+              }
+              if (!reply) throw new Error("turn " + turn + " did not finish with expected Codex reply");
+
+              const afterHealth = await json("/healthz");
+              if (afterHealth?.ok !== true || afterHealth?.persistence?.ready !== true) {
+                throw new Error("health dropped after turn " + turn);
+              }
+              console.log("TURN_PASS", turn, marker);
+            }
+          } finally {
+            await fetch(base + "/api/bots/" + botId + "?forget=1", { method: "DELETE" }).catch(() => {});
+          }
+          NODE
+
+      - name: Watch health after load
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          for (let i = 0; i < 20; i++) {
+            const r = await fetch(base + "/healthz");
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            if (!r.ok || body?.ok !== true || body?.persistence?.ready !== true) {
+              throw new Error("health probe failed at sample " + (i + 1) + ": " + r.status + " " + text.slice(0,300));
+            }
+            await sleep(3000);
+          }
+          console.log("HEALTH_WINDOW_PASS");
+          NODE
+
+      - name: Verify no new runtime restart markers
+        run: |
+          logs="$(faable deploy logs 2>&1 || true)"
+          printf '%s\n' "$logs" > /tmp/diza-after.log
+          core_restarts="$(grep -c "\[diza-web\] core stopped unexpectedly" /tmp/diza-after.log || true)"
+          cloud_starts="$(grep -c "Faable Cloud" /tmp/diza-after.log || true)"
+          echo "before core=$CORE_RESTARTS_BEFORE cloud=$CLOUD_STARTS_BEFORE"
+          echo "after  core=$core_restarts cloud=$cloud_starts"
+          if [ "$core_restarts" -gt "$CORE_RESTARTS_BEFORE" ]; then
+            echo "NEW_CORE_RESTART_DETECTED"
+            exit 1
+          fi
+          if [ "$cloud_starts" -gt "$CLOUD_STARTS_BEFORE" ]; then
+            echo "NEW_CONTAINER_RESTART_DETECTED"
+            exit 1
+          fi
+          faable deploy status
+          faable deploy deployments
