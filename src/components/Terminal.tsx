@@ -330,13 +330,13 @@ export function TerminalPanel({ bot, onClose }: { bot: Bot; onClose: () => void 
             onClick={restart}
             className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10.5px] text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
           >
-            {info.exitCode ? `exited ${info.exitCode}` : "exited"} · start a new one
+            {info.exitCode ? `keluar ${info.exitCode}` : "selesai"} · mulai sesi baru
           </button>
         ) : (
           info &&
           !info.pty && (
             <span
-              title="Nothing on this system can open a pseudo-terminal, so full screen programs will not work here."
+              title="Sistem ini tidak dapat membuka pseudo-terminal, jadi program layar penuh tidak dapat berjalan di sini."
               className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
             >
               limited
@@ -346,14 +346,14 @@ export function TerminalPanel({ bot, onClose }: { bot: Bot; onClose: () => void 
         <button
           onClick={restart}
           disabled={restarting}
-          title="End this shell and start a new one"
+          title="Akhiri shell ini dan mulai yang baru"
           className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
         >
           {restarting ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
         </button>
         <button
           onClick={onClose}
-          title="Close the panel. The shell keeps running."
+          title="Tutup panel. Shell tetap berjalan."
           className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
         >
           <X size={13} />
@@ -364,7 +364,7 @@ export function TerminalPanel({ bot, onClose }: { bot: Bot; onClose: () => void 
         <div className="flex items-center justify-between gap-3 border-t bg-destructive/10 px-3 py-1.5 text-[11.5px] text-destructive">
           <span className="min-w-0 truncate">{error}</span>
           <button onClick={restart} className="shrink-0 font-medium underline underline-offset-2">
-            Start a new one
+            Mulai yang baru
           </button>
         </div>
       )}
