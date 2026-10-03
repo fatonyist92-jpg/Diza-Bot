@@ -104,7 +104,7 @@ export function ProjectsPanel() {
                 New
               </Button>
             )}
-            <Button variant="ghost" size="icon-sm" aria-label="Close projects" onClick={close}>
+            <Button variant="ghost" size="icon-sm" aria-label="Tutup proyek" onClick={close}>
               <X size={16} />
             </Button>
           </div>
@@ -182,7 +182,7 @@ export function ProjectsPanel() {
                               .catch((e: Error) => setError(e.message));
                           }}
                         >
-                          Archive
+                          Arsipkan
                         </Button>
                         <Button
                           variant={state.projectId === project.id ? "ghost" : "secondary"}
@@ -193,7 +193,7 @@ export function ProjectsPanel() {
                               : open(project)
                           }
                         >
-                          {state.projectId === project.id ? "Leave" : "Open"}
+                          {state.projectId === project.id ? "Keluar" : "Buka"}
                         </Button>
                       </div>
                     </div>
@@ -352,7 +352,7 @@ function ProjectForm({
       </div>
 
       <label className="text-[12.5px] text-muted-foreground">
-        The standing brief. Everyone working on this gets it.
+        Brief tetap proyek. Semua yang bekerja di proyek ini akan menggunakannya.
         <Textarea
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
@@ -434,7 +434,7 @@ function ProjectForm({
         </Button>
         <Button disabled={saving || !name.trim()} onClick={save}>
           {saving && <Loader2 size={12} className="animate-spin" />}
-          {project ? "Save" : "Create"}
+          {project ? "Simpan" : "Buat"}
         </Button>
       </div>
     </div>
