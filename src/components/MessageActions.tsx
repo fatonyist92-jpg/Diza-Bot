@@ -113,14 +113,14 @@ export function MessageActionBar({
   };
   const buttons: Array<[string, React.ReactNode, () => void]> = [
     ...(onReact
-      ? ([["React", <SmilePlus key="e" size={14} strokeWidth={1.8} />, () => setPicking((p) => !p)]] as Array<
+      ? ([["Reaksi", <SmilePlus key="e" size={14} strokeWidth={1.8} />, () => setPicking((p) => !p)]] as Array<
           [string, React.ReactNode, () => void]
         >)
       : []),
-    ["Reply", <CornerUpLeft key="r" size={14} strokeWidth={1.8} />, () => onReply(draft)],
-    ["Forward", <Send key="f" size={13} strokeWidth={1.8} />, () => onForward(message, author)],
+    ["Balas", <CornerUpLeft key="r" size={14} strokeWidth={1.8} />, () => onReply(draft)],
+    ["Teruskan", <Send key="f" size={13} strokeWidth={1.8} />, () => onForward(message, author)],
     ...(onBranch
-      ? ([["Branch chat", <GitBranch key="branch" size={13} strokeWidth={1.8} />, onBranch]] as Array<[string, React.ReactNode, () => void]>)
+      ? ([["Cabangkan chat", <GitBranch key="branch" size={13} strokeWidth={1.8} />, onBranch]] as Array<[string, React.ReactNode, () => void]>)
       : []),
     ...(onEdit
       ? ([["Edit", <Pencil key="e" size={13} strokeWidth={1.8} />, onEdit]] as Array<
@@ -130,12 +130,12 @@ export function MessageActionBar({
     ...(onDelete
       ? ([
           [
-            "Delete",
+            "Hapus",
             <Trash2 key="d" size={13} strokeWidth={1.8} />,
             () => {
               // No undo exists for this, so the question is asked once
               // and names what goes.
-              if (window.confirm("Take this message back? The words are removed for good.")) {
+              if (window.confirm("Hapus pesan ini? Pesan yang dihapus tidak dapat dikembalikan.")) {
                 onDelete();
               }
             },
@@ -143,10 +143,10 @@ export function MessageActionBar({
         ] as Array<[string, React.ReactNode, () => void]>)
       : []),
     ...(onRetry
-      ? ([["Retry", <RotateCcw key="retry" size={13} strokeWidth={1.8} />, onRetry]] as Array<[string, React.ReactNode, () => void]>)
+      ? ([["Coba lagi", <RotateCcw key="retry" size={13} strokeWidth={1.8} />, onRetry]] as Array<[string, React.ReactNode, () => void]>)
       : []),
     [
-      "Share",
+      "Bagikan",
       <Share2 key="share" size={13} strokeWidth={1.8} />,
       () => {
         const text = message.text ?? "";
@@ -155,17 +155,17 @@ export function MessageActionBar({
       },
     ],
     [
-      feedback === "up" ? "Helpful" : "Helpful",
+      feedback === "up" ? "Membantu" : "Membantu",
       <ThumbsUp key="up" size={13} strokeWidth={1.8} className={feedback === "up" ? "text-success" : undefined} />,
       () => setFeedback((value) => (value === "up" ? null : "up")),
     ],
     [
-      feedback === "down" ? "Not helpful" : "Not helpful",
+      feedback === "down" ? "Tidak membantu" : "Tidak membantu",
       <ThumbsDown key="down" size={13} strokeWidth={1.8} className={feedback === "down" ? "text-destructive" : undefined} />,
       () => setFeedback((value) => (value === "down" ? null : "down")),
     ],
     [
-      copied ? "Copied" : "Copy",
+      copied ? "Disalin" : "Salin",
       copied ? (
         <Check key="c" size={13} strokeWidth={2.2} className="text-success" />
       ) : (
@@ -208,6 +208,77 @@ export function MessageActionBar({
           {icon}
         </button>
       ))}
+    </div>
+  );
+}
+
+export function MobileMessageMenu({
+  message,
+  author,
+  onReply,
+  onDelete,
+  onClose,
+}: {
+  message: Message;
+  author: string;
+  onReply: (draft: ReplyDraft) => void;
+  onDelete?: () => void;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const draft: ReplyDraft = { id: message.id, author, excerpt: excerptOf(message) };
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(message.text ?? "").catch(() => {});
+    setCopied(true);
+    window.setTimeout(onClose, 500);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end bg-black/25 p-3 sm:hidden"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="w-full overflow-hidden rounded-[22px] border bg-popover p-1.5 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onReply(draft);
+            onClose();
+          }}
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[14px] text-foreground active:bg-accent"
+        >
+          <CornerUpLeft size={18} className="text-muted-foreground" />
+          <span>Balas</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => void copy()}
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[14px] text-foreground active:bg-accent"
+        >
+          {copied ? <Check size={18} className="text-success" /> : <Copy size={18} className="text-muted-foreground" />}
+          <span>{copied ? "Disalin" : "Salin"}</span>
+        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Hapus pesan ini? Pesan yang dihapus tidak dapat dikembalikan.")) {
+                onDelete();
+                onClose();
+              }
+            }}
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[14px] text-foreground active:bg-accent"
+          >
+            <Trash2 size={18} className="text-muted-foreground" />
+            <span>Hapus</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -255,13 +326,13 @@ export function ReplyChip({ draft, onClear }: { draft: ReplyDraft; onClear: () =
     <div className="flex items-center gap-2 rounded-xl border border-brand/30 bg-brand-soft px-3 py-1.5">
       <CornerUpLeft size={13} className="shrink-0 text-brand-ink" />
       <span className="min-w-0 flex-1 text-[12px] leading-snug">
-        <span className="font-medium text-brand-ink">Replying to {draft.author}</span>
+        <span className="font-medium text-brand-ink">Membalas {draft.author}</span>
         <span className="block truncate text-muted-foreground">{draft.excerpt}</span>
       </span>
       <button
         onClick={onClear}
         className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
-        aria-label="Cancel reply"
+        aria-label="Batal membalas"
       >
         <X size={13} />
       </button>
@@ -302,7 +373,7 @@ export function ForwardDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[70vh] w-full max-w-[400px] flex-col gap-0 overflow-hidden p-0">
         <div className="flex h-[52px] shrink-0 items-center border-b px-5">
-          <DialogTitle className="text-[14.5px]">Forward to…</DialogTitle>
+          <DialogTitle className="text-[14.5px]">Teruskan ke…</DialogTitle>
         </div>
         <div className="border-b bg-muted/40 px-5 py-2.5">
           <div className="line-clamp-2 text-[12px] text-muted-foreground">
@@ -322,7 +393,7 @@ export function ForwardDialog({
               <span className="flex-1 truncate text-[13.5px] font-medium text-foreground">
                 {room.name}
               </span>
-              {sent === room.id && <span className="text-[11.5px] text-success">Sent</span>}
+              {sent === room.id && <span className="text-[11.5px] text-success">Terkirim</span>}
             </button>
           ))}
           {agents.map((bot) => (
