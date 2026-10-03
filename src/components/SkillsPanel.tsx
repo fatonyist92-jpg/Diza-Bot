@@ -34,7 +34,7 @@ function nameFor(markdown: string, fileName: string): string {
     declared?.trim().replace(/^["']|["']$/g, "") ||
     heading?.trim() ||
     fileName ||
-    "New skill"
+    "Keahlian baru"
   );
 }
 
@@ -225,7 +225,7 @@ function SkillRow({
           <button
             onClick={onDelete}
             className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground transition-colors duration-150 hover:text-destructive"
-            title="Remove skill"
+            title="Hapus keahlian"
           >
             <Trash2 size={13} />
           </button>
@@ -297,7 +297,7 @@ export function SkillsPanel() {
             </div>
             <div className="mt-0.5 text-[13px] text-muted-foreground">
               {adding
-                ? "Teach your agents something new."
+                ? "Ajarkan kemampuan baru kepada Agen."
                 : "Reusable instructions any agent can use."}
             </div>
           </div>
@@ -308,7 +308,7 @@ export function SkillsPanel() {
                 Add
               </Button>
             )}
-            <Button variant="ghost" size="icon-sm" aria-label="Close skills" onClick={close}>
+            <Button variant="ghost" size="icon-sm" aria-label="Tutup keahlian" onClick={close}>
               <X size={16} />
             </Button>
           </div>
@@ -382,7 +382,7 @@ export function SkillsPanel() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search skills"
+                  placeholder="Cari keahlian"
                   className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
@@ -394,7 +394,7 @@ export function SkillsPanel() {
                   </div>
                 ) : visible.length === 0 ? (
                   <div className="py-8 text-center text-[13px] text-muted-foreground">
-                    {search ? "No skills match." : "No skills yet."}
+                    {search ? "Tidak ada keahlian yang cocok." : "Belum ada keahlian."}
                   </div>
                 ) : (
                   visible.map((skill) => (
@@ -413,7 +413,7 @@ export function SkillsPanel() {
                 )}
               </div>
               <div className="mt-2.5 text-[11.5px] leading-relaxed text-muted-foreground">
-                Attach skills to an agent from its settings. Files live in{" "}
+                Pasang keahlian ke Agen melalui Pengaturan Agen. File tersimpan di{" "}
                 <code className="rounded bg-muted px-1 py-px font-mono">~/.bloks/skills</code>.
               </div>
             </>
@@ -479,7 +479,7 @@ function ProposedSkill({ proposal, onDone }: { proposal: Proposal; onDone: () =>
           {proposal.because}
         </div>
         <div className="mt-1 text-[11.5px] text-muted-foreground/80">
-          From {proposal.botName}. {open ? "Hide it" : "Read it"}
+          Dari {proposal.botName}. {open ? "Sembunyikan" : "Baca"}
         </div>
       </button>
 
