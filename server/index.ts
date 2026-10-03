@@ -299,6 +299,38 @@ const cfg = loadConfig();
 const registry = new ProviderRegistry(BUILT_IN_DRIVERS);
 await registry.load(instanceConfigs(cfg));
 
+// The Engine screen asks for /api/providers and /api/instances together.
+// Both used to run a full registry.describe(), spawning the same CLI probes
+// twice at once. On the small Faable runtime that thundering herd can make
+// the container unreachable. Coalesce concurrent reads and keep the last
+// healthy report briefly; explicit provider/auth changes invalidate it.
+const ENGINE_REPORT_TTL_MS = 10_000;
+type EngineReport = Awaited<ReturnType<ProviderRegistry["describe"]>>;
+let engineReportCache: { expiresAt: number; value: EngineReport } | null = null;
+let engineReportInFlight: Promise<EngineReport> | null = null;
+
+function invalidateEngineReports() {
+  engineReportCache = null;
+}
+
+async function engineReports(): Promise<EngineReport> {
+  const cached = engineReportCache;
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (engineReportInFlight) return engineReportInFlight;
+
+  const request = registry
+    .describe()
+    .then((value) => {
+      engineReportCache = { value, expiresAt: Date.now() + ENGINE_REPORT_TTL_MS };
+      return value;
+    })
+    .finally(() => {
+      if (engineReportInFlight === request) engineReportInFlight = null;
+    });
+  engineReportInFlight = request;
+  return request;
+}
+
 const bus = new EventBus();
 bus.attach(registry.instances());
 
@@ -4544,6 +4576,7 @@ async function reloadProviders() {
   bus.detachAll();
   await registry.disposeAll();
   await registry.load(instanceConfigs(cfg));
+  invalidateEngineReports();
   bus.attach(registry.instances());
 }
 
@@ -4552,7 +4585,7 @@ async function reloadProviders() {
  * how you sign in to it, and whether it is signed in now. */
 async function providerCatalog() {
   const connected = new Set(connectedProviders(cfg));
-  const described = await registry.describe();
+  const described = await engineReports();
   const cliReady = new Map(
     described.map((d) => [
       d.driverKind,
@@ -6790,7 +6823,7 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { app: "bloks", pid: process.pid, static: Boolean(STATIC_DIR) });
     }
     if (method === "GET" && path === "/api/readiness") {
-      const engineRows = await registry.describe();
+      const engineRows = await engineReports();
       const snapshot = reliabilitySnapshot({
         uptimeSeconds: process.uptime(),
         bots: store.bots,
@@ -6807,7 +6840,7 @@ const server = createServer(async (req, res) => {
 
     // ── provider instances (model picker) ──
     if (method === "GET" && path === "/api/instances") {
-      return json(res, 200, { instances: await registry.describe() });
+      return json(res, 200, { instances: await engineReports() });
     }
 
     // ── engines: what you can connect, and how ──
@@ -6822,7 +6855,9 @@ const server = createServer(async (req, res) => {
       return json(res, 200, await startCodexDeviceLogin());
     }
     if (method === "GET" && path === "/api/providers/codex/login") {
-      return json(res, 200, await codexLoginStatus());
+      const status = await codexLoginStatus();
+      if (status.status === "connected") invalidateEngineReports();
+      return json(res, 200, status);
     }
 
     // Grok CLI uses the user's grok.com subscription session. As with Codex,
@@ -6831,7 +6866,9 @@ const server = createServer(async (req, res) => {
       return json(res, 200, await startGrokDeviceLogin());
     }
     if (method === "GET" && path === "/api/providers/grokCli/login") {
-      return json(res, 200, await grokLoginStatus());
+      const status = await grokLoginStatus();
+      if (status.status === "connected") invalidateEngineReports();
+      return json(res, 200, status);
     }
 
     // The bug-report bundle: facts a public issue can hold. Built from
