@@ -144,7 +144,7 @@ function AboutCard() {
           : update.state === "ready"
             ? `${update.version ?? "Pembaruan"} sudah diunduh dan siap dipasang.`
             : update.state === "error"
-              ? "The update check didn't reach the server. It will retry on next launch."
+              ? "Pemeriksaan pembaruan tidak dapat menjangkau server. Akan dicoba lagi saat aplikasi dibuka berikutnya."
               : update.state === "dev"
                 ? "Pembaruan berlaku untuk aplikasi terpasang, bukan build pengembangan."
                 : null;
@@ -217,13 +217,13 @@ function Diagnostics() {
         <InfoTip text="Laporan berisi versi, status koneksi engine, status apakah kunci tersedia atau tidak, dan jumlah agen. Nilai kunci tidak pernah disertakan, dan teks akhir dibersihkan dari pola yang menyerupai kredensial." />
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Copies a short report about this install, ready to paste into a bug report.
+        Menyalin ringkasan diagnostik instalasi ini agar siap ditempel ke laporan masalah.
       </div>
       <button
         onClick={() => void copy()}
         className="mt-3 rounded-xl border bg-background px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-accent"
       >
-        {copied ? "Copied" : "Salin diagnostik"}
+        {copied ? "Disalin" : "Salin diagnostik"}
       </button>
       {failed && (
         <div className="mt-2 text-[12px] text-destructive">
