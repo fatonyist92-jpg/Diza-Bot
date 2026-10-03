@@ -104,7 +104,7 @@ export function NewAgentScreen() {
   // the role we matched from the description, carried into creation
   const matched = useRef<AgentTemplate | null>(null);
 
-  const canGoBack = state.bots.some((b) => !b.hidden);
+  const canGoKembali = state.bots.some((b) => !b.hidden);
   // Setup hands off to this screen, so it doubles as the last onboarding
   // step. Same picker, different framing: you are choosing your first
   // agent rather than adding another one.
@@ -227,7 +227,7 @@ export function NewAgentScreen() {
       onKeyDown={(e) => {
         if (e.key !== "Escape") return;
         if (step === "name") setStep("describe");
-        else if (canGoBack) close();
+        else if (canGoKembali) close();
       }}
       // A whole-screen drop target: an agent file is the one thing you
       // would ever drag onto this screen, so anywhere on it will do.
@@ -275,12 +275,12 @@ export function NewAgentScreen() {
           // The way out is Nova, who is already waiting.
           firstRun ? (
             <Button variant="ghost" onClick={close}>
-              Skip for now
+              Lewati dulu
             </Button>
-          ) : canGoBack ? (
+          ) : canGoKembali ? (
             <Button variant="ghost" onClick={close}>
               <ArrowLeft size={15} />
-              Back
+              Kembali
             </Button>
           ) : (
             <span />
@@ -288,11 +288,11 @@ export function NewAgentScreen() {
         ) : (
           <Button variant="ghost" onClick={() => setStep("describe")}>
             <ArrowLeft size={15} />
-            Edit description
+            Ubah deskripsi
           </Button>
         )}
         <Button variant="ghost" onClick={() => create({})} disabled={creating}>
-          Start blank
+          Mulai kosong
         </Button>
       </div>
 
@@ -328,7 +328,7 @@ export function NewAgentScreen() {
               ? "Pilih peran atau jelaskan pekerjaannya. Anda dapat menambah agen lain kapan saja."
               : "Describe the job. It'll come with the skills to do it."
             : matched.current
-              ? `Set up as a ${matched.current.name.toLowerCase()}, with ${matched.current.skills.length} skills included.`
+              ? `Disiapkan sebagai ${matched.current.name.toLowerCase()} dengan ${matched.current.skills.length} skill.`
               : "Kami memilih satu dari deskripsi Anda. Ubah jika diperlukan."}
         </p>
 
