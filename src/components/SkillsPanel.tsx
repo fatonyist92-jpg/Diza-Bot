@@ -177,7 +177,7 @@ function AddSkill({
 
       <div className="mt-3 flex gap-2">
         <Button variant="secondary" onClick={onBack} className="flex-1">
-          Cancel
+          Batal
         </Button>
         <Button
           disabled={!markdown.trim()}
