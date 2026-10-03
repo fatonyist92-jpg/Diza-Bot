@@ -79,7 +79,7 @@ function AttachedSkills({ bot }: { bot: Bot }) {
         </Button>
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Shared instruction sets this agent can carry.
+        Kumpulan instruksi bersama yang dapat dipakai agen ini.
       </div>
 
       <div className="mt-3 flex flex-col gap-1">
@@ -603,7 +603,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
             <div>
               <div className="text-[13.5px] font-semibold text-foreground">Notifikasi</div>
               <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-                Let {bot.name} interrupt you when a reply lands
+                Izinkan {bot.name} memberi notifikasi saat balasan tiba
               </div>
             </div>
             <Switch
@@ -639,9 +639,9 @@ function ApprovalsCard({ bot }: { bot: Bot }) {
   const mode = bot.approvals ?? "ask";
   const [refused, setRefused] = useState(false);
   const OPTIONS = [
-    { id: "ask" as const, label: "Ask", hint: "Kartu untuk setiap tindakan penting" },
-    { id: "edits" as const, label: "Terima edit", hint: "File changes go ahead; the rest asks" },
-    { id: "auto" as const, label: "Auto", hint: "Everything goes ahead; deny rules still refuse" },
+    { id: "ask" as const, label: "Tanya dulu", hint: "Kartu untuk setiap tindakan penting" },
+    { id: "edits" as const, label: "Terima edit", hint: "Perubahan file langsung dijalankan; tindakan lain tetap meminta izin" },
+    { id: "auto" as const, label: "Otomatis", hint: "Semua tindakan diizinkan; aturan penolakan tetap berlaku" },
   ];
 
   /**
@@ -694,7 +694,7 @@ function ApprovalsCard({ bot }: { bot: Bot }) {
       </div>
       {refused && (
         <div className="mt-2 text-[11.5px] text-warning">
-          Not confirmed, so the mode is unchanged.
+          Tidak dikonfirmasi, jadi mode tidak berubah.
         </div>
       )}
     </div>
@@ -725,12 +725,12 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
         <div className="text-[13.5px] font-semibold text-foreground">Folder kerja</div>
         {saved && (
           <span className="flex items-center gap-1 text-[11.5px] text-success">
-            <Check size={12} /> Saved
+            <Check size={12} /> Tersimpan
           </span>
         )}
       </div>
       <div className="mt-0.5 flex items-center gap-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Where new tasks run.
+        Folder tempat tugas baru dijalankan.
         <InfoTip text="Arahkan ke sebuah proyek untuk bekerja di repositori tersebut; biarkan kosong agar agen menggunakan workspace miliknya sendiri. Tugas yang sedang berjalan tetap memakai folder tempat tugas dimulai." />
       </div>
       <div className="mt-3 flex gap-2">
