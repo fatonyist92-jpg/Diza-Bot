@@ -33,6 +33,7 @@ import { ArtifactCard } from "./Artifacts";
 import {
   ForwardDialog,
   MessageActionBar,
+  MobileMessageMenu,
   Reactions,
   ReplyChip,
   ReplyContext,
@@ -179,6 +180,22 @@ function RoomMessage({
 }) {
   const names = [...members.map((m) => m.name), ...people.map((p) => p.name), ...(ownerName ? [ownerName] : [])];
   const speaker = message.from ? members.find((m) => m.id === message.from) : null;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const openMobileMenu = (event: React.MouseEvent) => {
+    if (!message.text || message.deleted) return;
+    event.preventDefault();
+    setMobileMenuOpen(true);
+  };
+  const mobileActions = (author: string) =>
+    mobileMenuOpen ? (
+      <MobileMessageMenu
+        message={message}
+        author={author}
+        onReply={onReply}
+        onDelete={() => deleteRoomMessage(roomId, message.id)}
+        onClose={() => setMobileMenuOpen(false)}
+      />
+    ) : null;
   const nameOfReactor = (id: string) =>
     id === "user" ? "You" : (members.find((m) => m.id === id)?.name ?? "An agent");
 
@@ -208,7 +225,7 @@ function RoomMessage({
   if (message.role === "user" && message.author) {
     const who = people.find((p) => p.id === message.author)?.name ?? "A former member";
     return (
-      <div className="flex gap-2.5">
+      <div className="flex gap-2.5" onContextMenu={openMobileMenu}>
         <div className="w-8 shrink-0 pt-0.5">{showSpeaker && <PersonDot name={who} />}</div>
         <div className="min-w-0 flex-1">
           {showSpeaker && (
@@ -225,14 +242,15 @@ function RoomMessage({
             {verbs(who)}
           </div>
         </div>
+        {mobileActions(who)}
       </div>
     );
   }
 
   if (message.role === "user") {
     return (
-      <div className="group flex items-center justify-end gap-1.5">
-        {verbs("You")}
+      <div className="group flex items-center justify-end gap-1.5" onContextMenu={openMobileMenu}>
+        {verbs("Anda")}
         <div className="flex max-w-full flex-col items-end sm:max-w-[68%]">
           <div className="max-w-full whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-primary-foreground [overflow-wrap:anywhere]">
             {message.replyTo && <ReplyContext replyTo={message.replyTo} onDark />}
@@ -250,6 +268,7 @@ function RoomMessage({
             nameOf={nameOfReactor}
           />
         </div>
+        {mobileActions("Anda")}
       </div>
     );
   }
