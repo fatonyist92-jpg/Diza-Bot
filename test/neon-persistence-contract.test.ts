@@ -106,3 +106,25 @@ test("native provider cursors are retired after restore so transcript can replay
   assert.match(source, /delete task\.lastInstanceId/);
   assert.match(source, /task\.lastInput = 0/);
 });
+
+
+test("direct Postgres serializes restore and sync across overlapping Faable containers", () => {
+  assert.match(source, /queryFn\.withPersistenceLock = async \(work\)/);
+  assert.match(source, /pg_advisory_xact_lock\(hashtext\(\$1\)\)/);
+  assert.match(source, /return this\.query\.withPersistenceLock[\s\S]{0,120}perform/);
+});
+
+test("restore chunks are version guarded and retried when another container updates a row", () => {
+  assert.match(source, /WHERE namespace = \$1 AND path = \$2 AND sha256 = \$5/);
+  assert.match(source, /stored row changed during restore/);
+  assert.match(source, /for \(let attempt = 0; attempt < 3 && !done; attempt \+= 1\)/);
+  assert.match(source, /WHERE namespace = \$1 AND path = \$2[\s\S]{0,180}current = fresh\[0\]/);
+});
+
+test("sync never uploads a file observed while it is changing", () => {
+  assert.match(source, /async function readStableFile\(path, attempts = 3\)/);
+  assert.match(source, /before\.size === data\.length/);
+  assert.match(source, /after\.size === data\.length/);
+  assert.match(source, /before\.mtimeMs === after\.mtimeMs/);
+  assert.match(source, /const stable = await readStableFile\(file\.full\)/);
+});

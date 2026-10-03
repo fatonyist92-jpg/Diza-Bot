@@ -75,15 +75,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     const sendStreamingTurn = async (botId: string, body: Record<string, unknown>) => {
-      const response = await fetch(`/api/bots/${botId}/messages`, {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "text/event-stream" },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) {
-        const failure = await response.json().catch(() => ({}));
-        throw new Error(failure.error ?? `${response.status} ${response.statusText}`);
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 9; attempt += 1) {
+        response = await fetch(`/api/bots/${botId}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "text/event-stream" },
+          body: JSON.stringify(body),
+        });
+        if (response.ok) break;
+
+        const failure = await response.clone().json().catch(() => ({}));
+        const message = String(failure?.error ?? `${response.status} ${response.statusText}`);
+        // Only replay requests that the Faable edge / DIZA loopback explicitly
+        // says never reached a working core. A network exception is NOT
+        // retried because the core may already have accepted that turn.
+        const definitelyNotAccepted =
+          message === "APP_UNREACHABLE" ||
+          message === "DIZA backend is starting or unavailable" ||
+          message.startsWith("DIZA persistence is unavailable.");
+        if (!definitelyNotAccepted || attempt === 8) throw new Error(message);
+        await new Promise((resolve) => setTimeout(resolve, 750 + attempt * 250));
       }
+      if (!response?.ok) throw new Error("DIZA backend is starting or unavailable");
       if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
         await response.json().catch(() => ({}));
         return;

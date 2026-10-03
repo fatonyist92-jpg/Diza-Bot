@@ -121,7 +121,7 @@ function makeClient(connectionString, logger = console) {
   let directPool = null;
   let announcedDirect = false;
 
-  const directQuery = async (query, params) => {
+  const ensureDirectPool = () => {
     if (!directPool) {
       const require = createRequire(import.meta.url);
       const { Pool } = require('pg');
@@ -137,7 +137,11 @@ function makeClient(connectionString, logger = console) {
       announcedDirect = true;
       logger.warn?.('[diza-persist] Neon HTTP SQL unavailable; using direct Postgres restore/sync path');
     }
-    const result = await directPool.query(query, params);
+    return directPool;
+  };
+
+  const directQuery = async (query, params) => {
+    const result = await ensureDirectPool().query(query, params);
     return result.rows ?? [];
   };
 
@@ -183,6 +187,32 @@ function makeClient(connectionString, logger = console) {
     }
   };
 
+  // Supabase/direct Postgres can briefly run two Faable containers during
+  // a rolling replacement. Serialize restore/sync passes so one instance
+  // never reads a row while another is replacing its bytea payload.
+  // Neon HTTP stays on its existing stateless path because it cannot keep
+  // one SQL session open across the callback.
+  queryFn.withPersistenceLock = async (work) => {
+    if (neonHttpAvailable) return work(queryFn);
+    const client = await ensureDirectPool().connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`${PERSIST_SCHEMA}:diza-persistence`]);
+      const lockedQuery = async (query, params = []) => {
+        const result = await client.query(query, params);
+        return result.rows ?? [];
+      };
+      const value = await work(lockedQuery);
+      await client.query('COMMIT');
+      return value;
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+
   queryFn.close = async () => {
     if (!directPool) return;
     const pool = directPool;
@@ -199,6 +229,30 @@ async function atomicWrite(target, data, mode) {
   await chmod(temp, mode).catch(() => {});
   await rename(temp, target);
   await chmod(target, mode).catch(() => {});
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function readStableFile(path, attempts = 3) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const before = await stat(path);
+      const data = await readFile(path);
+      const after = await stat(path);
+      if (
+        before.size === data.length &&
+        after.size === data.length &&
+        before.mtimeMs === after.mtimeMs
+      ) {
+        return { data, mode: after.mode & 0o777, size: data.length };
+      }
+    } catch {
+      // A file that vanished or is mid-replace is simply deferred to the
+      // next sync pass. Never persist a half-written snapshot.
+    }
+    if (attempt + 1 < attempts) await wait(25 * (attempt + 1));
+  }
+  return null;
 }
 
 async function collectFiles(root) {
@@ -274,7 +328,7 @@ class NeonPersistence {
     `);
   }
 
-  async #readStoredData(row) {
+  async #readStoredData(row, query = this.query) {
     const storedBytes = Number(row.stored_bytes);
     if (!Number.isSafeInteger(storedBytes) || storedBytes < 0) {
       throw new Error('invalid stored byte count');
@@ -285,14 +339,14 @@ class NeonPersistence {
     let received = 0;
     while (received < storedBytes) {
       const length = Math.min(RESTORE_CHUNK_BYTES, storedBytes - received);
-      const rows = await this.query(`
+      const rows = await query(`
         SELECT encode(substring(data from $3::integer for $4::integer), 'hex') AS data_hex
         FROM ${PERSIST_FILES_TABLE}
-        WHERE namespace = $1 AND path = $2
-      `, [row.namespace, row.path, received + 1, length]);
+        WHERE namespace = $1 AND path = $2 AND sha256 = $5
+      `, [row.namespace, row.path, received + 1, length, row.sha256]);
       const hex = rows[0]?.data_hex;
       if (typeof hex !== 'string' || hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) {
-        throw new Error('invalid restore chunk');
+        throw new Error('stored row changed during restore');
       }
       const chunk = Buffer.from(hex, 'hex');
       if (chunk.length !== length) {
@@ -305,40 +359,69 @@ class NeonPersistence {
   }
 
   async restore() {
-    // Fetch only metadata up front. Pulling every bytea as one giant hex
-    // JSON response stops scaling once chat history and native logs grow.
-    // Blob bytes are fetched below in bounded chunks instead.
-    const rows = await this.query(`
-      SELECT namespace, path, sha256, compressed, mode, size_bytes,
-             octet_length(data) AS stored_bytes
-      FROM ${PERSIST_FILES_TABLE}
-      WHERE namespace IN ('bloks', 'grok', 'codex')
-      ORDER BY namespace, path
-    `);
-    let restored = 0;
-    let skipped = 0;
-    for (const row of rows) {
-      const root = this.rootList.find((item) => item.namespace === row.namespace);
-      if (!root || root.exclude(row.path)) { skipped += 1; continue; }
-      const target = targetFor(root.dir, row.path);
-      if (!target) { skipped += 1; continue; }
-      const key = `${row.namespace}\0${row.path}`;
-      try {
-        const stored = await this.#readStoredData(row);
-        const data = asBool(row.compressed) ? gunzipSync(stored) : stored;
-        if (sha256(data) !== row.sha256) throw new Error('sha256 mismatch');
-        await atomicWrite(target, data, safeMode(row.mode));
-        this.restoreFailures.delete(key);
-        restored += 1;
-      } catch (error) {
-        this.restoreFailures.add(key);
-        skipped += 1;
-        this.logger.warn?.(`[diza-persist] skipped restore ${row.namespace}/${row.path}: ${error?.message || error}`);
+    const perform = async (query) => {
+      // Fetch metadata first, then version-guard every chunk. During a
+      // Faable rolling replacement the old container may still finish one
+      // persistence write while the new container is restoring. A changed
+      // row is retried from fresh metadata instead of restoring mixed bytes.
+      const rows = await query(`
+        SELECT namespace, path, sha256, compressed, mode, size_bytes,
+               octet_length(data) AS stored_bytes
+        FROM ${PERSIST_FILES_TABLE}
+        WHERE namespace IN ('bloks', 'grok', 'codex')
+        ORDER BY namespace, path
+      `);
+      let restored = 0;
+      let skipped = 0;
+      for (const row of rows) {
+        const root = this.rootList.find((item) => item.namespace === row.namespace);
+        if (!root || root.exclude(row.path)) { skipped += 1; continue; }
+        const target = targetFor(root.dir, row.path);
+        if (!target) { skipped += 1; continue; }
+        const key = `${row.namespace}\0${row.path}`;
+        let current = row;
+        let done = false;
+        let lastError = null;
+
+        for (let attempt = 0; attempt < 3 && !done; attempt += 1) {
+          try {
+            if (attempt > 0) {
+              await wait(100 * attempt);
+              const fresh = await query(`
+                SELECT namespace, path, sha256, compressed, mode, size_bytes,
+                       octet_length(data) AS stored_bytes
+                FROM ${PERSIST_FILES_TABLE}
+                WHERE namespace = $1 AND path = $2
+              `, [row.namespace, row.path]);
+              if (!fresh[0]) throw new Error('stored row disappeared during restore');
+              current = fresh[0];
+            }
+            const stored = await this.#readStoredData(current, query);
+            const data = asBool(current.compressed) ? gunzipSync(stored) : stored;
+            if (sha256(data) !== current.sha256) throw new Error('sha256 mismatch');
+            await atomicWrite(target, data, safeMode(current.mode));
+            this.restoreFailures.delete(key);
+            restored += 1;
+            done = true;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+
+        if (!done) {
+          this.restoreFailures.add(key);
+          skipped += 1;
+          this.logger.warn?.(`[diza-persist] skipped restore ${row.namespace}/${row.path}: ${lastError?.message || lastError}`);
+        }
       }
-    }
-    this.ready = true;
-    this.logger.log?.(`[diza-persist] restore ready: ${restored} restored, ${skipped} skipped`);
-    return { restored, skipped };
+      this.ready = true;
+      this.logger.log?.(`[diza-persist] restore ready: ${restored} restored, ${skipped} skipped`);
+      return { restored, skipped };
+    };
+
+    return this.query.withPersistenceLock
+      ? this.query.withPersistenceLock(perform)
+      : perform(this.query);
   }
 
   async recoverBotRosterIfNeeded() {
@@ -456,10 +539,11 @@ class NeonPersistence {
   }
 
   async #sync(reason) {
+    const perform = async (query) => {
     // Never prune old excluded rows automatically. They may be useful for
     // forensic recovery, and deleting user/provider history is a separate,
     // explicit maintenance decision. We simply stop rewriting them.
-    const existingRows = await this.query(`
+    const existingRows = await query(`
       SELECT namespace, path, sha256
       FROM ${PERSIST_FILES_TABLE}
       WHERE namespace IN ('bloks', 'grok', 'codex')
@@ -485,13 +569,12 @@ class NeonPersistence {
           skipped += 1;
           continue;
         }
-        let data;
-        try {
-          data = await readFile(file.full);
-        } catch {
+        const stable = await readStableFile(file.full);
+        if (!stable) {
           skipped += 1;
           continue;
         }
+        const data = stable.data;
         const digest = sha256(data);
         if (existing.get(key) === digest) continue;
         let payload = data;
@@ -503,7 +586,7 @@ class NeonPersistence {
             compressed = true;
           }
         }
-        await this.query(`
+        await query(`
           INSERT INTO ${PERSIST_FILES_TABLE}
             (namespace, path, sha256, data, compressed, mode, size_bytes, updated_at)
           VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, now())
@@ -514,7 +597,7 @@ class NeonPersistence {
             mode = EXCLUDED.mode,
             size_bytes = EXCLUDED.size_bytes,
             updated_at = now()
-        `, [root.namespace, file.path, digest, payload, compressed, file.mode || 0o600, data.length]);
+        `, [root.namespace, file.path, digest, payload, compressed, stable.mode || file.mode || 0o600, data.length]);
         writes += 1;
       }
     }
@@ -524,7 +607,7 @@ class NeonPersistence {
       const root = this.rootList.find((item) => item.namespace === row.namespace);
       if (!root || root.exclude(row.path)) continue;
       if (seen.has(key) || this.restoreFailures.has(key)) continue;
-      await this.query(
+      await query(
         `DELETE FROM ${PERSIST_FILES_TABLE} WHERE namespace = $1 AND path = $2`,
         [row.namespace, row.path],
       );
@@ -542,7 +625,7 @@ class NeonPersistence {
       deletes,
       skipped,
     });
-    await this.query(`
+    await query(`
       INSERT INTO ${RUNTIME_SNAPSHOTS_TABLE} (slot, payload, sha256, updated_at)
       VALUES ($1, $2, $3, now())
       ON CONFLICT (slot) DO UPDATE SET
@@ -555,6 +638,11 @@ class NeonPersistence {
       this.logger.log?.(`[diza-persist] sync ${reason}: ${writes} write, ${deletes} delete, ${skipped} skipped`);
     }
     return { synced: true, writes, deletes, skipped, files: seen.size, totalBytes };
+    };
+
+    return this.query.withPersistenceLock
+      ? this.query.withPersistenceLock(perform)
+      : perform(this.query);
   }
 
   start() {
