@@ -618,16 +618,16 @@ export function Sidebar() {
       {selectedBot && (
         <DropdownMenuItem onClick={() => dispatch({ type: "newTask", botId: selectedBot.id, projectId: state.projectId })}>
           <Plus size={15} />
-          New Chat
+          Chat Baru
         </DropdownMenuItem>
       )}
       <DropdownMenuItem onClick={() => dispatch({ type: "toggleNewAgent", open: true })}>
         <BotIcon size={15} />
-        New Bot
+        Agen Baru
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => dispatch({ type: "toggleNewRoom", open: true })}>
         <Users size={15} />
-        New Room
+        Ruang Baru
       </DropdownMenuItem>
       {/* On a phone the footer is gone, so everything that lives there
           has to be here instead. All four of them: a surface with no way
