@@ -50,10 +50,23 @@ jobs:
             await page.goto(base, { waitUntil:"domcontentloaded", timeout:60_000 });
             await page.waitForFunction(() => document.body.innerText.includes("DIZA"), null, {timeout:30_000});
 
+            for (let i = 0; i < 10; i++) {
+              const clicked = await page.evaluate(() => {
+                const words = ["Skip intro","Skip this","Skip for now","Continue where I left off","Continue","Next","Done","Get started"];
+                const b = [...document.querySelectorAll("button")].find(x => words.includes((x.textContent || "").trim()));
+                if (!b) return false;
+                b.click();
+                return true;
+              });
+              if (!clicked) break;
+              await page.waitForTimeout(500);
+            }
+
             const opened = await page.evaluate(() => {
               const buttons = [...document.querySelectorAll("button")];
               const b = buttons.find(x =>
                 ["Settings","Pengaturan"].includes((x.getAttribute("title") || "").trim()) ||
+                ["Settings","Pengaturan"].includes((x.getAttribute("aria-label") || "").trim()) ||
                 ["Settings","Pengaturan"].includes((x.textContent || "").trim())
               );
               if (!b) return false;
