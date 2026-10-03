@@ -18,10 +18,10 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 
 const AUTH_NOTE: Record<ProviderRow["auth"], string> = {
-  oauth: "Browser sign-in",
+  oauth: "Login melalui browser",
   key: "API key",
-  cli: "Signs in through its own CLI",
-  none: "Runs on this machine",
+  cli: "Login melalui CLI",
+  none: "Berjalan di perangkat ini",
 };
 
 function KeyForm({ provider, onDone }: { provider: ProviderRow; onDone: () => void }) {
@@ -47,7 +47,7 @@ function KeyForm({ provider, onDone }: { provider: ProviderRow; onDone: () => vo
             if (e.key === "Enter") save();
             if (e.key === "Escape") onDone();
           }}
-          placeholder={provider.keyPrefix ? `${provider.keyPrefix}…` : "Paste your key"}
+          placeholder={provider.keyPrefix ? `${provider.keyPrefix}…` : "Tempel API key"}
           autoComplete="off"
           className="h-8 text-[13px]"
         />
@@ -58,7 +58,7 @@ function KeyForm({ provider, onDone }: { provider: ProviderRow; onDone: () => vo
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-2">
         <span className={cn("text-[11.5px]", mismatched ? "text-warning" : "text-muted-foreground")}>
-          {mismatched ? `Keys here usually start with ${provider.keyPrefix}` : provider.keyHint}
+          {mismatched ? `Key biasanya diawali ${provider.keyPrefix}` : provider.keyHint}
         </span>
         <a
           href={provider.docsUrl}
@@ -66,7 +66,7 @@ function KeyForm({ provider, onDone }: { provider: ProviderRow; onDone: () => vo
           rel="noreferrer"
           className="flex shrink-0 items-center gap-1 text-[11.5px] text-muted-foreground transition-colors duration-150 hover:text-foreground"
         >
-          Get one <ExternalLink size={10} />
+          Buka sumber key <ExternalLink size={10} />
         </a>
       </div>
     </div>
@@ -78,6 +78,7 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
   const [open, setOpen] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activating, setActivating] = useState(false);
   const [codexLogin, setCodexLogin] = useState<{
     status: "idle" | "pending" | "connected" | "failed";
     verificationUrl?: string;
@@ -95,6 +96,40 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
   // the provider rejected, a local server that is not running
   const instance = state.instances.find((i) => i.driverKind === provider.kind);
   const down = instance && instance.snapshot.state !== "available";
+  const active = Boolean(instance && state.config?.engine?.instanceId === instance.instanceId);
+  const canActivate = Boolean(
+    instance &&
+    provider.connected &&
+    !provider.needsSignIn &&
+    !down &&
+    instance.models.options.length > 0,
+  );
+
+  const activate = async () => {
+    if (!instance || active || !canActivate) return;
+    const model =
+      state.config?.engine?.instanceId === instance.instanceId
+        ? state.config.engine.model
+        : instance.models.default || instance.models.options[0]?.id;
+    if (!model) {
+      setError("Engine ini belum memiliki model yang bisa dipilih.");
+      return;
+    }
+    setActivating(true);
+    setError(null);
+    try {
+      const config = await api("/api/config", {
+        method: "PUT",
+        body: JSON.stringify({ engine: { instanceId: instance.instanceId, model } }),
+      });
+      dispatch({ type: "configStatus", config });
+      await refreshEngines();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActivating(false);
+    }
+  };
 
   const signIn = () => {
     setSigningIn(true);
@@ -213,9 +248,9 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
             )}
           >
             {down
-              ? (instance!.snapshot.reason ?? "unavailable")
+              ? (instance!.snapshot.reason ?? "Tidak tersedia")
               : provider.connected
-                ? "Connected"
+                ? "Terhubung"
                 : AUTH_NOTE[provider.auth]}
           </div>
         </div>
@@ -223,11 +258,11 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
         {provider.auth === "cli" ? (
           (provider.kind === "codex" || provider.kind === "grokCli") && provider.connected && provider.needsSignIn ? (
             <Button variant="secondary" size="sm" onClick={provider.kind === "codex" ? signInCodex : signInGrok} disabled={signingIn} className="shrink-0">
-              {signingIn ? <Loader2 size={13} className="animate-spin" /> : "Sign in"}
+              {signingIn ? <Loader2 size={13} className="animate-spin" /> : provider.kind === "codex" ? "Login ChatGPT" : "Login"}
             </Button>
           ) : (
             <span className="shrink-0 text-[11.5px] text-muted-foreground">
-              {provider.connected ? "" : "Not found"}
+              {provider.connected ? "" : "Tidak ditemukan"}
             </span>
           )
         ) : provider.connected ? (
@@ -244,9 +279,9 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
             {signingIn ? (
               <Loader2 size={13} className="animate-spin" />
             ) : provider.auth === "oauth" ? (
-              "Sign in"
+              "Login"
             ) : provider.auth === "none" ? (
-              "Enable"
+              "Aktifkan"
             ) : (
               <>
                 <Plus size={13} />
@@ -255,6 +290,33 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
             )}
           </Button>
         )}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-3 pl-10">
+        <div className="flex min-w-0 items-center gap-2 text-[11.5px] text-muted-foreground">
+          <span
+            className={cn(
+              "inline-block size-2 rounded-full border",
+              active ? "border-foreground bg-foreground" : "border-muted-foreground/50 bg-transparent",
+            )}
+          />
+          <span>{active ? "Aktif" : "Nonaktif"}</span>
+          {provider.kind === "codex" && (
+            <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-foreground">
+              Prioritas
+            </span>
+          )}
+        </div>
+        <Button
+          variant={active ? "ghost" : "secondary"}
+          size="sm"
+          onClick={() => void activate()}
+          disabled={active || !canActivate || activating}
+          className="shrink-0"
+          title={active ? "Engine ini sedang aktif untuk semua agen dan ruang." : "Aktifkan untuk semua agen dan ruang"}
+        >
+          {activating ? <Loader2 size={13} className="animate-spin" /> : active ? "Aktif" : "Aktifkan"}
+        </Button>
       </div>
 
       {open && !provider.connected && (
@@ -267,16 +329,16 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
               hint rather than a verdict, and stays muted. */}
           {provider.connected
             ? provider.kind === "codex"
-              ? "Codex is installed. Sign in with ChatGPT to use it."
+              ? "Codex terpasang. Login ChatGPT untuk menggunakannya."
               : provider.kind === "grokCli"
-                ? "Grok CLI is installed. Sign in with your Grok account to use it."
-                : `No sign-in detected. ${provider.signInHint ?? provider.keyHint}`
+                ? "Grok CLI terpasang. Login dengan akun Grok untuk menggunakannya."
+                : `Login belum terdeteksi. ${provider.signInHint ?? provider.keyHint}`
             : provider.keyHint}
         </div>
       )}
       {provider.kind === "codex" && codexLogin?.status === "pending" && (
         <div className="mt-2 ml-10 rounded-xl border bg-muted/40 px-3 py-2 text-[12px]">
-          <div className="text-muted-foreground">Enter this one-time code on the OpenAI page:</div>
+          <div className="text-muted-foreground">Masukkan kode sekali pakai ini di halaman OpenAI:</div>
           <div className="mt-1 flex items-center justify-between gap-3">
             <code className="select-all text-[14px] font-semibold tracking-[0.08em] text-foreground">
               {codexLogin.userCode}
@@ -288,30 +350,30 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
                 rel="noreferrer"
                 className="flex shrink-0 items-center gap-1 font-medium text-foreground"
               >
-                Open OpenAI <ExternalLink size={11} />
+                Buka OpenAI <ExternalLink size={11} />
               </a>
             )}
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">Waiting for approval…</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Menunggu persetujuan…</div>
         </div>
       )}
       {provider.kind === "codex" && codexLogin?.status === "failed" && (
         <div className="mt-1.5 pl-10 text-[12px] text-destructive">
-          {codexLogin.error ?? "ChatGPT sign-in failed."}
+          {codexLogin.error ?? "Login ChatGPT gagal."}
         </div>
       )}
       {provider.kind === "grokCli" && grokLogin?.status === "pending" && (
         <div className="mt-2 ml-10 rounded-xl border bg-muted/40 px-3 py-2 text-[12px]">
-          <div className="text-muted-foreground">Enter this one-time code on the xAI page:</div>
+          <div className="text-muted-foreground">Masukkan kode sekali pakai ini di halaman xAI:</div>
           <div className="mt-1 flex items-center justify-between gap-3">
-            <code className="select-all text-[14px] font-semibold tracking-[0.08em] text-foreground">{grokLogin.userCode ?? "Waiting…"}</code>
-            {grokLogin.verificationUrl && <a href={grokLogin.verificationUrl} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-1 font-medium text-foreground">Open xAI <ExternalLink size={11} /></a>}
+            <code className="select-all text-[14px] font-semibold tracking-[0.08em] text-foreground">{grokLogin.userCode ?? "Menunggu…"}</code>
+            {grokLogin.verificationUrl && <a href={grokLogin.verificationUrl} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-1 font-medium text-foreground">Buka xAI <ExternalLink size={11} /></a>}
           </div>
           <div className="mt-1 text-[11px] text-muted-foreground">Waiting for approval…</div>
         </div>
       )}
       {provider.kind === "grokCli" && grokLogin?.status === "failed" && (
-        <div className="mt-1.5 pl-10 text-[12px] text-destructive">{grokLogin.error ?? "Grok sign-in failed."}</div>
+        <div className="mt-1.5 pl-10 text-[12px] text-destructive">{grokLogin.error ?? "Login Grok gagal."}</div>
       )}
       {error && <div className="mt-1.5 pl-10 text-[12px] text-destructive">{error}</div>}
     </div>
@@ -413,11 +475,12 @@ export function EnginesPanel() {
     );
   }
 
-  const connected = providers.filter((p) => p.connected).length;
-  // Twelve flat rows is a list you scan past. The split is the one that
-  // actually changes what an agent can do.
-  const agents = providers.filter((p) => p.agentic);
-  const chat = providers.filter((p) => !p.agentic);
+  const priority = (provider: ProviderRow) =>
+    provider.kind === "codex" ? 0 : provider.name.toLowerCase().includes("openai") ? 1 : 10;
+  const ordered = [...providers].sort((a, b) => priority(a) - priority(b) || a.name.localeCompare(b.name));
+  const connected = ordered.filter((p) => p.connected).length;
+  const agents = ordered.filter((p) => p.agentic);
+  const chat = ordered.filter((p) => !p.agentic);
 
   return (
     <>
@@ -426,7 +489,7 @@ export function EnginesPanel() {
           <div className="min-w-0">
             <div className="text-[13.5px] font-semibold text-foreground">Engine utama</div>
             <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-              Satu pilihan untuk semua agent. Jika engine utama kehabisan kuota, fallback aman tetap bisa mengambil alih turn.
+              Hanya satu engine yang aktif untuk semua Agen dan Ruang. Mengaktifkan engine lain otomatis menonaktifkan engine sebelumnya.
             </div>
           </div>
           <GlobalEnginePicker className="shrink-0" />
@@ -436,21 +499,21 @@ export function EnginesPanel() {
       <div className="mt-4 overflow-hidden rounded-2xl border bg-card">
         <div className="px-4 pb-3 pt-4">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[13.5px] font-semibold text-foreground">Engines</div>
-            <div className="text-[11.5px] text-muted-foreground">{connected} connected</div>
+            <div className="text-[13.5px] font-semibold text-foreground">Daftar engine</div>
+            <div className="text-[11.5px] text-muted-foreground">{connected} terhubung</div>
           </div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-            What your agents run on. Keys stay on this machine.
+            Pilih engine yang akan dipakai DIZA. Kredensial tetap tersimpan di server Anda.
           </div>
         </div>
         <Group
-          title="Agents"
-          note="Run commands and read files. Install the CLI, then sign in."
+          title="Agen"
+          note="Dapat menjalankan tools dan membaca file. Pasang CLI lalu login."
           rows={agents}
         />
         <Group
-          title="Chat models"
-          note="Write and reason, but cannot act on your machine."
+          title="Model chat"
+          note="Untuk menulis dan bernalar, tanpa kontrol langsung ke perangkat."
           rows={chat}
         />
       </div>
