@@ -57,9 +57,8 @@ const OPENROUTER: ProviderSpec = {
   docsUrl: "https://openrouter.ai/docs/use-cases/oauth-pkce",
   headers: { "HTTP-Referer": "https://bloks.local", "X-Title": "Bloks" },
   models: {
-    default: "openrouter/free",
+    default: "google/gemini-2.5-flash",
     options: [
-      { id: "openrouter/free", label: "Free Models Router" },
       { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
       { id: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
       { id: "x-ai/grok-4", label: "Grok 4" },
@@ -70,12 +69,12 @@ const OPENROUTER: ProviderSpec = {
   },
   // one sign-in reaches every lab, so the list is long. Keep the families
   // people actually reach for.
-  prefer: [/^openrouter\/free$/, /^google\//, /^anthropic\//, /^x-ai\//, /^openai\//, /^moonshotai\//, /^meta-llama\//, /^deepseek\//, /^qwen\//, /^mistralai\//],
+  prefer: [/^google\//, /^anthropic\//, /^x-ai\//, /^openai\//, /^moonshotai\//, /^meta-llama\//, /^deepseek\//, /^qwen\//, /^mistralai\//],
   limit: 28,
   // OpenRouter serves a rotating set of models at no cost, marked by a
   // ":free" suffix. People ask for them by name; they get their own room.
   freeSlots: 12,
-  small: "openrouter/free",
+  small: "google/gemini-2.5-flash",
 };
 
 const GEMINI: ProviderSpec = {
