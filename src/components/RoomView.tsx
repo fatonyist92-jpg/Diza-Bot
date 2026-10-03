@@ -197,7 +197,7 @@ function RoomMessage({
       />
     ) : null;
   const nameOfReactor = (id: string) =>
-    id === "user" ? "You" : (members.find((m) => m.id === id)?.name ?? "An agent");
+    id === "user" ? "Anda" : (members.find((m) => m.id === id)?.name ?? "Agen");
 
   const verbs = (author: string) => (
     <MessageActionBar
@@ -215,7 +215,7 @@ function RoomMessage({
     return (
       <div className={cn("flex", message.role === "user" ? "justify-end" : "justify-start pl-11")}>
         <div className="rounded-2xl border border-dashed px-3 py-1.5 text-[13px] italic text-muted-foreground">
-          Message taken back
+          Pesan telah dihapus
         </div>
       </div>
     );
@@ -223,7 +223,7 @@ function RoomMessage({
 
   // somebody else in a shared room: on the left, named, like an agent
   if (message.role === "user" && message.author) {
-    const who = people.find((p) => p.id === message.author)?.name ?? "A former member";
+    const who = people.find((p) => p.id === message.author)?.name ?? "Anggota lama";
     return (
       <div className="flex gap-2.5" onContextMenu={openMobileMenu}>
         <div className="w-8 shrink-0 pt-0.5">{showSpeaker && <PersonDot name={who} />}</div>
@@ -258,7 +258,7 @@ function RoomMessage({
             {message.queued && (
               <div className="mt-1 flex items-center gap-1 text-[10.5px] font-medium opacity-70" role="status">
                 <span className="inline-block size-1.5 animate-pulse rounded-full bg-current" />
-                Queued, sends when this turn finishes
+                Masuk antrean, dikirim setelah proses ini selesai
               </div>
             )}
           </div>
@@ -319,7 +319,7 @@ function RoomMessage({
   }
 
   return (
-    <div className="flex gap-2.5">
+    <div className="flex gap-2.5" onContextMenu={openMobileMenu}>
       <div className="w-8 shrink-0 pt-0.5">
         {showSpeaker && (
           <AgentAvatar bot={speaker} size={30} />
@@ -352,6 +352,7 @@ function RoomMessage({
           </div>
         )}
       </div>
+      {mobileActions(speaker.name)}
     </div>
   );
 }
@@ -448,7 +449,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
     mentionAt === null ? null : text.slice(mentionAt + 1, inputRef.current?.selectionStart ?? text.length);
   const mentionable: Array<{ id: string; name: string; title?: string; bot?: Bot }> = [
     ...answering.map((b) => ({ id: b.id, name: b.name, title: b.title, bot: b })),
-    ...roomPeople.map((p) => ({ id: p.id, name: p.name, title: p.role === "viewer" ? "Viewer" : "Collaborator" })),
+    ...roomPeople.map((p) => ({ id: p.id, name: p.name, title: p.role === "viewer" ? "Pemirsa" : "Kolaborator" })),
   ];
   const mentionMatches =
     mentionQuery === null || /\s/.test(mentionQuery)
@@ -738,7 +739,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-[15px] font-semibold text-foreground">
-              Close {blok.name}?
+              Tutup {blok.name}?
             </div>
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               Archiving takes the room off your list and keeps everything: the transcript, the
@@ -751,7 +752,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
                   setClosing(false);
                 }}
               >
-                Archive room
+                Arsipkan ruang
               </Button>
               <Button
                 variant="secondary"
@@ -760,17 +761,17 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
                   // the second decision, in its own words, naming the room
                   if (
                     window.confirm(
-                      `Permanently delete ${blok.name} and its entire transcript?\n\nThis cannot be undone. Archive instead if you might want it back.`,
+                      `Hapus permanen ${blok.name} beserta seluruh percakapannya?\n\nTindakan ini tidak dapat dibatalkan. Pilih arsip jika mungkin ingin membukanya lagi.`,
                     )
                   ) {
                     dispatch({ type: "deleteRoom", blokId: blok.id });
                   }
                 }}
               >
-                Delete permanently
+                Hapus permanen
               </Button>
               <Button variant="ghost" onClick={() => setClosing(false)}>
-                Cancel
+                Batal
               </Button>
             </div>
           </div>
@@ -780,7 +781,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
       {lead && members.length > 1 && (
         <div className="flex items-center justify-center gap-1.5 border-b bg-muted/30 py-1.5 text-[11.5px] text-muted-foreground">
           <Crown size={11} />
-          {lead.name} is most senior here and has the final call
+          {lead.name} adalah agen paling senior di ruang ini
         </div>
       )}
 
@@ -813,7 +814,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
               onClick={showEarlier}
               className="mx-auto mt-3 rounded-full border px-3.5 py-1.5 text-[12px] text-muted-foreground transition-colors duration-150 hover:border-foreground/25 hover:text-foreground"
             >
-              Show earlier messages ({start} more)
+              Tampilkan pesan sebelumnya ({start} more)
             </button>
           )}
           {visibleMessages.map((m, i) => {
@@ -853,13 +854,13 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
           {working.map((m) => (
             <div key={m.id} className="flex animate-rise-in items-center gap-2.5 pl-11 text-[12px] text-muted-foreground">
               <Loader2 size={11} className="animate-spin" />
-              {m.name} is thinking
+              {m.name} sedang berpikir
             </div>
           ))}
           {typingNow && (
             <div className="flex items-center gap-2.5 pl-11 text-[12px] text-muted-foreground">
               <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground" />
-              {typingNow} is typing
+              {typingNow} sedang mengetik
             </div>
           )}
         </div>
@@ -1035,7 +1036,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
               }
             }}
             placeholder={
-              replyTo ? `Reply to ${replyTo.author}…` : `Message ${blok.name}, or @name someone`
+              replyTo ? `Balas ${replyTo.author}…` : `Pesan ke ${blok.name}, atau @nama seseorang`
             }
             className="w-full min-w-0 resize-none self-center bg-transparent py-1 text-[14.5px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
           />
@@ -1048,7 +1049,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
                 ? "bg-primary text-primary-foreground hover:opacity-90"
                 : "cursor-not-allowed bg-muted text-muted-foreground/60",
             )}
-            title="Send"
+            title="Kirim"
           >
             <ArrowUp size={17} strokeWidth={2.4} />
           </button>
@@ -1132,7 +1133,7 @@ function RoomFolderButton({ blok }: { blok: Blok }) {
               {error && <div className="mt-1.5 text-[12px] text-destructive">{error}</div>}
               <div className="mt-2 flex justify-end gap-1.5">
                 <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-                  Cancel
+                  Batal
                 </Button>
                 <Button size="sm" onClick={save}>
                   Save
