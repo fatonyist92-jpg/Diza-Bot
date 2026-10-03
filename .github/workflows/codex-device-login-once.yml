@@ -1,0 +1,39 @@
+name: DIZA Codex device login once
+
+on:
+  push:
+    branches:
+      - codex-device-login-once-20261003
+    paths:
+      - ".github/workflows/codex-device-login-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  start-login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for live DIZA
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          ready=0
+          for i in $(seq 1 60); do
+            if curl -fsS "$LIVE_URL/healthz" | grep -q '"ok":true'; then
+              ready=1
+              break
+            fi
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "LIVE_NOT_READY"
+            exit 1
+          fi
+      - name: Start Codex ChatGPT device login
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          curl -fsS -X POST "$LIVE_URL/api/providers/codex/login"
+          echo
