@@ -347,6 +347,16 @@ function ServerConnection() {
   const test = async () => {
     setTesting(true);
     setMessage(null);
+    const native = (window as any).DizaNative;
+    if (native?.testServer) {
+      const verdict = String(native.testServer(draft));
+      setMessage({
+        ok: verdict === "ok",
+        text: verdict === "ok" ? "Server terhubung." : verdict,
+      });
+      setTesting(false);
+      return;
+    }
     const result = await testServer(draft);
     setMessage({ ok: result.ok, text: result.message });
     setTesting(false);
@@ -368,6 +378,8 @@ function ServerConnection() {
         ? "Alamat server tersimpan. Koneksi baru akan memakai server ini."
         : "Mode server lokal/satu-origin aktif.",
     });
+    const native = (window as any).DizaNative;
+    if (next && native?.setServerUrl) native.setServerUrl(next);
   };
 
   return (
@@ -409,7 +421,9 @@ function ServerConnection() {
               setDraft("");
               saveServerUrl("");
               setSaved("");
-              setMessage({ ok: true, text: "Alamat server dihapus. Mode satu-origin aktif." });
+              setMessage({ ok: true, text: "Alamat server dihapus. Server lokal bawaan akan digunakan." });
+              const native = (window as any).DizaNative;
+              native?.clearServerUrl?.();
             }}
             className="ml-auto rounded-lg px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >

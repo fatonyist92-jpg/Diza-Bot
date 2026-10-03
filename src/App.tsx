@@ -63,6 +63,12 @@ function Shell() {
         return;
       }
 
+      const native = (window as any).DizaNative;
+      if (native?.exitApp) {
+        native.exitApp();
+        return;
+      }
+
       window.removeEventListener("popstate", onPopState);
       history.back();
     };
