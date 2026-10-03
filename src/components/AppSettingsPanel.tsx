@@ -104,8 +104,8 @@ function ProposeSkills() {
             <InfoTip text="Tidak ada yang dipasang otomatis. Saran akan menunggu di Skill dengan teks yang sudah disiapkan, dan Anda cukup sekali menekan untuk menyimpannya. Membaca ulang sesi membutuhkan satu panggilan ringan menggunakan kunci Anda sendiri, sehingga fitur ini nonaktif sampai Anda mengaktifkannya." />
           </div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-            After a conversation that worked something out, read it back and write the procedure
-            down as a skill. Most conversations teach nothing and nothing is suggested for them.
+            Setelah percakapan menemukan solusi, baca kembali hasilnya lalu tulis prosedurnya
+            sebagai keahlian. Sebagian besar percakapan tidak menghasilkan keahlian baru, jadi tidak ada saran yang dibuat.
           </div>
         </div>
         <Switch aria-label="Sarankan skill" checked={on} disabled={saving} onCheckedChange={set} />
