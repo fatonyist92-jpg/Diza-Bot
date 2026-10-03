@@ -616,8 +616,8 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
               than discovering the shape of it over a week. */}
           <div className="mt-2 rounded-xl bg-muted/50 px-3 py-2.5 text-[12px] leading-relaxed text-muted-foreground">
             Approvals always interrupt, even with this off: a waiting agent has
-            stopped working. Agents talking to each other in a room stay quiet
-            unless they name you. Nothing interrupts you about the conversation
+            berhenti bekerja. Agen yang berbicara satu sama lain di Ruang tetap diam
+            kecuali mereka menyebut Anda. Percakapan tidak akan mengganggu Anda
             already on your screen.
           </div>
         </div>
@@ -823,8 +823,8 @@ function ConnectedAppsCard({
           {configured
             ? allowed
               ? "Agen ini dapat menggunakan aplikasi terhubung Anda (Slack, Gmail, dan lainnya)."
-              : "Blocked from your connected apps; it works with its own tools only."
-            : "No connector key yet. Add one in Settings → Apps."}
+              : "Akses ke aplikasi terhubung diblokir; Agen hanya memakai tool miliknya sendiri."
+            : "Belum ada key konektor. Tambahkan di Pengaturan → Aplikasi."}
         </div>
       </div>
       <Switch
@@ -1028,7 +1028,7 @@ function TakeItWithYouCard({ bot }: { bot: Bot }) {
     setError(null);
     try {
       const res = await fetch(`/api/bots/${bot.id}/export`);
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "export failed");
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "ekspor gagal");
       // the filename the server chose, so what lands on disk is what the
       // server says it is rather than something guessed here
       const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
@@ -1165,7 +1165,7 @@ function MemoryCard({ bot }: { bot: Bot }) {
               )}
               <div className="mt-2 flex items-center gap-2">
                 <Button size="sm" onClick={save} disabled={!dirty}>
-                  Save
+                  Simpan
                 </Button>
                 {saved && (
                   <span className="flex items-center gap-1 text-[11.5px] text-success">
