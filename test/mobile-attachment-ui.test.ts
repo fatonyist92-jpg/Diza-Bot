@@ -2,10 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-test("camera controls are capture-only and pathless files use persisted upload", () => {
+test("attachment menu exposes Foto Kamera Video File and camera stays capture-only", () => {
   const composer = readFileSync(new URL("../src/components/Composer.tsx", import.meta.url), "utf8");
+  assert.match(composer, /\["Foto"/);
+  assert.match(composer, /\["Kamera"/);
+  assert.match(composer, /\["Video"/);
+  assert.match(composer, /\["File"/);
   assert.match(composer, /accept="image\/\*"[\s\S]*capture="environment"/);
-  assert.match(composer, /accept="video\/\*"[\s\S]*capture="environment"/);
+  assert.match(composer, /accept="video\/\*"/);
   assert.match(composer, /uploadAttachment: uploadStoredAttachment/);
   assert.doesNotMatch(composer, /getUserMedia|srcObject|MediaStream/);
 });
