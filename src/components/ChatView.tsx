@@ -28,6 +28,7 @@ import { SecretCard } from "./SecretCard";
 import {
   ForwardDialog,
   MessageActionBar,
+  MobileMessageMenu,
   Reactions,
   ReplyContext,
   type ReplyDraft,
@@ -401,10 +402,15 @@ function Bubble({
   // Editing happens where the message already is. Sending it back to
   // the composer would lose your place and pretend it is a new message.
   const [editing, setEditing] = useState<string | null>(null);
-
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div
+      onContextMenu={(event) => {
+        if (!message.text || message.deleted) return;
+        event.preventDefault();
+        setMobileMenuOpen(true);
+      }}
       className={cn(
         "group flex w-full min-w-0 gap-1.5",
         user ? "justify-end" : "justify-start",
@@ -506,6 +512,15 @@ function Bubble({
           onDelete={onDelete ? () => onDelete(message.id) : undefined}
           onRetry={onRetry}
           onBranch={onBranch ? () => onBranch(message.id) : undefined}
+        />
+      )}
+      {mobileMenuOpen && (
+        <MobileMessageMenu
+          message={message}
+          author={author}
+          onReply={onReply}
+          onDelete={onDelete ? () => onDelete(message.id) : undefined}
+          onClose={() => setMobileMenuOpen(false)}
         />
       )}
     </div>
