@@ -24,7 +24,7 @@ jobs:
 
       - name: Wait for merged Engine fix to be live
         run: |
-          target="79cc9b9"
+          target="7afadd1"
           ready=0
           for i in $(seq 1 60); do
             deployments="$(faable deploy deployments 2>&1 || true)"
