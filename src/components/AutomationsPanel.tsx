@@ -597,7 +597,7 @@ function EmptyRhythm({ onCreate }: { onCreate: () => void }) {
       </div>
       <Button onClick={onCreate}>
         <Plus size={14} />
-        Create your first routine
+        Buat rutinitas pertama
       </Button>
     </div>
   );
@@ -1122,7 +1122,7 @@ function WebhooksTab({
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">
-            {hooks === null ? "Loading…" : "Pick a webhook, or create one for an agent."}
+            {hooks === null ? "Memuat…" : "Pilih webhook, atau buat webhook baru untuk Agen."}
           </div>
         )}
       </div>
