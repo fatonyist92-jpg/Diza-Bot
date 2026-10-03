@@ -1,0 +1,106 @@
+name: DIZA browser verify Engine UI once
+
+on:
+  push:
+    branches:
+      - browser-verify-engine-ui-20261003
+    paths:
+      - ".github/workflows/browser-verify-engine-ui-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify Engine UI in mobile Chrome
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import { chromium } from "playwright-core";
+
+          const base = process.env.LIVE_URL;
+          const executablePath =
+            ["/usr/bin/google-chrome","/usr/bin/google-chrome-stable","/usr/bin/chromium","/usr/bin/chromium-browser"]
+              .find((p) => fs.existsSync(p));
+          assert.ok(executablePath, "Chrome/Chromium not found");
+
+          const browser = await chromium.launch({ headless: true, executablePath, args:["--no-sandbox"] });
+          const context = await browser.newContext({ viewport:{width:390,height:844}, colorScheme:"dark" });
+          const page = await context.newPage();
+          const pageErrors = [];
+          page.on("pageerror", e => pageErrors.push(String(e)));
+
+          try {
+            await page.goto(base, { waitUntil:"domcontentloaded", timeout:60_000 });
+            await page.waitForFunction(() => document.body.innerText.includes("DIZA"), null, {timeout:30_000});
+
+            const opened = await page.evaluate(() => {
+              const buttons = [...document.querySelectorAll("button")];
+              const b = buttons.find(x =>
+                ["Settings","Pengaturan"].includes((x.getAttribute("title") || "").trim()) ||
+                ["Settings","Pengaturan"].includes((x.textContent || "").trim())
+              );
+              if (!b) return false;
+              b.click();
+              return true;
+            });
+            assert.equal(opened, true, "Settings button not found");
+
+            await page.waitForFunction(() => /Pengaturan|Settings/.test(document.body.innerText), null, {timeout:20_000});
+
+            const engineTab = page.getByRole("button", {name:"Engine"}).first();
+            if (await engineTab.count()) {
+              await engineTab.click();
+            } else {
+              const clicked = await page.evaluate(() => {
+                const el = [...document.querySelectorAll("button")].find(x => (x.textContent || "").trim() === "Engine");
+                el?.click();
+                return Boolean(el);
+              });
+              assert.equal(clicked, true, "Engine tab not found");
+            }
+
+            await page.waitForTimeout(500);
+
+            const deadline = Date.now() + 35_000;
+            let body = "";
+            while (Date.now() < deadline) {
+              body = await page.locator("body").innerText();
+              if (/Codex/i.test(body) && /GPT-5\.6 Sol/i.test(body)) break;
+              await page.waitForTimeout(1000);
+            }
+
+            body = await page.locator("body").innerText();
+            assert.doesNotMatch(body, /APP_UNREACHABLE/, "Engine UI still shows APP_UNREACHABLE");
+            assert.match(body, /Codex/i, "Codex row/picker is not visible");
+            assert.match(body, /GPT-5\.6 Sol/i, "GPT-5.6 Sol is not visible");
+            assert.match(body, /Engine utama|Engines/i, "Engine panel did not render");
+            assert.deepEqual(pageErrors, [], "browser page errors: " + pageErrors.join(" | "));
+
+            console.log("ENGINE_UI_BROWSER_PASS", JSON.stringify({
+              mobileViewport:"390x844",
+              codexVisible:true,
+              gpt56SolVisible:true,
+              appUnreachable:false,
+              pageErrors:0
+            }));
+          } finally {
+            await browser.close();
+          }
+          NODE
