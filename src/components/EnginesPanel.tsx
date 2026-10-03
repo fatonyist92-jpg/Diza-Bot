@@ -53,7 +53,7 @@ function KeyForm({ provider, onDone }: { provider: ProviderRow; onDone: () => vo
         />
         <Button variant="secondary" onClick={save} disabled={!key.trim()} className="w-[72px]">
           <Check size={13} />
-          Save
+          Simpan
         </Button>
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -272,7 +272,7 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
             onClick={() => dispatch({ type: "disconnectProvider", kind: provider.kind })}
             className="shrink-0 text-muted-foreground hover:text-destructive"
           >
-            Disconnect
+            Putuskan
           </Button>
         ) : (
           <Button variant="secondary" size="sm" onClick={act} disabled={signingIn} className="shrink-0">
@@ -369,7 +369,7 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
             <code className="select-all text-[14px] font-semibold tracking-[0.08em] text-foreground">{grokLogin.userCode ?? "Menunggu…"}</code>
             {grokLogin.verificationUrl && <a href={grokLogin.verificationUrl} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-1 font-medium text-foreground">Buka xAI <ExternalLink size={11} /></a>}
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">Waiting for approval…</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Menunggu persetujuan…</div>
         </div>
       )}
       {provider.kind === "grokCli" && grokLogin?.status === "failed" && (
