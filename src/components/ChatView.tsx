@@ -893,7 +893,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             <span className="truncate text-[14px] font-semibold text-foreground">{bot.name}</span>
             {(bot.busy || bot.title) && (
               <span className="hidden truncate text-[12px] text-muted-foreground sm:block">
-                {bot.busy ? "working…" : bot.title}
+                {bot.busy ? "sedang bekerja…" : bot.title}
               </span>
             )}
           </span>
@@ -908,7 +908,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
               title="Hentikan respons ini"
             >
               <Square size={11} className="fill-current" />
-              Stop
+              Hentikan
             </Button>
           )}
           <CallButton bot={bot} />
@@ -917,7 +917,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             size="icon"
             onClick={() => setTerminalOpen((open) => !open)}
             className={cn(terminalOpen && "bg-accent text-foreground")}
-            title={`Terminal in ${bot.name}'s folder`}
+            title={`Terminal di folder ${bot.name}`}
           >
             <SquareTerminal size={17} />
           </Button>
