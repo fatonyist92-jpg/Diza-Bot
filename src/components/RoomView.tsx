@@ -620,14 +620,14 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             <span className="block truncate text-[11.5px] text-muted-foreground">
               {answering.map((m) => m.name).join(", ")}
               {answering.length < members.length &&
-                ` · ${members.length - answering.length} archived`}
+                ` · ${members.length - answering.length} diarsipkan`}
             </span>
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden items-center -space-x-1.5 sm:flex">
             {answering.map((m) => (
-              <span key={m.id} title={m.id === lead?.id ? `${m.name} (most senior)` : m.name}>
+              <span key={m.id} title={m.id === lead?.id ? `${m.name} (paling senior)` : m.name}>
                 <AgentAvatar bot={m} size={24} className="rounded-lg ring-2 ring-background" />
               </span>
             ))}
@@ -637,7 +637,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             size="icon"
             onClick={() => setSharingOpen(true)}
             className={cn("relative", blok.sharing && "text-foreground")}
-            title={blok.sharing ? `Shared with ${roomPeople.length} ${roomPeople.length === 1 ? "person" : "people"}` : "Share this room with people"}
+            title={blok.sharing ? `Dibagikan ke ${roomPeople.length} orang` : "Bagikan ruang ini"}
           >
             <UserPlus size={16} />
             {knocking > 0 && (
@@ -658,7 +658,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             variant="ghost"
             size="icon"
             onClick={() => setShowRoutines(true)}
-            title="Routines this room runs on a schedule"
+            title="Rutinitas terjadwal untuk ruang ini"
           >
             <CalendarClock size={16} />
           </Button>
@@ -666,7 +666,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             variant="ghost"
             size="icon"
             onClick={saveToLibrary}
-            title="Save this team to your library"
+            title="Simpan tim ini ke pustaka"
           >
             {justSaved ? <Check size={16} className="text-success" /> : <BookmarkPlus size={16} />}
           </Button>
@@ -674,7 +674,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             variant="ghost"
             size="icon"
             onClick={exportManifest}
-            title="Export this team as a file"
+            title="Ekspor tim ini sebagai file"
           >
             <Download size={16} />
           </Button>
@@ -685,8 +685,8 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             className={cn(blok.leadOnly && "bg-accent text-foreground")}
             title={
               blok.leadOnly
-                ? "Lead-only is on: unaddressed messages wake just the most senior agent"
-                : "Everyone answers unaddressed messages. Click so only the most senior does"
+                ? "Mode agen utama aktif: pesan tanpa tujuan hanya membangunkan agen paling senior"
+                : "Semua agen menjawab pesan tanpa tujuan. Ketuk agar hanya agen paling senior yang menjawab"
             }
           >
             <Crown size={16} />
@@ -699,8 +699,8 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
             className={cn(lens === "forum" && "bg-accent text-foreground")}
             title={
               lens === "stream"
-                ? "Read it as topics: replies gathered under what they answer"
-                : "Read it as it happened, in order"
+                ? "Baca sebagai topik: balasan dikumpulkan di bawah pesan yang dijawab"
+                : "Baca sesuai urutan percakapan"
             }
           >
             {lens === "stream" ? <MessagesSquare size={16} /> : <Rows3 size={16} />}
@@ -710,7 +710,7 @@ export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: ()
               variant="ghost"
               size="icon"
               onClick={() => setClosing(true)}
-              title="Archive or delete this room"
+              title="Arsipkan atau hapus ruang ini"
             >
               <Trash2 size={16} />
             </Button>
