@@ -23,6 +23,7 @@ test("Faable wrapper restarts one crashed core locally before recycling the cont
   assert.match(web, /function scheduleCoreRestart\(reason\)/);
   assert.match(web, /coreRestartHistory\.length >= 3/);
   assert.match(web, /core stopped unexpectedly; restarting/);
-  assert.match(web, /child\.once\('exit',[\s\S]*?scheduleCoreRestart/);
+  assert.match(web, /const gone = \(reason\) => \{[\s\S]*?scheduleCoreRestart\(reason\)/);
+  assert.match(web, /child\.once\('exit', \(code, signal\) => gone/);
   assert.doesNotMatch(web, /child\.on\('exit', \(code\) => void stop/);
 });
