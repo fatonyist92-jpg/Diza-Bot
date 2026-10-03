@@ -1,0 +1,107 @@
+name: DIZA verify Engine live once
+
+on:
+  push:
+    branches:
+      - verify-engine-live-20261003
+    paths:
+      - ".github/workflows/verify-engine-live-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+
+      - name: Wait for merged Engine fix to be live
+        run: |
+          target="79cc9b9"
+          ready=0
+          for i in $(seq 1 60); do
+            deployments="$(faable deploy deployments 2>&1 || true)"
+            echo "$deployments"
+            if printf '%s\n' "$deployments" | grep -E "READY.*$target.*live" >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 10
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "TARGET_NOT_LIVE"
+            exit 1
+          fi
+
+      - name: Verify Engine API, Codex and persistence
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          async function get(path) {
+            const r = await fetch(base + path, { headers: { accept: "application/json" } });
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            return { status: r.status, body, text };
+          }
+
+          let snapshot = null;
+          for (let attempt = 0; attempt < 12; attempt++) {
+            const [health, providers, instances, config] = await Promise.all([
+              get("/healthz"),
+              get("/api/providers"),
+              get("/api/instances"),
+              get("/api/config"),
+            ]);
+            if (
+              health.status === 200 && health.body?.ok === true &&
+              providers.status === 200 && Array.isArray(providers.body?.providers) && providers.body.providers.length > 0 &&
+              instances.status === 200 && Array.isArray(instances.body?.instances) && instances.body.instances.length > 0 &&
+              config.status === 200
+            ) {
+              snapshot = { health, providers, instances, config, attempt };
+              break;
+            }
+            if (attempt < 11) await sleep(1500);
+          }
+          if (!snapshot) throw new Error("Engine API did not recover within retry window");
+
+          const codexProvider = snapshot.providers.body.providers.find(p => p.kind === "codex");
+          const codex = snapshot.instances.body.instances.find(i => i.instanceId === "codex");
+          const engine = snapshot.config.body?.engine;
+          if (!codexProvider?.connected || codexProvider?.needsSignIn) {
+            throw new Error("Codex provider is not connected/authenticated");
+          }
+          if (codex?.snapshot?.state !== "available" || codex?.snapshot?.authenticated !== true) {
+            throw new Error("Codex instance is not authenticated and available");
+          }
+          if (engine?.instanceId !== "codex" || engine?.model !== "gpt-5.6-sol") {
+            throw new Error("Global engine is not Codex GPT-5.6 Sol");
+          }
+          if (snapshot.health.body?.persistence?.ready !== true) {
+            throw new Error("Persistence is not ready");
+          }
+          console.log("ENGINE_LIVE_PASS", JSON.stringify({
+            attempt: snapshot.attempt + 1,
+            providerCount: snapshot.providers.body.providers.length,
+            instanceCount: snapshot.instances.body.instances.length,
+            codexAuthenticated: true,
+            engine,
+            persistenceReady: true
+          }));
+          NODE
+
+      - name: Final Faable status
+        run: |
+          faable deploy status || true
+          faable deploy deployments || true
