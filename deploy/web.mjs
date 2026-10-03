@@ -307,4 +307,9 @@ async function stop(code = 0) {
     process.exit(code);
   }
 }
-for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => void stop());
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.on(signal, () => {
+    console.warn(`[diza-web] received ${signal}; shutting down gracefully`);
+    void stop();
+  });
+}
