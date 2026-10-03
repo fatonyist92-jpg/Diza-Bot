@@ -329,7 +329,7 @@ export function NewRoomDialog() {
             Batal
           </Button>
           <Button onClick={create} disabled={picked.length < 2} className="flex-1">
-            Create room
+            Buat ruang
           </Button>
         </div>
 
