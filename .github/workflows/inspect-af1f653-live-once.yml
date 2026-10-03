@@ -1,0 +1,29 @@
+name: DIZA inspect af1f653 live once
+
+on:
+  push:
+    branches:
+      - inspect-af1f653-live-20261003
+    paths:
+      - ".github/workflows/inspect-af1f653-live-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+      - name: Status
+        run: faable deploy status || true
+      - name: Deployment
+        run: faable deploy inspect deployment_6ac0839f4cb699c62e780bad || true
+      - name: Runtime logs
+        run: faable deploy logs || true
