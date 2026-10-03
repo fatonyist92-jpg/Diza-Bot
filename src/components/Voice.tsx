@@ -143,10 +143,10 @@ export function VoiceCard({ bot }: { bot: Bot }) {
             {!configured
               ? "This device/browser has no system speech output."
               : legacy
-                ? "A legacy paid voice is saved but disabled. Choose a device voice for FREE_ONLY mode."
+                ? "Voice berbayar lama tersimpan tetapi dinonaktifkan. Pilih voice perangkat untuk mode GRATIS."
                 : bot.voice
                   ? `Speaks as ${bot.voice.name ?? bot.voice.id} · local/device voice`
-                  : "Choose a device voice. No paid speech API is used."}
+                  : "Pilih voice perangkat. Tidak ada API suara berbayar yang digunakan."}
           </div>
         </div>
         <span className="text-[12px] text-muted-foreground">{open ? "Hide" : "Choose"}</span>
@@ -160,7 +160,7 @@ export function VoiceCard({ bot }: { bot: Bot }) {
                 <Volume2 size={13} />
                 {previewing ? "Playing…" : "Preview"}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => choose(null)}>Remove voice</Button>
+              <Button size="sm" variant="ghost" onClick={() => choose(null)}>Hapus voice</Button>
               <label className="ml-auto flex items-center gap-1.5 text-[12px] text-muted-foreground">
                 <input
                   type="checkbox"
@@ -309,7 +309,7 @@ export function CallOverlay({ bot, onClose }: { bot: Bot; onClose: () => void })
     setCallState("speaking");
     const playback = playSystemSpeech(reply.text, voiceId(bot));
     if (!playback) {
-      setError("No local speech output is available; the reply is still in chat.");
+      setError("Output suara lokal tidak tersedia; balasan tetap ada di chat.");
       if (!mutedRef.current) listen();
       else setCallState("idle");
       return;
