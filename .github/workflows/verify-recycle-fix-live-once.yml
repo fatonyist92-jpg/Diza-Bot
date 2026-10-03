@@ -1,0 +1,139 @@
+name: DIZA verify recycle fix live once
+
+on:
+  push:
+    branches:
+      - verify-recycle-fix-live-20261003
+    paths:
+      - ".github/workflows/verify-recycle-fix-live-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+
+      - name: Wait for target deployment
+        run: |
+          target="47b6953"
+          ready=0
+          for i in $(seq 1 70); do
+            deployments="$(faable deploy deployments 2>&1 || true)"
+            echo "$deployments"
+            if printf '%s\n' "$deployments" | grep -E "READY.*$target.*live" >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 10
+          done
+          test "$ready" -eq 1
+
+      - name: Verify live Codex and persistence
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          async function get(path) {
+            const r = await fetch(base + path, { headers: { accept: "application/json" } });
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            if (!r.ok) throw new Error(path + " HTTP " + r.status + ": " + text.slice(0,400));
+            return body;
+          }
+          const [health, config, providers, instances] = await Promise.all([
+            get("/healthz"), get("/api/config"), get("/api/providers"), get("/api/instances")
+          ]);
+          const codexProvider = providers.providers?.find(p => p.kind === "codex");
+          const codex = instances.instances?.find(i => i.instanceId === "codex");
+          if (health?.ok !== true || health?.persistence?.ready !== true) throw new Error("persistence not ready");
+          if (config?.engine?.instanceId !== "codex" || config?.engine?.model !== "gpt-5.6-sol") throw new Error("engine drifted");
+          if (!codexProvider?.connected || codexProvider?.needsSignIn) throw new Error("Codex provider not connected");
+          if (codex?.snapshot?.authenticated !== true) throw new Error("Codex instance not authenticated");
+          console.log("BASELINE_PASS", JSON.stringify({engine:config.engine,persistence:true,codex:true}));
+          NODE
+
+      - name: Exercise three real Codex turns
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base = process.env.LIVE_URL;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          async function json(path, init) {
+            const r = await fetch(base + path, init);
+            const text = await r.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch {}
+            if (!r.ok) throw new Error(path + " HTTP " + r.status + ": " + text.slice(0,500));
+            return body;
+          }
+          const created = await json("/api/bots", {
+            method:"POST",
+            headers:{"content-type":"application/json"},
+            body:JSON.stringify({name:"Recycle Probe",title:"Temporary verification",description:"Reply concisely. Do not use tools."})
+          });
+          const botId = created?.bot?.id;
+          if (!botId) throw new Error("probe bot create failed");
+          try {
+            for (let turn=1; turn<=3; turn++) {
+              const before = await json("/api/bots?messages=100");
+              const bot = before.bots?.find(b => b.id === botId);
+              const seen = new Set((bot?.messages ?? []).map(m => m.id));
+              const marker = "DIZA_RECYCLE_OK_" + turn + "_" + Date.now();
+              const sent = await fetch(base + "/api/bots/" + botId + "/messages", {
+                method:"POST",
+                headers:{"content-type":"application/json"},
+                body:JSON.stringify({text:"Balas tepat dengan teks ini: " + marker})
+              });
+              if (!sent.ok) throw new Error("send failed " + sent.status + ": " + await sent.text());
+              let reply = null;
+              for (let i=0; i<75; i++) {
+                await sleep(2000);
+                const latest = await json("/api/bots?messages=120");
+                const current = latest.bots?.find(b => b.id === botId);
+                reply = (current?.messages ?? []).find(m => !seen.has(m.id) && m.role === "bot" && m.kind === "text" && String(m.text ?? "").includes(marker));
+                const busy = (current?.tasks ?? []).some(t => t.state === "working");
+                if (reply && !busy) break;
+              }
+              if (!reply) throw new Error("turn " + turn + " did not finish");
+              const health = await json("/healthz");
+              if (health?.ok !== true || health?.persistence?.ready !== true) throw new Error("health dropped after turn " + turn);
+              console.log("TURN_PASS", turn);
+            }
+          } finally {
+            await fetch(base + "/api/bots/" + botId + "?forget=1", {method:"DELETE"}).catch(()=>{});
+          }
+          NODE
+
+      - name: Observe health through handover window
+        env:
+          LIVE_URL: https://diza-bot-5eoll.faable.link
+        run: |
+          node <<'NODE'
+          const base=process.env.LIVE_URL;
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          for(let i=0;i<20;i++){
+            const r=await fetch(base+"/healthz");
+            const body=await r.json().catch(()=>null);
+            if(!r.ok || body?.ok!==true || body?.persistence?.ready!==true) throw new Error("health sample "+(i+1)+" failed");
+            await sleep(3000);
+          }
+          console.log("HEALTH_WINDOW_PASS");
+          NODE
+
+      - name: Inspect persistence and lifecycle logs
+        run: |
+          faable deploy status
+          faable deploy deployments
+          faable deploy logs | tail -n 500
