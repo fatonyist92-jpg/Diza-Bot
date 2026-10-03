@@ -1,5 +1,5 @@
 name: DIZA Codex restore session
-# retry after Faable reached READY
+# direct device login after Faable READY
 
 on:
   push:
@@ -14,9 +14,9 @@ permissions:
 jobs:
   start-codex-login:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     steps:
-      - name: Wait for Faable live handoff and start Codex device login
+      - name: Start Codex ChatGPT device login
         env:
           LIVE_URL: https://diza-bot-5eoll.faable.link
         run: |
@@ -24,9 +24,9 @@ jobs:
           const base = process.env.LIVE_URL;
           const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-          async function request(path, init = {}) {
+          async function request(path, init = {}, timeoutMs = 60000) {
             const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 15000);
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
               const response = await fetch(base + path, {
                 ...init,
@@ -46,55 +46,33 @@ jobs:
             }
           }
 
-          let ready = false;
-          let last = null;
-          for (let attempt = 1; attempt <= 72; attempt++) {
+          let healthy = false;
+          for (let attempt = 1; attempt <= 36; attempt++) {
             try {
-              const [health, instances, providers] = await Promise.all([
-                request("/healthz"),
-                request("/api/instances"),
-                request("/api/providers"),
-              ]);
-              last = {
-                health: health.status,
-                instances: instances.status,
-                providers: providers.status,
-              };
+              const health = await request("/healthz", {}, 15000);
               if (
                 health.status === 200 &&
                 health.body?.ok === true &&
                 health.body?.persistence?.enabled === true &&
-                health.body?.persistence?.ready === true &&
-                instances.status === 200 &&
-                providers.status === 200
+                health.body?.persistence?.ready === true
               ) {
-                const codex = Array.isArray(instances.body?.instances)
-                  ? instances.body.instances.find((row) => row.instanceId === "codex")
-                  : null;
-                if (!codex) throw new Error("Codex instance is missing from live");
-                console.log("LIVE_READY", JSON.stringify({
-                  persistence: health.body.persistence,
-                  codex: {
-                    state: codex.snapshot?.state ?? null,
-                    authenticated: codex.snapshot?.authenticated ?? null,
-                    version: codex.snapshot?.version ?? null,
-                    defaultModel: codex.models?.default ?? null,
-                  },
-                }));
-                ready = true;
+                healthy = true;
+                console.log("LIVE_PERSISTENCE_READY");
                 break;
               }
-            } catch (error) {
-              last = { error: error instanceof Error ? error.message : String(error) };
-            }
+            } catch {}
             await sleep(5000);
           }
-          if (!ready) throw new Error("Faable live handoff did not settle: " + JSON.stringify(last));
+          if (!healthy) throw new Error("Faable live persistence did not become ready");
 
-          const config = await request("/api/config");
-          console.log("CURRENT_ENGINE", JSON.stringify(config.body?.engine ?? null));
+          try {
+            const config = await request("/api/config", {}, 30000);
+            console.log("CURRENT_ENGINE=" + JSON.stringify(config.body?.engine ?? null));
+          } catch (error) {
+            console.log("CURRENT_ENGINE_CHECK_SKIPPED=" + (error instanceof Error ? error.message : String(error)));
+          }
 
-          const started = await request("/api/providers/codex/login", { method: "POST", body: "{}" });
+          const started = await request("/api/providers/codex/login", { method: "POST", body: "{}" }, 90000);
           if (started.status !== 200) {
             throw new Error("Codex login start failed HTTP " + started.status + ": " + JSON.stringify(started.body));
           }
