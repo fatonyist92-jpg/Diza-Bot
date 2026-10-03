@@ -335,7 +335,7 @@ export function Composer({
             className="shrink-0"
             onClick={() => dispatch({ type: "restoreBot", botId: bot.id })}
           >
-            Restore
+            Pulihkan
           </Button>
         </div>
       </div>
@@ -359,7 +359,7 @@ export function Composer({
               void api(`/api/bots/${bot.id}/wheel`, { method: "DELETE" }).catch(() => {});
             }}
           >
-            Hand it back
+            Kembalikan kontrol
           </Button>
         </div>
       </div>
@@ -415,13 +415,13 @@ export function Composer({
                 <FileIcon size={14} className="shrink-0 text-muted-foreground" />
               )}
               <span className="min-w-0 flex-1 truncate">
-                {a.kind === "paste" ? `Pasted text, ${a.lines} lines` : a.name}
+                {a.kind === "paste" ? `Teks ditempel, ${a.lines} baris` : a.name}
               </span>
               <span className="shrink-0 text-muted-foreground">{formatBytes(a.bytes)}</span>
               <button
                 onClick={() => setAttachments((cur) => cur.filter((x) => x.id !== a.id))}
                 className="shrink-0 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label={`Remove ${a.kind === "paste" ? "pasted text" : a.name}`}
+                aria-label={`Hapus ${a.kind === "paste" ? "teks ditempel" : a.name}`}
               >
                 <X size={12} />
               </button>
