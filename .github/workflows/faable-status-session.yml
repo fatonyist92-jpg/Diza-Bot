@@ -1,0 +1,32 @@
+name: DIZA Faable status session
+
+on:
+  push:
+    branches:
+      - restore-faable-codex-lock-20261003
+    paths:
+      - ".github/workflows/faable-status-session.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+      - name: Status
+        run: |
+          faable deploy status || true
+          echo "=== DEPLOYMENTS ==="
+          faable deploy deployments || true
+          echo "=== BUILD LOG ==="
+          faable deploy logs --build || true
+          echo "=== RUNTIME LOG ==="
+          faable deploy logs || true
