@@ -1,0 +1,29 @@
+name: DIZA analyze APP_UNREACHABLE once
+
+on:
+  push:
+    branches:
+      - analyze-app-unreachable-20261003
+    paths:
+      - ".github/workflows/analyze-app-unreachable-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @faable/faable@latest
+      - name: Status
+        run: faable deploy status || true
+      - name: Deployments
+        run: faable deploy deployments || true
+      - name: Runtime logs
+        run: faable deploy logs || true
