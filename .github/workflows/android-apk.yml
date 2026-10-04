@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   apk:
-    name: Build DIZA debug APK
+    name: Build DIZA APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,11 +42,11 @@ jobs:
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build APK
-        run: gradle -p android :app:assembleDebug --stacktrace
+        run: gradle -p android :app:assembleRelease --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: DIZA-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: DIZA-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

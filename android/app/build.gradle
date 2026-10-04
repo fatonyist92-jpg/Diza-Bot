@@ -19,7 +19,9 @@ android {
             debuggable true
         }
         release {
+            debuggable false
             minifyEnabled false
+            signingConfig signingConfigs.debug
         }
     }
 
