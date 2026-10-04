@@ -32,7 +32,7 @@ test("agent surfaces no longer expose an engine picker", () => {
   assert.doesNotMatch(chat, /ModelPicker|GlobalEnginePicker/);
   assert.doesNotMatch(agentSettings, /ModelPicker|GlobalEnginePicker/);
   assert.match(engines, /GlobalEnginePicker/);
-  assert.match(engines, /Satu pilihan untuk semua agent/);
+  assert.match(engines, /Hanya satu engine yang aktif untuk semua Agen dan Ruang/);
 });
 
 test("the Settings picker writes only the workspace config", () => {
@@ -53,7 +53,15 @@ test("legacy per-agent model changes are promoted to the whole workspace", () =>
 test("global engine routes reject unavailable engines and unknown models", () => {
   assert.match(server, /const snapshot = await instance\.snapshot\(\)/);
   assert.match(server, /snapshot\.state !== "available" \|\| snapshot\.authenticated === false/);
-  assert.match(server, /that model is not available on the selected engine/);
+  assert.match(server, /model itu tidak tersedia pada engine yang dipilih/);
   const snapshots = server.match(/const snapshot = await instance\.snapshot\(\)/g) ?? [];
   assert.ok(snapshots.length >= 2, "both Settings and legacy global-engine routes must validate readiness");
+});
+
+
+test("DIZA uses exactly one active inference engine and never silently falls back", () => {
+  assert.match(server, /const DIZA_SINGLE_ENGINE = true/);
+  assert.match(server, /if \(!DIZA_SINGLE_ENGINE && !selectedInstance\)/);
+  assert.match(server, /!DIZA_SINGLE_ENGINE &&\s*opts\.intelligenceMode/);
+  assert.match(engines, /Mengaktifkan engine lain otomatis menonaktifkan engine sebelumnya/);
 });

@@ -279,7 +279,7 @@ export function AutomationsPanel({ onClose }: { onClose: () => void }) {
               </button>
             ))}
           </div>
-          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}>
+          <Button variant="ghost" size="icon" aria-label="Tutup" onClick={onClose}>
             <X size={17} />
           </Button>
         </div>
@@ -345,7 +345,7 @@ export function AutomationsPanel({ onClose }: { onClose: () => void }) {
               </div>
               <Button size="sm" onClick={() => setCreating({})}>
                 <Plus size={13} />
-                New routine
+                Rutinitas baru
               </Button>
             </div>
           </div>
@@ -597,7 +597,7 @@ function EmptyRhythm({ onCreate }: { onCreate: () => void }) {
       </div>
       <Button onClick={onCreate}>
         <Plus size={14} />
-        Create your first routine
+        Buat rutinitas pertama
       </Button>
     </div>
   );
@@ -850,7 +850,7 @@ function RoutineDetails({
             }
           >
             <Trash2 size={12} />
-            Delete
+            Hapus
           </Button>
         </div>
         <RunHistory runs={routine.runs} />
@@ -895,7 +895,7 @@ function WebhooksTab({
     const body = bot ? { botId: targetId } : { blokId: targetId };
     api("/api/webhooks", {
       method: "POST",
-      body: JSON.stringify({ ...body, name: `${targetOf(targetId)?.name ?? "New"} webhook` }),
+      body: JSON.stringify({ ...body, name: `${targetOf(targetId)?.name ?? "Baru"} webhook` }),
     })
       .then((r) => {
         load();
@@ -920,7 +920,7 @@ function WebhooksTab({
             }}
             className="rounded-lg border border-input bg-background px-1.5 py-1 text-[11.5px] text-muted-foreground outline-none"
           >
-            <option value="">+ New</option>
+            <option value="">+ Baru</option>
             {bots.map((b) => (
               <option key={b.id} value={b.id}>for {b.name}</option>
             ))}
@@ -1014,7 +1014,7 @@ function WebhooksTab({
                   Tasks go to {target?.name ?? "?"}
                   {" · "}
                   {selected.firedCount
-                    ? `fired ${selected.firedCount} ${selected.firedCount === 1 ? "time" : "times"}, last ${new Date(selected.lastFiredAt ?? 0).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+                    ? `dipicu ${selected.firedCount} kali, terakhir ${new Date(selected.lastFiredAt ?? 0).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
                     : "never fired"}
                 </div>
               </div>
@@ -1046,7 +1046,7 @@ function WebhooksTab({
                       .catch((e) => setError(e.message));
                   }}
                 >
-                  New URL
+                  URL baru
                 </Button>
               </div>
               <div className="relative mt-2 rounded-xl bg-foreground/[0.04] p-3 pr-11">
@@ -1060,7 +1060,7 @@ function WebhooksTab({
                     setTimeout(() => setCopied(false), 1400);
                   }}
                   className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  title="Copy URL"
+                  title="Salin URL"
                 >
                   {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
                 </button>
@@ -1116,13 +1116,13 @@ function WebhooksTab({
                 }
               >
                 <Trash2 size={12} />
-                Delete
+                Hapus
               </Button>
             </div>
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">
-            {hooks === null ? "Loading…" : "Pick a webhook, or create one for an agent."}
+            {hooks === null ? "Memuat…" : "Pilih webhook, atau buat webhook baru untuk Agen."}
           </div>
         )}
       </div>

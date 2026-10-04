@@ -218,7 +218,7 @@ export function ActivityPanel() {
                 </button>
               ))}
             </div>
-            <Button variant="ghost" size="icon" aria-label="Close" onClick={close}>
+            <Button variant="ghost" size="icon" aria-label="Tutup" onClick={close}>
               <X size={17} />
             </Button>
           </div>
@@ -379,12 +379,12 @@ export function ActivityPanel() {
                   actions={
                     <>
                       <Button variant="secondary" size="sm" onClick={() => goTo(row)}>
-                        Open
+                        Buka
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title="Stop this turn"
+                        title="Hentikan proses ini"
                         disabled={busy === row.threadId}
                         onClick={() => stop(row)}
                       >

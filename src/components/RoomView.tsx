@@ -3,7 +3,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.mjs";
 import ArrowUp from "lucide-react/dist/esm/icons/arrow-up.mjs";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
+import Camera from "lucide-react/dist/esm/icons/camera.mjs";
+import ImageIcon from "lucide-react/dist/esm/icons/image.mjs";
+import Video from "lucide-react/dist/esm/icons/video.mjs";
 import FileIcon from "lucide-react/dist/esm/icons/file.mjs";
 import X from "lucide-react/dist/esm/icons/x.mjs";
 import BookmarkPlus from "lucide-react/dist/esm/icons/bookmark-plus.mjs";
@@ -29,6 +33,7 @@ import { ArtifactCard } from "./Artifacts";
 import {
   ForwardDialog,
   MessageActionBar,
+  MobileMessageMenu,
   Reactions,
   ReplyChip,
   ReplyContext,
@@ -175,8 +180,24 @@ function RoomMessage({
 }) {
   const names = [...members.map((m) => m.name), ...people.map((p) => p.name), ...(ownerName ? [ownerName] : [])];
   const speaker = message.from ? members.find((m) => m.id === message.from) : null;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const openMobileMenu = (event: React.MouseEvent) => {
+    if (!message.text || message.deleted) return;
+    event.preventDefault();
+    setMobileMenuOpen(true);
+  };
+  const mobileActions = (author: string) =>
+    mobileMenuOpen ? (
+      <MobileMessageMenu
+        message={message}
+        author={author}
+        onReply={onReply}
+        onDelete={() => deleteRoomMessage(roomId, message.id)}
+        onClose={() => setMobileMenuOpen(false)}
+      />
+    ) : null;
   const nameOfReactor = (id: string) =>
-    id === "user" ? "You" : (members.find((m) => m.id === id)?.name ?? "An agent");
+    id === "user" ? "Anda" : (members.find((m) => m.id === id)?.name ?? "Agen");
 
   const verbs = (author: string) => (
     <MessageActionBar
@@ -194,7 +215,7 @@ function RoomMessage({
     return (
       <div className={cn("flex", message.role === "user" ? "justify-end" : "justify-start pl-11")}>
         <div className="rounded-2xl border border-dashed px-3 py-1.5 text-[13px] italic text-muted-foreground">
-          Message taken back
+          Pesan telah dihapus
         </div>
       </div>
     );
@@ -202,9 +223,9 @@ function RoomMessage({
 
   // somebody else in a shared room: on the left, named, like an agent
   if (message.role === "user" && message.author) {
-    const who = people.find((p) => p.id === message.author)?.name ?? "A former member";
+    const who = people.find((p) => p.id === message.author)?.name ?? "Anggota lama";
     return (
-      <div className="flex gap-2.5">
+      <div className="flex gap-2.5" onContextMenu={openMobileMenu}>
         <div className="w-8 shrink-0 pt-0.5">{showSpeaker && <PersonDot name={who} />}</div>
         <div className="min-w-0 flex-1">
           {showSpeaker && (
@@ -221,14 +242,15 @@ function RoomMessage({
             {verbs(who)}
           </div>
         </div>
+        {mobileActions(who)}
       </div>
     );
   }
 
   if (message.role === "user") {
     return (
-      <div className="group flex items-center justify-end gap-1.5">
-        {verbs("You")}
+      <div className="group flex items-center justify-end gap-1.5" onContextMenu={openMobileMenu}>
+        {verbs("Anda")}
         <div className="flex max-w-full flex-col items-end sm:max-w-[68%]">
           <div className="max-w-full whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3.5 py-2 text-[14.5px] leading-relaxed break-words text-primary-foreground [overflow-wrap:anywhere]">
             {message.replyTo && <ReplyContext replyTo={message.replyTo} onDark />}
@@ -236,7 +258,7 @@ function RoomMessage({
             {message.queued && (
               <div className="mt-1 flex items-center gap-1 text-[10.5px] font-medium opacity-70" role="status">
                 <span className="inline-block size-1.5 animate-pulse rounded-full bg-current" />
-                Queued, sends when this turn finishes
+                Masuk antrean, dikirim setelah proses ini selesai
               </div>
             )}
           </div>
@@ -246,6 +268,7 @@ function RoomMessage({
             nameOf={nameOfReactor}
           />
         </div>
+        {mobileActions("Anda")}
       </div>
     );
   }
@@ -296,7 +319,7 @@ function RoomMessage({
   }
 
   return (
-    <div className="flex gap-2.5">
+    <div className="flex gap-2.5" onContextMenu={openMobileMenu}>
       <div className="w-8 shrink-0 pt-0.5">
         {showSpeaker && (
           <AgentAvatar bot={speaker} size={30} />
@@ -329,16 +352,21 @@ function RoomMessage({
           </div>
         )}
       </div>
+      {mobileActions(speaker.name)}
     </div>
   );
 }
 
-export function RoomView({ blok }: { blok: Blok }) {
+export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: () => void }) {
   const { state, dispatch } = useStore();
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachNotice, setAttachNotice] = useState<string | null>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
+  const imagePickerRef = useRef<HTMLInputElement>(null);
+  const cameraPickerRef = useRef<HTMLInputElement>(null);
+  const videoPickerRef = useRef<HTMLInputElement>(null);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   // Typing @ opens a list of the people in this room. Naming somebody is
   // how a room decides who answers, so guessing the spelling should
   // never be part of it: the list filters as you type, Tab or Enter
@@ -421,7 +449,7 @@ export function RoomView({ blok }: { blok: Blok }) {
     mentionAt === null ? null : text.slice(mentionAt + 1, inputRef.current?.selectionStart ?? text.length);
   const mentionable: Array<{ id: string; name: string; title?: string; bot?: Bot }> = [
     ...answering.map((b) => ({ id: b.id, name: b.name, title: b.title, bot: b })),
-    ...roomPeople.map((p) => ({ id: p.id, name: p.name, title: p.role === "viewer" ? "Viewer" : "Collaborator" })),
+    ...roomPeople.map((p) => ({ id: p.id, name: p.name, title: p.role === "viewer" ? "Pemirsa" : "Kolaborator" })),
   ];
   const mentionMatches =
     mentionQuery === null || /\s/.test(mentionQuery)
@@ -573,6 +601,17 @@ export function RoomView({ blok }: { blok: Blok }) {
     <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <div className="titlebar-drag flex h-[52px] shrink-0 items-center justify-between gap-2 border-b px-3 md:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
+          {onMobileBack && (
+            <button
+              type="button"
+              onClick={onMobileBack}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground active:bg-accent sm:hidden"
+              aria-label="Kembali"
+              title="Kembali"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <Users size={15} />
           </span>
@@ -581,14 +620,14 @@ export function RoomView({ blok }: { blok: Blok }) {
             <span className="block truncate text-[11.5px] text-muted-foreground">
               {answering.map((m) => m.name).join(", ")}
               {answering.length < members.length &&
-                ` · ${members.length - answering.length} archived`}
+                ` · ${members.length - answering.length} diarsipkan`}
             </span>
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden items-center -space-x-1.5 sm:flex">
             {answering.map((m) => (
-              <span key={m.id} title={m.id === lead?.id ? `${m.name} (most senior)` : m.name}>
+              <span key={m.id} title={m.id === lead?.id ? `${m.name} (paling senior)` : m.name}>
                 <AgentAvatar bot={m} size={24} className="rounded-lg ring-2 ring-background" />
               </span>
             ))}
@@ -598,7 +637,7 @@ export function RoomView({ blok }: { blok: Blok }) {
             size="icon"
             onClick={() => setSharingOpen(true)}
             className={cn("relative", blok.sharing && "text-foreground")}
-            title={blok.sharing ? `Shared with ${roomPeople.length} ${roomPeople.length === 1 ? "person" : "people"}` : "Share this room with people"}
+            title={blok.sharing ? `Dibagikan ke ${roomPeople.length} orang` : "Bagikan ruang ini"}
           >
             <UserPlus size={16} />
             {knocking > 0 && (
@@ -619,7 +658,7 @@ export function RoomView({ blok }: { blok: Blok }) {
             variant="ghost"
             size="icon"
             onClick={() => setShowRoutines(true)}
-            title="Routines this room runs on a schedule"
+            title="Rutinitas terjadwal untuk ruang ini"
           >
             <CalendarClock size={16} />
           </Button>
@@ -627,7 +666,7 @@ export function RoomView({ blok }: { blok: Blok }) {
             variant="ghost"
             size="icon"
             onClick={saveToLibrary}
-            title="Save this team to your library"
+            title="Simpan tim ini ke pustaka"
           >
             {justSaved ? <Check size={16} className="text-success" /> : <BookmarkPlus size={16} />}
           </Button>
@@ -635,7 +674,7 @@ export function RoomView({ blok }: { blok: Blok }) {
             variant="ghost"
             size="icon"
             onClick={exportManifest}
-            title="Export this team as a file"
+            title="Ekspor tim ini sebagai file"
           >
             <Download size={16} />
           </Button>
@@ -646,8 +685,8 @@ export function RoomView({ blok }: { blok: Blok }) {
             className={cn(blok.leadOnly && "bg-accent text-foreground")}
             title={
               blok.leadOnly
-                ? "Lead-only is on: unaddressed messages wake just the most senior agent"
-                : "Everyone answers unaddressed messages. Click so only the most senior does"
+                ? "Mode agen utama aktif: pesan tanpa tujuan hanya membangunkan agen paling senior"
+                : "Semua agen menjawab pesan tanpa tujuan. Ketuk agar hanya agen paling senior yang menjawab"
             }
           >
             <Crown size={16} />
@@ -660,8 +699,8 @@ export function RoomView({ blok }: { blok: Blok }) {
             className={cn(lens === "forum" && "bg-accent text-foreground")}
             title={
               lens === "stream"
-                ? "Read it as topics: replies gathered under what they answer"
-                : "Read it as it happened, in order"
+                ? "Baca sebagai topik: balasan dikumpulkan di bawah pesan yang dijawab"
+                : "Baca sesuai urutan percakapan"
             }
           >
             {lens === "stream" ? <MessagesSquare size={16} /> : <Rows3 size={16} />}
@@ -671,7 +710,7 @@ export function RoomView({ blok }: { blok: Blok }) {
               variant="ghost"
               size="icon"
               onClick={() => setClosing(true)}
-              title="Archive or delete this room"
+              title="Arsipkan atau hapus ruang ini"
             >
               <Trash2 size={16} />
             </Button>
@@ -700,7 +739,7 @@ export function RoomView({ blok }: { blok: Blok }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-[15px] font-semibold text-foreground">
-              Close {blok.name}?
+              Tutup {blok.name}?
             </div>
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               Archiving takes the room off your list and keeps everything: the transcript, the
@@ -713,7 +752,7 @@ export function RoomView({ blok }: { blok: Blok }) {
                   setClosing(false);
                 }}
               >
-                Archive room
+                Arsipkan ruang
               </Button>
               <Button
                 variant="secondary"
@@ -722,17 +761,17 @@ export function RoomView({ blok }: { blok: Blok }) {
                   // the second decision, in its own words, naming the room
                   if (
                     window.confirm(
-                      `Permanently delete ${blok.name} and its entire transcript?\n\nThis cannot be undone. Archive instead if you might want it back.`,
+                      `Hapus permanen ${blok.name} beserta seluruh percakapannya?\n\nTindakan ini tidak dapat dibatalkan. Pilih arsip jika mungkin ingin membukanya lagi.`,
                     )
                   ) {
                     dispatch({ type: "deleteRoom", blokId: blok.id });
                   }
                 }}
               >
-                Delete permanently
+                Hapus permanen
               </Button>
               <Button variant="ghost" onClick={() => setClosing(false)}>
-                Cancel
+                Batal
               </Button>
             </div>
           </div>
@@ -742,7 +781,7 @@ export function RoomView({ blok }: { blok: Blok }) {
       {lead && members.length > 1 && (
         <div className="flex items-center justify-center gap-1.5 border-b bg-muted/30 py-1.5 text-[11.5px] text-muted-foreground">
           <Crown size={11} />
-          {lead.name} is most senior here and has the final call
+          {lead.name} adalah agen paling senior di ruang ini
         </div>
       )}
 
@@ -775,7 +814,7 @@ export function RoomView({ blok }: { blok: Blok }) {
               onClick={showEarlier}
               className="mx-auto mt-3 rounded-full border px-3.5 py-1.5 text-[12px] text-muted-foreground transition-colors duration-150 hover:border-foreground/25 hover:text-foreground"
             >
-              Show earlier messages ({start} more)
+              Tampilkan pesan sebelumnya ({start} more)
             </button>
           )}
           {visibleMessages.map((m, i) => {
@@ -815,13 +854,13 @@ export function RoomView({ blok }: { blok: Blok }) {
           {working.map((m) => (
             <div key={m.id} className="flex animate-rise-in items-center gap-2.5 pl-11 text-[12px] text-muted-foreground">
               <Loader2 size={11} className="animate-spin" />
-              {m.name} is thinking
+              {m.name} sedang berpikir
             </div>
           ))}
           {typingNow && (
             <div className="flex items-center gap-2.5 pl-11 text-[12px] text-muted-foreground">
               <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground" />
-              {typingNow} is typing
+              {typingNow} sedang mengetik
             </div>
           )}
         </div>
@@ -881,21 +920,81 @@ export function RoomView({ blok }: { blok: Blok }) {
             type="file"
             multiple
             className="hidden"
-            accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm,video/quicktime,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept="text/plain,text/markdown,text/csv,application/json,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={(e) => {
               intake([...(e.target.files ?? [])]);
               e.target.value = "";
+              setAttachmentMenuOpen(false);
             }}
           />
-          <button
-            type="button"
-            onClick={() => pickerRef.current?.click()}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
-            aria-label="Pilih file"
-            title="Pilih file"
-          >
-            <Plus size={18} />
-          </button>
+          <input
+            ref={imagePickerRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              intake([...(e.target.files ?? [])]);
+              e.target.value = "";
+              setAttachmentMenuOpen(false);
+            }}
+          />
+          <input
+            ref={cameraPickerRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              intake([...(e.target.files ?? [])]);
+              e.target.value = "";
+              setAttachmentMenuOpen(false);
+            }}
+          />
+          <input
+            ref={videoPickerRef}
+            type="file"
+            accept="video/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              intake([...(e.target.files ?? [])]);
+              e.target.value = "";
+              setAttachmentMenuOpen(false);
+            }}
+          />
+          <div className="relative shrink-0">
+            {attachmentMenuOpen && (
+              <div className="absolute bottom-11 left-0 z-40 w-44 overflow-hidden rounded-2xl border bg-popover p-1.5 shadow-xl shadow-[--shadow-color]">
+                {[
+                  ["Foto", <ImageIcon key="foto" size={17} />, () => imagePickerRef.current?.click()],
+                  ["Kamera", <Camera key="kamera" size={17} />, () => cameraPickerRef.current?.click()],
+                  ["Video", <Video key="video" size={17} />, () => videoPickerRef.current?.click()],
+                  ["File", <FileIcon key="file" size={17} />, () => pickerRef.current?.click()],
+                ].map(([label, icon, run]) => (
+                  <button
+                    key={String(label)}
+                    type="button"
+                    onClick={() => (run as () => void)()}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13.5px] text-foreground transition-colors active:bg-accent"
+                  >
+                    <span className="text-muted-foreground">{icon as React.ReactNode}</span>
+                    <span>{String(label)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setAttachmentMenuOpen((open) => !open)}
+              className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+              aria-label="Lampirkan"
+              title="Lampirkan"
+              aria-expanded={attachmentMenuOpen}
+            >
+              <Plus size={18} />
+            </button>
+          </div>
           <textarea
             ref={inputRef}
             rows={1}
@@ -937,7 +1036,7 @@ export function RoomView({ blok }: { blok: Blok }) {
               }
             }}
             placeholder={
-              replyTo ? `Reply to ${replyTo.author}…` : `Message ${blok.name}, or @name someone`
+              replyTo ? `Balas ${replyTo.author}…` : `Pesan ke ${blok.name}, atau @nama seseorang`
             }
             className="w-full min-w-0 resize-none self-center bg-transparent py-1 text-[14.5px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
           />
@@ -950,7 +1049,7 @@ export function RoomView({ blok }: { blok: Blok }) {
                 ? "bg-primary text-primary-foreground hover:opacity-90"
                 : "cursor-not-allowed bg-muted text-muted-foreground/60",
             )}
-            title="Send"
+            title="Kirim"
           >
             <ArrowUp size={17} strokeWidth={2.4} />
           </button>
@@ -1000,7 +1099,7 @@ function RoomFolderButton({ blok }: { blok: Blok }) {
         variant="ghost"
         size="icon"
         onClick={() => setOpen(!open)}
-        title={shown ? `Shared folder: ${shown}` : "Shared working folder"}
+        title={shown ? `Folder bersama: ${shown}` : "Folder kerja bersama"}
       >
         <FolderOpen size={16} className={shown ? "text-brand-ink" : undefined} />
       </Button>
@@ -1013,7 +1112,7 @@ function RoomFolderButton({ blok }: { blok: Blok }) {
                 {blok.pinnedCwd ?? "Each member uses its own folder."}
               </div>
               <div className="mt-1.5 text-[11.5px] text-muted-foreground/70">
-                Fixed since this room first worked. Make a new room to work elsewhere.
+                Folder ini terkunci sejak Ruang mulai digunakan. Buat Ruang baru untuk bekerja di lokasi lain.
               </div>
             </>
           ) : (
@@ -1034,10 +1133,10 @@ function RoomFolderButton({ blok }: { blok: Blok }) {
               {error && <div className="mt-1.5 text-[12px] text-destructive">{error}</div>}
               <div className="mt-2 flex justify-end gap-1.5">
                 <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-                  Cancel
+                  Batal
                 </Button>
                 <Button size="sm" onClick={save}>
-                  Save
+                  Simpan
                 </Button>
               </div>
             </>
@@ -1086,7 +1185,7 @@ function RoomMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSave}>
           {justSaved ? <Check size={15} className="text-success" /> : <BookmarkPlus size={15} />}
-          Save this team
+          Simpan tim ini
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onExport}>
           <Download size={15} />
@@ -1098,7 +1197,7 @@ function RoomMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onClose}>
           <Trash2 size={15} />
-          Archive or delete
+          Arsipkan atau hapus
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

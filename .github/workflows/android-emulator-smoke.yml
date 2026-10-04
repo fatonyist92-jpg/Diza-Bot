@@ -1,0 +1,88 @@
+name: Android emulator smoke
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - "src/**"
+      - "deploy/**"
+      - "test/android-shell-contract.test.ts"
+      - ".github/workflows/android-emulator-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Boot DIZA APK in Android emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bundle DIZA UI into APK
+        shell: bash
+        run: |
+          VITE_ANDROID_BUNDLE=1 pnpm build
+          rm -rf android/app/src/main/assets/www
+          mkdir -p android/app/src/main/assets/www
+          cp -R dist/. android/app/src/main/assets/www/
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Build debug APK
+        run: gradle -p android :app:assembleDebug --stacktrace
+
+      - name: Boot emulator and launch DIZA
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            set -eu
+            adb logcat -c
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.diza.personalai/.MainActivity
+            sleep 8
+            adb shell dumpsys activity activities | grep -q "com.diza.personalai/.MainActivity"
+            adb shell pidof com.diza.personalai | grep -Eq "^[0-9]+"
+            adb logcat -d -s DIZA:I '*:S' | grep -q "DIZA_UI_READY"
+            adb exec-out screencap -p > /tmp/diza-emulator.png
+            adb shell input keyevent KEYCODE_BACK
+            sleep 2
+            adb shell dumpsys activity activities | grep -q "com.diza.personalai/.MainActivity"
+
+      - name: Upload emulator screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DIZA-emulator-smoke
+          path: /tmp/diza-emulator.png
+          if-no-files-found: ignore

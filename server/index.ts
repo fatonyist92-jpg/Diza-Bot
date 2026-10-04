@@ -257,6 +257,11 @@ import { speakable } from "./speech-text.ts";
 const PORT = Number(process.env.BLOKS_PORT || process.env.PORT || 8799);
 // Temporarily retired: media requests stay in normal chat/web tooling.
 const DIZA_IMAGINE_ACTIVE = false;
+/** DIZA mobile runs exactly one workspace engine at a time.
+ * Connected providers may stay signed in, but they are never used as an
+ * automatic fallback. Choosing another engine in Settings is the only way
+ * to switch inference providers. */
+const DIZA_SINGLE_ENGINE = true;
 const STATIC_DIR = process.env.BLOKS_STATIC_DIR || null;
 const MIME: Record<string, string> = {
   ".html": "text/html",
@@ -1452,6 +1457,7 @@ bus.subscribe((event: RuntimeEvent) => {
 
       const capacityRetry = capacityRetryTurns.get(event.threadId);
       const retryCapacity =
+        !DIZA_SINGLE_ENGINE &&
         event.ok === false &&
         Boolean(capacityRetry?.error) &&
         !capacityRetry?.hadEffects &&
@@ -2039,7 +2045,7 @@ async function startTurn(
       : null;
 
   let fallbackInstance = null as ReturnType<typeof registry.get>;
-  if (!selectedInstance) {
+  if (!DIZA_SINGLE_ENGINE && !selectedInstance) {
     const orderedIds = [
       ...fallbackOrder(bot.modelSelection.instanceId),
       ...registry.instances().map((candidate) => candidate.instanceId),
@@ -2067,7 +2073,11 @@ async function startTurn(
     : (fallbackInstance?.models.default ?? bot.modelSelection.model);
   if (!instance) {
     throw Object.assign(
-      new Error("Diza could not find an available AI engine for this turn. Try again after reconnecting a provider."),
+      new Error(
+        DIZA_SINGLE_ENGINE
+          ? "Engine aktif sedang tidak tersedia. Buka Pengaturan > Engine dan aktifkan engine lain."
+          : "DIZA tidak menemukan engine AI yang tersedia untuk giliran ini.",
+      ),
       { status: 409 },
     );
   }
@@ -2476,7 +2486,7 @@ async function startTurn(
       // Only a direct solo user turn may be replayed automatically after a
       // pure provider-capacity rejection. The user message is already on
       // disk, so a retry uses presetMessage and never duplicates it.
-      if (opts.intelligenceMode && !sharing) {
+      if (!DIZA_SINGLE_ENGINE && opts.intelligenceMode && !sharing) {
         capacityRetryTurns.set(task.id, {
           botId: bot.id,
           text,
@@ -5403,13 +5413,13 @@ const server = createServer(async (req, res) => {
           return json(res, 400, { error: "modelSelection must name an engine and model" });
         }
         const instance = registry.get(instanceId);
-        if (!instance) return json(res, 400, { error: "that engine is not available in this workspace" });
+        if (!instance) return json(res, 400, { error: "engine itu tidak tersedia di workspace ini" });
         const snapshot = await instance.snapshot();
         if (snapshot.state !== "available" || snapshot.authenticated === false) {
-          return json(res, 409, { error: snapshot.reason ?? "that engine is not ready" });
+          return json(res, 409, { error: snapshot.reason ?? "engine itu belum siap" });
         }
         if (!instance.models.options.some((option) => option.id === model)) {
-          return json(res, 400, { error: "that model is not available on the selected engine" });
+          return json(res, 400, { error: "model itu tidak tersedia pada engine yang dipilih" });
         }
         const selection = { instanceId, model };
         saveConfig({ engine: selection });
@@ -8978,7 +8988,7 @@ const server = createServer(async (req, res) => {
       let requestedEngine: { instanceId: string; model: string } | null = null;
       if (body.engine && typeof body.engine === "object" && !Array.isArray(body.engine)) {
         if (store.bots.some((bot) => bot.tasks.some((task) => task.busy))) {
-          return json(res, 409, { error: "Stop running agents before changing the workspace engine." });
+          return json(res, 409, { error: "Hentikan agen yang sedang bekerja sebelum mengganti engine." });
         }
         const asked = body.engine as Record<string, unknown>;
         const instanceId = typeof asked.instanceId === "string" ? asked.instanceId.trim() : "";

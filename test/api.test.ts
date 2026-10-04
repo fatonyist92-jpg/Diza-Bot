@@ -465,8 +465,8 @@ describe("agents", () => {
     });
     assert.equal(res.status, 409);
     const body = await res.json() as any;
-    assert.match(String(body.error ?? ""), /available AI engine/i);
-    assert.match(String(body.error ?? ""), /reconnect/i);
+    assert.match(String(body.error ?? ""), /Engine aktif sedang tidak tersedia/i);
+    assert.match(String(body.error ?? ""), /Pengaturan\s*>\s*Engine|aktifkan engine lain/i);
     assert.doesNotMatch(String(body.error ?? ""), /ENOENT|spawn /i);
   });
 

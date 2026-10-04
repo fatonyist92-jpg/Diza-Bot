@@ -211,7 +211,7 @@ function LocalVmCard({ bot }: { bot: Bot }) {
           onClick={() => setDesktop(status.viewerUrl)}
         >
           <ExternalLink size={14} />
-          Open desktop
+          Buka desktop
         </Button>
       ) : status !== null && !status.ready ? (
         <div className="mt-3 rounded-2xl border bg-card p-4">
@@ -225,7 +225,7 @@ function LocalVmCard({ bot }: { bot: Bot }) {
             className="mt-2.5"
             onClick={() => dispatch({ type: "toggleAppSettings" })}
           >
-            Set it up in Settings
+            Atur di Pengaturan
           </Button>
         </div>
       ) : null}
@@ -394,7 +394,7 @@ export function ComputerPanel({ bot }: { bot: Bot }) {
           variant="ghost"
           size="icon-sm"
           onClick={() => dispatch({ type: "toggleSettings", open: true })}
-          title="Agent settings"
+          title="Pengaturan Agen"
         >
           <SettingsIcon size={16} />
         </Button>
@@ -402,7 +402,7 @@ export function ComputerPanel({ bot }: { bot: Bot }) {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Close computer panel"
+          aria-label="Tutup panel komputer"
           onClick={() => dispatch({ type: "toggleComputer", open: false })}
         >
           <X size={16} />
@@ -462,7 +462,7 @@ export function ComputerPanel({ bot }: { bot: Bot }) {
               placeholder="Paste your Box API key"
               info={{
                 text: "Gives agents an isolated remote Linux computer with a desktop and a terminal. Box is a paid service after its trial, so usage can incur charges.",
-                linkLabel: "Open the Box API key guide",
+                linkLabel: "Buka panduan API key Box",
                 linkHref: "https://docs.ascii.dev/box/api-keys",
               }}
               onSaved={(configured) => configured && setRetry((n) => n + 1)}
@@ -486,7 +486,7 @@ export function ComputerPanel({ bot }: { bot: Bot }) {
               ) : (
                 <ExternalLink size={14} />
               )}
-              Open desktop
+              Buka desktop
             </Button>
             {boxState !== "archived" && (
               <Button
@@ -629,7 +629,7 @@ function ComputerPermissions({ visible }: { visible: boolean }) {
       <div className="text-[13px] font-medium text-foreground">Computer use needs permission</div>
       <div className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
         To see and use {thisComputer()}, Bloks needs {missing.map((m) => m.label).join(" and ")}.
-        {asked && " If no prompt appeared, macOS has already asked once. Turn Bloks on in System Settings."}
+        {asked && " Jika tidak ada prompt, macOS kemungkinan sudah pernah meminta izin. Aktifkan DIZA di Pengaturan Sistem."}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {!asked && (
@@ -645,7 +645,7 @@ function ComputerPermissions({ visible }: { visible: boolean }) {
             variant="secondary"
             onClick={() => window.bloks?.permOpenSettings(m.pane)}
           >
-            Open {m.label} settings
+            Buka pengaturan {m.label}
           </Button>
         ))}
       </div>
@@ -685,7 +685,7 @@ function TakeTheWheel({ bot }: { bot: Bot }) {
           {hold
             ? `${bot.name} is waiting. It will not start anything until you hand it back` +
               (hold.turnedAway ? `, and ${hold.turnedAway} ${hold.turnedAway === 1 ? "thing has" : "things have"} been turned away since.` : ".")
-            : `Drive this yourself. While you do, ${bot.name} stops rather than working around you.`}
+            : `Kendalikan sendiri. Selama Anda mengendalikan, ${bot.name} berhenti dan tidak bekerja di belakang Anda.`}
         </div>
       </div>
       <Button

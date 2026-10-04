@@ -79,7 +79,7 @@ function AttachedSkills({ bot }: { bot: Bot }) {
         </Button>
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Shared instruction sets this agent can carry.
+        Kumpulan instruksi bersama yang dapat dipakai agen ini.
       </div>
 
       <div className="mt-3 flex flex-col gap-1">
@@ -603,7 +603,7 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
             <div>
               <div className="text-[13.5px] font-semibold text-foreground">Notifikasi</div>
               <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-                Let {bot.name} interrupt you when a reply lands
+                Izinkan {bot.name} memberi notifikasi saat balasan tiba
               </div>
             </div>
             <Switch
@@ -616,8 +616,8 @@ export function SettingsPanel({ bot }: { bot: Bot }) {
               than discovering the shape of it over a week. */}
           <div className="mt-2 rounded-xl bg-muted/50 px-3 py-2.5 text-[12px] leading-relaxed text-muted-foreground">
             Approvals always interrupt, even with this off: a waiting agent has
-            stopped working. Agents talking to each other in a room stay quiet
-            unless they name you. Nothing interrupts you about the conversation
+            berhenti bekerja. Agen yang berbicara satu sama lain di Ruang tetap diam
+            kecuali mereka menyebut Anda. Percakapan tidak akan mengganggu Anda
             already on your screen.
           </div>
         </div>
@@ -639,9 +639,9 @@ function ApprovalsCard({ bot }: { bot: Bot }) {
   const mode = bot.approvals ?? "ask";
   const [refused, setRefused] = useState(false);
   const OPTIONS = [
-    { id: "ask" as const, label: "Ask", hint: "Kartu untuk setiap tindakan penting" },
-    { id: "edits" as const, label: "Terima edit", hint: "File changes go ahead; the rest asks" },
-    { id: "auto" as const, label: "Auto", hint: "Everything goes ahead; deny rules still refuse" },
+    { id: "ask" as const, label: "Tanya dulu", hint: "Kartu untuk setiap tindakan penting" },
+    { id: "edits" as const, label: "Terima edit", hint: "Perubahan file langsung dijalankan; tindakan lain tetap meminta izin" },
+    { id: "auto" as const, label: "Otomatis", hint: "Semua tindakan diizinkan; aturan penolakan tetap berlaku" },
   ];
 
   /**
@@ -694,7 +694,7 @@ function ApprovalsCard({ bot }: { bot: Bot }) {
       </div>
       {refused && (
         <div className="mt-2 text-[11.5px] text-warning">
-          Not confirmed, so the mode is unchanged.
+          Tidak dikonfirmasi, jadi mode tidak berubah.
         </div>
       )}
     </div>
@@ -725,12 +725,12 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
         <div className="text-[13.5px] font-semibold text-foreground">Folder kerja</div>
         {saved && (
           <span className="flex items-center gap-1 text-[11.5px] text-success">
-            <Check size={12} /> Saved
+            <Check size={12} /> Tersimpan
           </span>
         )}
       </div>
       <div className="mt-0.5 flex items-center gap-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Where new tasks run.
+        Folder tempat tugas baru dijalankan.
         <InfoTip text="Arahkan ke sebuah proyek untuk bekerja di repositori tersebut; biarkan kosong agar agen menggunakan workspace miliknya sendiri. Tugas yang sedang berjalan tetap memakai folder tempat tugas dimulai." />
       </div>
       <div className="mt-3 flex gap-2">
@@ -738,7 +738,7 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && save(value.trim() || null)}
-          placeholder="~/Projects/my-app"
+          placeholder="~/Proyek/aplikasi-saya"
           spellCheck={false}
           className="h-8 font-mono text-[12px]"
         />
@@ -749,7 +749,7 @@ function WorkingFolderCard({ bot }: { bot: Bot }) {
           }}
         />
         <Button variant="secondary" size="sm" onClick={() => save(value.trim() || null)}>
-          Save
+          Simpan
         </Button>
       </div>
       {error && <div className="mt-1.5 text-[12px] text-destructive">{error}</div>}
@@ -823,8 +823,8 @@ function ConnectedAppsCard({
           {configured
             ? allowed
               ? "Agen ini dapat menggunakan aplikasi terhubung Anda (Slack, Gmail, dan lainnya)."
-              : "Blocked from your connected apps; it works with its own tools only."
-            : "No connector key yet. Add one in Settings → Apps."}
+              : "Akses ke aplikasi terhubung diblokir; Agen hanya memakai tool miliknya sendiri."
+            : "Belum ada key konektor. Tambahkan di Pengaturan → Aplikasi."}
         </div>
       </div>
       <Switch
@@ -1028,7 +1028,7 @@ function TakeItWithYouCard({ bot }: { bot: Bot }) {
     setError(null);
     try {
       const res = await fetch(`/api/bots/${bot.id}/export`);
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "export failed");
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "ekspor gagal");
       // the filename the server chose, so what lands on disk is what the
       // server says it is rather than something guessed here
       const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
@@ -1165,7 +1165,7 @@ function MemoryCard({ bot }: { bot: Bot }) {
               )}
               <div className="mt-2 flex items-center gap-2">
                 <Button size="sm" onClick={save} disabled={!dirty}>
-                  Save
+                  Simpan
                 </Button>
                 {saved && (
                   <span className="flex items-center gap-1 text-[11.5px] text-success">

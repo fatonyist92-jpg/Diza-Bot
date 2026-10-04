@@ -4,6 +4,7 @@ import ArrowUp from "lucide-react/dist/esm/icons/arrow-up.mjs";
 import Mic from "lucide-react/dist/esm/icons/mic.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import Camera from "lucide-react/dist/esm/icons/camera.mjs";
+import ImageIcon from "lucide-react/dist/esm/icons/image.mjs";
 import Video from "lucide-react/dist/esm/icons/video.mjs";
 import Square from "lucide-react/dist/esm/icons/square.mjs";
 import Hand from "lucide-react/dist/esm/icons/hand.mjs";
@@ -148,8 +149,10 @@ export function Composer({
   const [submitting, setSubmitting] = useState(false);
   const [intelligenceMode, setIntelligenceMode] = useState<"fast" | "auto" | "expert">("auto");
   const pickerRef = useRef<HTMLInputElement>(null);
+  const imagePickerRef = useRef<HTMLInputElement>(null);
   const photoPickerRef = useRef<HTMLInputElement>(null);
   const videoPickerRef = useRef<HTMLInputElement>(null);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const composerRootRef = useRef<HTMLDivElement>(null);
 
   // Mobile browsers expose the keyboard through the visual viewport. Keep
@@ -323,8 +326,8 @@ export function Composer({
         <div className="mx-auto flex max-w-[760px] items-center gap-3 rounded-2xl border bg-muted/40 px-3.5 py-3">
           <Archive size={15} className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 text-[13px] leading-relaxed text-muted-foreground">
-            {bot.name} is archived. Everything it said is still here, and it will not take new work
-            until you restore it.
+            {bot.name} telah diarsipkan. Semua percakapannya tetap ada, tetapi agen ini tidak menerima tugas baru
+            sampai Anda memulihkannya.
           </span>
           <Button
             size="sm"
@@ -332,7 +335,7 @@ export function Composer({
             className="shrink-0"
             onClick={() => dispatch({ type: "restoreBot", botId: bot.id })}
           >
-            Restore
+            Pulihkan
           </Button>
         </div>
       </div>
@@ -356,7 +359,7 @@ export function Composer({
               void api(`/api/bots/${bot.id}/wheel`, { method: "DELETE" }).catch(() => {});
             }}
           >
-            Hand it back
+            Kembalikan kontrol
           </Button>
         </div>
       </div>
@@ -412,13 +415,13 @@ export function Composer({
                 <FileIcon size={14} className="shrink-0 text-muted-foreground" />
               )}
               <span className="min-w-0 flex-1 truncate">
-                {a.kind === "paste" ? `Pasted text, ${a.lines} lines` : a.name}
+                {a.kind === "paste" ? `Teks ditempel, ${a.lines} baris` : a.name}
               </span>
               <span className="shrink-0 text-muted-foreground">{formatBytes(a.bytes)}</span>
               <button
                 onClick={() => setAttachments((cur) => cur.filter((x) => x.id !== a.id))}
                 className="shrink-0 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label={`Remove ${a.kind === "paste" ? "pasted text" : a.name}`}
+                aria-label={`Hapus ${a.kind === "paste" ? "teks ditempel" : a.name}`}
               >
                 <X size={12} />
               </button>
@@ -476,10 +479,23 @@ export function Composer({
           type="file"
           multiple
           className="hidden"
-          accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm,video/quicktime,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept="text/plain,text/markdown,text/csv,application/json,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={(e) => {
             intake([...(e.target.files ?? [])]);
             e.target.value = "";
+            setAttachmentMenuOpen(false);
+          }}
+        />
+        <input
+          ref={imagePickerRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            intake([...(e.target.files ?? [])]);
+            e.target.value = "";
+            setAttachmentMenuOpen(false);
           }}
         />
         <input
@@ -491,48 +507,54 @@ export function Composer({
           onChange={(e) => {
             intake([...(e.target.files ?? [])]);
             e.target.value = "";
+            setAttachmentMenuOpen(false);
           }}
         />
         <input
           ref={videoPickerRef}
           type="file"
           accept="video/*"
-          capture="environment"
+          multiple
           className="hidden"
           onChange={(e) => {
             intake([...(e.target.files ?? [])]);
             e.target.value = "";
+            setAttachmentMenuOpen(false);
           }}
         />
-        <button
-          type="button"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-          title="Lampirkan file, gambar, atau video"
-          disabled={submitting}
-          onClick={() => pickerRef.current?.click()}
-        >
-          <Plus size={18} />
-        </button>
-        <button
-          type="button"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-          title="Ambil foto"
-          aria-label="Ambil foto"
-          disabled={submitting}
-          onClick={() => photoPickerRef.current?.click()}
-        >
-          <Camera size={17} />
-        </button>
-        <button
-          type="button"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
-          title="Rekam video"
-          aria-label="Rekam video"
-          disabled={submitting}
-          onClick={() => videoPickerRef.current?.click()}
-        >
-          <Video size={17} />
-        </button>
+        <div className="relative shrink-0">
+          {attachmentMenuOpen && (
+            <div className="absolute bottom-11 left-0 z-40 w-44 overflow-hidden rounded-2xl border bg-popover p-1.5 shadow-xl shadow-[--shadow-color]">
+              {[
+                ["Foto", <ImageIcon key="foto" size={17} />, () => imagePickerRef.current?.click()],
+                ["Kamera", <Camera key="kamera" size={17} />, () => photoPickerRef.current?.click()],
+                ["Video", <Video key="video" size={17} />, () => videoPickerRef.current?.click()],
+                ["File", <FileIcon key="file" size={17} />, () => pickerRef.current?.click()],
+              ].map(([label, icon, run]) => (
+                <button
+                  key={String(label)}
+                  type="button"
+                  onClick={() => (run as () => void)()}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13.5px] text-foreground transition-colors active:bg-accent"
+                >
+                  <span className="text-muted-foreground">{icon as React.ReactNode}</span>
+                  <span>{String(label)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-95"
+            title="Lampirkan"
+            aria-label="Lampirkan"
+            aria-expanded={attachmentMenuOpen}
+            disabled={submitting}
+            onClick={() => setAttachmentMenuOpen((open) => !open)}
+          >
+            <Plus size={18} />
+          </button>
+        </div>
         <textarea
           ref={inputRef}
           rows={1}

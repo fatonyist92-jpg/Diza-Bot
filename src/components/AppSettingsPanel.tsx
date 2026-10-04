@@ -27,11 +27,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/cn";
 import { thisComputer } from "@/lib/thisComputer";
+import { getServerUrl, normalizeServerUrl, saveServerUrl, testServer } from "@/lib/serverUrl";
 
 const THEME_OPTIONS: Array<{ value: Theme; label: string; icon: React.ReactNode }> = [
-  { value: "light", label: "Light", icon: <Sun size={14} /> },
-  { value: "dark", label: "Dark", icon: <Moon size={14} /> },
-  { value: "system", label: "System", icon: <Monitor size={14} /> },
+  { value: "light", label: "Terang", icon: <Sun size={14} /> },
+  { value: "dark", label: "Gelap", icon: <Moon size={14} /> },
+  { value: "system", label: "Sistem", icon: <Monitor size={14} /> },
 ];
 
 /**
@@ -103,8 +104,8 @@ function ProposeSkills() {
             <InfoTip text="Tidak ada yang dipasang otomatis. Saran akan menunggu di Skill dengan teks yang sudah disiapkan, dan Anda cukup sekali menekan untuk menyimpannya. Membaca ulang sesi membutuhkan satu panggilan ringan menggunakan kunci Anda sendiri, sehingga fitur ini nonaktif sampai Anda mengaktifkannya." />
           </div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-            After a conversation that worked something out, read it back and write the procedure
-            down as a skill. Most conversations teach nothing and nothing is suggested for them.
+            Setelah percakapan menemukan solusi, baca kembali hasilnya lalu tulis prosedurnya
+            sebagai keahlian. Sebagian besar percakapan tidak menghasilkan keahlian baru, jadi tidak ada saran yang dibuat.
           </div>
         </div>
         <Switch aria-label="Sarankan skill" checked={on} disabled={saving} onCheckedChange={set} />
@@ -135,15 +136,15 @@ function AboutCard() {
 
   const line =
     update.state === "checking"
-      ? "Checking…"
+      ? "Memeriksa pembaruan…"
       : update.state === "downloading"
-        ? `Downloading ${update.version ?? "the update"}${update.percent ? ` (${update.percent}%)` : ""}…`
+        ? `Mengunduh ${update.version ?? "pembaruan"}${update.percent ? ` (${update.percent}%)` : ""}…`
         : update.state === "current"
           ? "Anda menggunakan versi terbaru."
           : update.state === "ready"
-            ? `${update.version ?? "Pembaruan"} is downloaded and ready.`
+            ? `${update.version ?? "Pembaruan"} sudah diunduh dan siap dipasang.`
             : update.state === "error"
-              ? "The update check didn't reach the server. It will retry on next launch."
+              ? "Pemeriksaan pembaruan tidak dapat menjangkau server. Akan dicoba lagi saat aplikasi dibuka berikutnya."
               : update.state === "dev"
                 ? "Pembaruan berlaku untuk aplikasi terpasang, bukan build pengembangan."
                 : null;
@@ -156,7 +157,7 @@ function AboutCard() {
         </div>
         {update.state === "ready" ? (
           <Button size="sm" onClick={() => void window.bloks?.updateInstall?.()}>
-            Restart to update
+            Mulai ulang untuk memperbarui
           </Button>
         ) : (
           <Button
@@ -165,22 +166,22 @@ function AboutCard() {
             disabled={!window.bloks || update.state === "checking" || update.state === "downloading"}
             onClick={() => void window.bloks?.updateCheck?.().then(setUpdate)}
           >
-            Check for updates
+            Periksa pembaruan
           </Button>
         )}
       </div>
       {line && <div className="mt-1.5 text-[12.5px] text-muted-foreground">{line}</div>}
       <div className="mt-2 text-[12.5px] text-muted-foreground">
-        Something broken, or missing?{" "}
+        Ada yang rusak atau belum tersedia?{" "}
         <a
           href={`https://github.com/hamedgitty/bloks/issues/new?body=${encodeURIComponent(`\n\n---\nBloks ${version ?? ""} on ${navigator.platform}`)}`}
           target="_blank"
           rel="noreferrer"
           className="underline underline-offset-2 hover:text-foreground"
         >
-          Send feedback
+          Kirim masukan
         </a>
-        {" "}(opens GitHub; paste the diagnostics below into anything gnarly).
+        {" "}(membuka GitHub; tempel diagnostik di bawah jika diperlukan).
       </div>
     </div>
   );
@@ -216,13 +217,13 @@ function Diagnostics() {
         <InfoTip text="Laporan berisi versi, status koneksi engine, status apakah kunci tersedia atau tidak, dan jumlah agen. Nilai kunci tidak pernah disertakan, dan teks akhir dibersihkan dari pola yang menyerupai kredensial." />
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Copies a short report about this install, ready to paste into a bug report.
+        Menyalin ringkasan diagnostik instalasi ini agar siap ditempel ke laporan masalah.
       </div>
       <button
         onClick={() => void copy()}
         className="mt-3 rounded-xl border bg-background px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-accent"
       >
-        {copied ? "Copied" : "Salin diagnostik"}
+        {copied ? "Disalin" : "Salin diagnostik"}
       </button>
       {failed && (
         <div className="mt-2 text-[12px] text-destructive">
@@ -276,7 +277,7 @@ function AboutYou() {
         )}
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Optional context every agent gets. Stays on {thisComputer()}.
+        Konteks opsional yang diterima semua agen. Tetap tersimpan di {thisComputer()}.
       </div>
       <Textarea
         value={value}
@@ -326,7 +327,7 @@ function DizaPreferences() {
         {justSaved && <span className="flex items-center gap-1 text-[11.5px] text-success"><Check size={12} /> Tersimpan</span>}
       </div>
       <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-        Response preferences that stay the same when the AI provider changes.
+        Preferensi respons ini tetap sama meskipun provider AI diganti.
       </div>
       <Textarea value={value} onChange={(e) => save(e.target.value)}
         placeholder="mis. Gunakan Bahasa Indonesia, jelaskan istilah teknis dengan sederhana, dan buat jawaban ringkas."
@@ -335,6 +336,109 @@ function DizaPreferences() {
   );
 }
 
+
+
+function ServerConnection() {
+  const [draft, setDraft] = useState(() => getServerUrl());
+  const [saved, setSaved] = useState(() => getServerUrl());
+  const [testing, setTesting] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const test = async () => {
+    setTesting(true);
+    setMessage(null);
+    const native = (window as any).DizaNative;
+    if (native?.testServer) {
+      const verdict = String(native.testServer(draft));
+      setMessage({
+        ok: verdict === "ok",
+        text: verdict === "ok" ? "Server terhubung." : verdict,
+      });
+      setTesting(false);
+      return;
+    }
+    const result = await testServer(draft);
+    setMessage({ ok: result.ok, text: result.message });
+    setTesting(false);
+  };
+
+  const save = () => {
+    const trimmed = draft.trim();
+    const normalized = trimmed ? normalizeServerUrl(trimmed) : "";
+    if (trimmed && !normalized) {
+      setMessage({ ok: false, text: "Alamat server tidak valid. Gunakan http:// atau https://." });
+      return;
+    }
+    const next = saveServerUrl(normalized);
+    setDraft(next);
+    setSaved(next);
+    setMessage({
+      ok: true,
+      text: next
+        ? "Alamat server tersimpan. Koneksi baru akan memakai server ini."
+        : "Mode server lokal/satu-origin aktif.",
+    });
+    const native = (window as any).DizaNative;
+    if (next && native?.setServerUrl) native.setServerUrl(next);
+  };
+
+  return (
+    <div className="mt-4 rounded-2xl border bg-card p-4">
+      <div className="text-[13.5px] font-semibold text-foreground">Server DIZA</div>
+      <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+        Alamat backend yang dipakai APK/PWA. Untuk server sementara di HP, masukkan URL tunnel hostc.app.
+      </div>
+      <div className="mt-3">
+        <label className="text-[11.5px] font-medium text-muted-foreground" htmlFor="diza-server-url">
+          Alamat server
+        </label>
+        <input
+          id="diza-server-url"
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setMessage(null);
+          }}
+          placeholder="https://xxxxxxxx.hostc.app"
+          className="mt-1.5 h-10 w-full rounded-xl border border-input bg-background px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-ring/60"
+        />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <Button variant="secondary" size="sm" onClick={() => void test()} disabled={testing || !draft.trim()}>
+          {testing ? "Menguji…" : "Tes"}
+        </Button>
+        <Button size="sm" onClick={save} disabled={draft.trim() === saved}>
+          Simpan
+        </Button>
+        {saved && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft("");
+              saveServerUrl("");
+              setSaved("");
+              setMessage({ ok: true, text: "Alamat server dihapus. Server lokal bawaan akan digunakan." });
+              const native = (window as any).DizaNative;
+              native?.clearServerUrl?.();
+            }}
+            className="ml-auto rounded-lg px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Hapus
+          </button>
+        )}
+      </div>
+      {message && (
+        <div className={cn("mt-2 text-[12px]", message.ok ? "text-success" : "text-destructive")}>
+          {message.text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 const SETTINGS_TABS = [
@@ -436,13 +540,13 @@ function QuickAskShortcut() {
             onClick={() => void save(null)}
             className="rounded-lg px-2 py-1 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
           >
-            Clear
+            Hapus
           </button>
         )}
       </div>
       {problem && <div className="mt-2 text-[12px] text-destructive">{problem}</div>}
       <div className="mt-2 text-[11.5px] text-muted-foreground">
-        Tab picks a different agent, Enter sends, Escape closes.
+        Tab memilih agen lain, Enter mengirim, Escape menutup.
       </div>
     </div>
   );
@@ -500,7 +604,7 @@ export function AppSettingsPanel() {
                 <div className="mt-4 rounded-2xl border bg-card p-4">
                   <div className="text-[13.5px] font-semibold text-foreground">Tampilan</div>
                   <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-                    How Bloks looks on {thisComputer()}
+                    Pilih tampilan DIZA di {thisComputer()}
                   </div>
                   <div className="mt-3 flex gap-1 rounded-xl bg-muted p-1">
                     {THEME_OPTIONS.map((option) => (
@@ -520,6 +624,7 @@ export function AppSettingsPanel() {
                     ))}
                   </div>
                 </div>
+                <ServerConnection />
                 <QuickAskShortcut />
                 <Compaction />
                 <ProposeSkills />
@@ -537,7 +642,7 @@ export function AppSettingsPanel() {
               <div className="mt-4 rounded-2xl border bg-card p-4">
                 <div className="text-[13.5px] font-semibold text-foreground">Aplikasi dan komputer</div>
                 <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-                  Shared by all agents. Keys stay on {thisComputer()}.
+                  Dipakai bersama oleh semua agen. Key tetap tersimpan di {thisComputer()}.
                 </div>
                 <div className="mt-4 flex flex-col gap-4">
                   <ApiKeyRow
@@ -545,7 +650,7 @@ export function AppSettingsPanel() {
                     label="Composio Connect key"
                     placeholder="ck_…"
                     info={{
-                      text: "Composio issues two different keys. This is the Connect key (starts with ck_), the one that links accounts like Slack and Gmail. The key is checked with Composio when you save it.",
+                      text: "Composio memiliki dua jenis key. Ini adalah Connect key (diawali ck_) untuk menghubungkan akun seperti Slack dan Gmail. Key diperiksa ke Composio saat disimpan.",
                       linkLabel: "Dapatkan Connect key di composio.dev",
                       linkHref: "https://composio.dev",
                     }}
@@ -555,7 +660,7 @@ export function AppSettingsPanel() {
                     label="Kunci API Composio (opsional)"
                     placeholder="ak_…  membuka seluruh katalog aplikasi"
                     info={{
-                      text: "The other Composio key: a project API key (starts with ak_), separate from the Connect key above. Only used to browse the full app catalog; connections work without it.",
+                      text: "Key Composio lainnya adalah project API key (diawali ak_), terpisah dari Connect key di atas. Key ini hanya dipakai untuk melihat katalog aplikasi lengkap; koneksi tetap dapat bekerja tanpanya.",
                     }}
                   />
                   <ApiKeyRow
@@ -594,10 +699,10 @@ export function AppSettingsPanel() {
               <div className="mt-4 rounded-2xl border bg-card p-4">
                 <div className="text-[13.5px] font-semibold text-foreground">Suara</div>
                 <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-                  DIZA Voice is FREE_ONLY. Speech output uses voices exposed by this device/browser; voice input uses the native desktop recognizer or browser speech recognition when available. No ElevenLabs/OpenAI speech API is called. The browser/OS may still use its own speech service depending on platform implementation; DIZA does not send raw microphone audio to the LLM provider.
+                  DIZA Voice menggunakan mode GRATIS SAJA. Suara keluaran memakai voice yang tersedia di perangkat/browser. Input suara memakai pengenal suara bawaan perangkat atau browser bila tersedia. DIZA tidak memanggil API speech ElevenLabs/OpenAI dan tidak mengirim audio mikrofon mentah ke provider LLM. Layanan pengenalan suara bawaan browser/OS tetap dapat digunakan sesuai implementasi platform.
                 </div>
                 <div className="mt-3 rounded-xl border border-success/30 bg-success/5 p-3 text-[12px] leading-relaxed text-muted-foreground">
-                  Pick each bot&apos;s device voice in that bot&apos;s settings. Voice availability and exact voice names can differ between devices.
+                  Pilih voice perangkat untuk setiap agen dari Pengaturan Agen. Daftar dan nama voice dapat berbeda di tiap perangkat.
                 </div>
               </div>
             )}

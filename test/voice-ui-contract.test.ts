@@ -23,7 +23,7 @@ test("composer has a browser/PWA speech-recognition path", () => {
 
 test("voice settings do not invite paid speech keys", () => {
   const voicePanel = settings.slice(settings.indexOf('{tab === "voices"'));
-  assert.match(voicePanel, /FREE_ONLY/);
+  assert.match(voicePanel, /mode GRATIS SAJA/);
   assert.doesNotMatch(voicePanel, /OpenAI API key \(speech\)/);
   assert.doesNotMatch(voicePanel, /ElevenLabs API key/);
 });

@@ -154,7 +154,7 @@ export function PluginsPanel() {
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Close plugins"
+              aria-label="Tutup aplikasi"
               onClick={() => dispatch({ type: "togglePlugins", open: false })}
             >
               <X size={16} />
@@ -205,7 +205,7 @@ export function PluginsPanel() {
                 dispatch({ type: "toggleAppSettings", open: true });
               }}
             >
-              add one in Settings
+              tambahkan di Pengaturan
             </button>{" "}
             to connect apps.
           </div>
@@ -236,7 +236,7 @@ export function PluginsPanel() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search apps"
+            placeholder="Cari aplikasi"
             className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -273,7 +273,7 @@ export function PluginsPanel() {
                     {busy ? (
                       <Loader2 size={13} className="animate-spin" />
                     ) : connected ? (
-                      "Disconnect"
+                      "Putuskan"
                     ) : (
                       "Connect"
                     )}

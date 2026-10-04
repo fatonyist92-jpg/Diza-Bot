@@ -28,6 +28,7 @@ import { SecretCard } from "./SecretCard";
 import {
   ForwardDialog,
   MessageActionBar,
+  MobileMessageMenu,
   Reactions,
   ReplyContext,
   type ReplyDraft,
@@ -401,10 +402,15 @@ function Bubble({
   // Editing happens where the message already is. Sending it back to
   // the composer would lose your place and pretend it is a new message.
   const [editing, setEditing] = useState<string | null>(null);
-
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div
+      onContextMenu={(event) => {
+        if (!message.text || message.deleted) return;
+        event.preventDefault();
+        setMobileMenuOpen(true);
+      }}
       className={cn(
         "group flex w-full min-w-0 gap-1.5",
         user ? "justify-end" : "justify-start",
@@ -506,6 +512,15 @@ function Bubble({
           onDelete={onDelete ? () => onDelete(message.id) : undefined}
           onRetry={onRetry}
           onBranch={onBranch ? () => onBranch(message.id) : undefined}
+        />
+      )}
+      {mobileMenuOpen && (
+        <MobileMessageMenu
+          message={message}
+          author={author}
+          onReply={onReply}
+          onDelete={onDelete ? () => onDelete(message.id) : undefined}
+          onClose={() => setMobileMenuOpen(false)}
         />
       )}
     </div>
@@ -878,7 +893,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             <span className="truncate text-[14px] font-semibold text-foreground">{bot.name}</span>
             {(bot.busy || bot.title) && (
               <span className="hidden truncate text-[12px] text-muted-foreground sm:block">
-                {bot.busy ? "working…" : bot.title}
+                {bot.busy ? "sedang bekerja…" : bot.title}
               </span>
             )}
           </span>
@@ -893,7 +908,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
               title="Hentikan respons ini"
             >
               <Square size={11} className="fill-current" />
-              Stop
+              Hentikan
             </Button>
           )}
           <CallButton bot={bot} />
@@ -902,7 +917,7 @@ export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () =>
             size="icon"
             onClick={() => setTerminalOpen((open) => !open)}
             className={cn(terminalOpen && "bg-accent text-foreground")}
-            title={`Terminal in ${bot.name}'s folder`}
+            title={`Terminal di folder ${bot.name}`}
           >
             <SquareTerminal size={17} />
           </Button>

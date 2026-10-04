@@ -7,8 +7,8 @@ const panel = fs.readFileSync(path.resolve("src/components/ProjectsPanel.tsx"), 
 const sidebar = fs.readFileSync(path.resolve("src/components/Sidebar.tsx"), "utf8");
 
 test("project UI exposes brief, shared memory, archive and mobile-scrollable panel", () => {
-  assert.match(panel, /The standing brief/);
-  assert.match(panel, /Shared project memory/);
+  assert.match(panel, /Brief tetap proyek/);
+  assert.match(panel, /Memori bersama proyek/);
   assert.match(panel, /\?archive=1/);
   assert.match(panel, /overflow-y-auto/);
 });

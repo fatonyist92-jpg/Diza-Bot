@@ -93,18 +93,18 @@ export function ProjectsPanel() {
             <div className="text-[16px] font-semibold text-foreground">Projects</div>
             <div className="mt-0.5 text-[13px] text-muted-foreground">
               {editing
-                ? "Where the work happens, who is on it, and what they should know."
-                : "Switch into one and the app shows its people and its folders."}
+                ? "Tempat pekerjaan berlangsung, siapa yang terlibat, dan apa yang perlu mereka ketahui."
+                : "Buka salah satu proyek untuk melihat orang dan folder yang terkait."}
             </div>
           </div>
           <div className="flex items-center gap-1">
             {!editing && (
               <Button variant="secondary" size="sm" onClick={() => setEditing("new")}>
                 <Plus size={13} />
-                New
+                Baru
               </Button>
             )}
-            <Button variant="ghost" size="icon-sm" aria-label="Close projects" onClick={close}>
+            <Button variant="ghost" size="icon-sm" aria-label="Tutup proyek" onClick={close}>
               <X size={16} />
             </Button>
           </div>
@@ -129,11 +129,11 @@ export function ProjectsPanel() {
           ) : projects === null ? (
             <div className="flex items-center justify-center gap-2 py-10 text-[13px] text-muted-foreground">
               <Loader2 size={14} className="animate-spin" />
-              Reading projects
+              Membaca proyek
             </div>
           ) : projects.length === 0 ? (
             <div className="rounded-2xl border border-dashed px-4 py-10 text-center text-[13px] text-muted-foreground">
-              No projects yet. One is a name, some folders, and the people on it.
+              Belum ada proyek. Proyek berisi nama, folder, dan orang yang terlibat.
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -157,13 +157,13 @@ export function ProjectsPanel() {
                             {project.name}
                           </span>
                           {state.projectId === project.id && (
-                            <span className="shrink-0 text-[11px] text-brand-ink">open</span>
+                            <span className="shrink-0 text-[11px] text-brand-ink">dibuka</span>
                           )}
                         </div>
                         <div className="mt-0.5 text-[12px] text-muted-foreground">
                           {members.length
                             ? members.map((b) => b!.name).join(", ")
-                            : "nobody on it yet"}
+                            : "belum ada anggota"}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
@@ -182,7 +182,7 @@ export function ProjectsPanel() {
                               .catch((e: Error) => setError(e.message));
                           }}
                         >
-                          Archive
+                          Arsipkan
                         </Button>
                         <Button
                           variant={state.projectId === project.id ? "ghost" : "secondary"}
@@ -193,7 +193,7 @@ export function ProjectsPanel() {
                               : open(project)
                           }
                         >
-                          {state.projectId === project.id ? "Leave" : "Open"}
+                          {state.projectId === project.id ? "Keluar" : "Buka"}
                         </Button>
                       </div>
                     </div>
@@ -228,9 +228,9 @@ export function ProjectsPanel() {
 
                     {project.broken && (
                       <div className="mt-2 rounded-xl bg-warning/10 px-3 py-2 text-[12px] leading-relaxed text-warning">
-                        Nothing will run in this project until those folders are back, or it points
-                        somewhere else. An agent writing into the wrong directory is worse than one
-                        that will not start.
+                        Tidak ada proses yang akan berjalan sampai folder tersebut tersedia kembali, atau proyek diarahkan
+                        ke lokasi lain. Agen yang menulis ke direktori yang salah lebih berbahaya daripada Agen
+                        yang tidak dapat mulai.
                       </div>
                     )}
                   </div>
@@ -319,7 +319,7 @@ function ProjectForm({
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <BlokAvatar color={color} shape={shape} expression="focused" size={36} />
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Launch week" autoFocus />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Minggu peluncuran" autoFocus />
       </div>
 
       <div className="flex flex-wrap gap-1">
@@ -352,36 +352,36 @@ function ProjectForm({
       </div>
 
       <label className="text-[12.5px] text-muted-foreground">
-        The standing brief. Everyone working on this gets it.
+        Brief tetap proyek. Semua yang bekerja di proyek ini akan menggunakannya.
         <Textarea
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
           rows={3}
-          placeholder="Ship small, ship often. Prefer the boring option."
+          placeholder="Rilis kecil dan sering. Pilih opsi yang paling sederhana."
           className="mt-1 resize-none"
         />
       </label>
 
       <label className="text-[12.5px] text-muted-foreground">
-        Shared project memory. Chats explicitly scoped to this project can use it; personal bot memory stays separate.
+        Memori bersama proyek. Chat yang secara khusus terkait proyek ini dapat menggunakannya; memori pribadi Agen tetap terpisah.
         <Textarea
           value={projectMemory}
           onChange={(e) => setProjectMemory(e.target.value)}
           rows={3}
           disabled={!memoryLoaded}
-          placeholder="Decisions, conventions, facts and context shared by this project."
+          placeholder="Keputusan, aturan, fakta, dan konteks yang dibagikan dalam proyek ini."
           className="mt-1 resize-none"
         />
       </label>
 
       <label className="text-[12.5px] text-muted-foreground">
-        Folders, one per line. The first one that exists is where turns run.
+        Folder, satu per baris. Folder pertama yang tersedia akan dipakai untuk menjalankan tugas.
         <div className="mt-1 flex items-start gap-1.5">
           <Textarea
             value={folders}
             onChange={(e) => setFolders(e.target.value)}
             rows={2}
-            placeholder="/Users/you/src/api"
+            placeholder="/folder/proyek/api"
             className="resize-none font-mono text-[12px]"
           />
           <BrowseFolderButton
@@ -393,7 +393,7 @@ function ProjectForm({
       </label>
 
       <label className="text-[12.5px] text-muted-foreground">
-        What matters inside them, comma separated. Advisory, not a filter.
+        Bagian penting di dalamnya, dipisahkan koma. Ini hanya panduan, bukan filter.
         <Input
           value={include}
           onChange={(e) => setInclude(e.target.value)}
@@ -403,7 +403,7 @@ function ProjectForm({
       </label>
 
       <div>
-        <div className="text-[12.5px] text-muted-foreground">Who is on it</div>
+        <div className="text-[12.5px] text-muted-foreground">Anggota proyek</div>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {state.bots
             .filter((b) => !b.hidden)
@@ -430,11 +430,11 @@ function ProjectForm({
 
       <div className="flex items-center justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          Batal
         </Button>
         <Button disabled={saving || !name.trim()} onClick={save}>
           {saving && <Loader2 size={12} className="animate-spin" />}
-          {project ? "Save" : "Create"}
+          {project ? "Simpan" : "Buat"}
         </Button>
       </div>
     </div>

@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-test("room composer exposes file picker and sends attachments through the normal attachment format", () => {
+test("room composer exposes the same Foto Kamera Video File attachment menu", () => {
   const room = readFileSync(new URL("../src/components/RoomView.tsx", import.meta.url), "utf8");
-  assert.match(room, /aria-label="Pilih file"/);
+  assert.match(room, /\["Foto"/);
+  assert.match(room, /\["Kamera"/);
+  assert.match(room, /\["Video"/);
+  assert.match(room, /\["File"/);
   assert.match(room, /type="file"[\s\S]*multiple/);
   assert.match(room, /uploadAttachment: uploadStoredAttachment/);
   assert.match(room, /composeOutgoing\(text, attachments\)/);

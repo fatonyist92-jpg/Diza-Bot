@@ -8,28 +8,28 @@ test("mobile chat removes the task strip area while desktop keeps it", () => {
   assert.match(chat, /className="hidden md:block"[\s\S]*<TaskStrip/);
 });
 
-test("mobile Account opens profile information instead of app settings", () => {
+test("mobile home follows the locked Obrolan Agen Ruang reference", () => {
   const home = readFileSync(new URL("../src/components/MobileChatHome.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
-  const profile = readFileSync(new URL("../src/components/ProfilePanel.tsx", import.meta.url), "utf8");
 
-  assert.match(home, /onOpenProfile/);
-  assert.match(home, /> Akun<\/button>/);
-  assert.doesNotMatch(home, /Account<\/button>/);
-  assert.match(app, /<ProfilePanel onClose=/);
-  assert.match(profile, /Profil Saya/);
-  assert.match(profile, /Tentang saya/);
-  assert.match(profile, /Cara saya ingin DIZA menjawab/);
-  assert.match(profile, /api\("\/api\/config"/);
+  assert.match(home, />Obrolan<\/h1>/);
+  assert.match(home, /\["agents", "Agen"\]/);
+  assert.match(home, /\["rooms", "Ruang"\]/);
+  assert.match(home, /Cari agen/);
+  assert.match(home, /Cari ruang/);
+  assert.match(home, /toggleAppSettings/);
+  assert.match(app, /<MobileChatHome onOpenChat=/);
 });
 
 test("main mobile UI uses simple Indonesian labels", () => {
   const home = readFileSync(new URL("../src/components/MobileChatHome.tsx", import.meta.url), "utf8");
   const composer = readFileSync(new URL("../src/components/Composer.tsx", import.meta.url), "utf8");
 
-  assert.match(home, /AI PRIBADI/);
-  assert.match(home, /> Ruang<\/button>/);
-  assert.match(home, /> Bot<\/button>/);
+  assert.match(home, /Obrolan/);
+  assert.match(home, /Agen/);
+  assert.match(home, /Ruang/);
+  assert.match(home, /Cari agen/);
+  assert.match(home, /Cari ruang/);
   assert.match(composer, /"Cepat"/);
   assert.match(composer, /"Otomatis"/);
   assert.match(composer, /"Mendalam"/);

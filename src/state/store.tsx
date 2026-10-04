@@ -21,6 +21,7 @@ import {
 } from "react";
 import { noticeFor } from "@/lib/notify";
 import { maybeAutoSpeak } from "@/components/Voice";
+import { serverUrl } from "@/lib/serverUrl";
 import {
   findCard,
   isPermissionCard,
@@ -526,7 +527,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
     const connect = () => {
       if (!alive) return;
-      es = new EventSource(lastSeq ? `/api/events?since=${lastSeq}` : "/api/events");
+      es = new EventSource(serverUrl(lastSeq ? `/api/events?since=${lastSeq}` : "/api/events"));
       es.onopen = () => {
         streamFailures = 0;
         stopPollingFallback();

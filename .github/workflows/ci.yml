@@ -39,6 +39,25 @@ jobs:
 
       - run: pnpm build
 
+      - name: Smoke Termux gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIZA_START_HOSTC=0 DIZA_GATEWAY_PORT=8788 BLOKS_PORT=8799 node deploy/termux-hostc.mjs >/tmp/diza-termux-smoke.log 2>&1 &
+          PID=$!
+          trap 'kill "$PID" >/dev/null 2>&1 || true; cat /tmp/diza-termux-smoke.log' EXIT
+          READY=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8788/healthz >/tmp/diza-health.json; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          cat /tmp/diza-health.json || true
+          test "$READY" = "1"
+          node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync("/tmp/diza-health.json","utf8")); if(!data.ok || data.gateway!=="termux-hostc" || data.core!=="ready") process.exit(1)'
+
       - name: Check for stray build output
         run: |
           if [ -n "$(git status --porcelain)" ]; then
