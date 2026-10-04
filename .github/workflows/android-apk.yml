@@ -23,6 +23,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bundle DIZA UI into APK
+        shell: bash
+        run: |
+          VITE_ANDROID_BUNDLE=1 pnpm build
+          rm -rf android/app/src/main/assets/www
+          mkdir -p android/app/src/main/assets/www
+          cp -R dist/. android/app/src/main/assets/www/
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

@@ -14,10 +14,22 @@ export function normalizeServerUrl(value: string): string {
 
 export function getServerUrl(): string {
   try {
-    return normalizeServerUrl(localStorage.getItem(DIZA_SERVER_URL_KEY) ?? "");
-  } catch {
-    return "";
-  }
+    const saved = normalizeServerUrl(localStorage.getItem(DIZA_SERVER_URL_KEY) ?? "");
+    if (saved) return saved;
+  } catch {}
+
+  try {
+    const native = (window as Window & {
+      DizaNative?: { getServerUrl?: () => string };
+    }).DizaNative;
+    const fromNative = normalizeServerUrl(native?.getServerUrl?.() ?? "");
+    if (fromNative) {
+      try { localStorage.setItem(DIZA_SERVER_URL_KEY, fromNative); } catch {}
+      return fromNative;
+    }
+  } catch {}
+
+  return "";
 }
 
 export function saveServerUrl(value: string): string {

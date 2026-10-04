@@ -22,6 +22,11 @@ async function start() {
       </ThemeProvider>
     </StrictMode>,
   );
-}
+
+  try {
+    (window as Window & {
+      DizaNative?: { reportReady?: () => void };
+    }).DizaNative?.reportReady?.();
+  } catch {}
 
 void start();

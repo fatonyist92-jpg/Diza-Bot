@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -40,6 +41,7 @@ public final class MainActivity extends Activity {
     private static final String PREFS = "diza_native";
     private static final String KEY_SERVER = "server_url";
     private static final String DEFAULT_SERVER = "http://127.0.0.1:8788";
+    private static final String APP_URL = "file:///android_asset/www/index.html";
     private static final int FILE_REQUEST = 4107;
 
     private FrameLayout root;
@@ -64,7 +66,7 @@ public final class MainActivity extends Activity {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         currentServer = normalizeServer(prefs.getString(KEY_SERVER, DEFAULT_SERVER));
         if (currentServer == null) currentServer = DEFAULT_SERVER;
-        loadServer(currentServer);
+        loadBundledApp();
     }
 
     private void configureWebView() {
@@ -99,8 +101,12 @@ public final class MainActivity extends Activity {
         }
         currentServer = normalized;
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_SERVER, normalized).apply();
+        loadBundledApp();
+    }
+
+    private void loadBundledApp() {
         removeOverlay();
-        webView.loadUrl(normalized + "/");
+        webView.loadUrl(APP_URL);
     }
 
     private String normalizeServer(String raw) {
@@ -159,12 +165,12 @@ public final class MainActivity extends Activity {
         removeOverlay();
         LinearLayout box = baseOverlay();
 
-        TextView title = text("Server DIZA tidak dapat dihubungi", 20, Color.WHITE);
+        TextView title = text("DIZA tidak dapat dimuat", 20, Color.WHITE);
         title.setGravity(Gravity.CENTER);
         box.addView(title);
 
         TextView detail = text(
-                "Pastikan server Termux berjalan. Server lokal bawaan: " + DEFAULT_SERVER,
+                "Aplikasi lokal gagal dimuat. Coba lagi, atau ubah server dari pengaturan.",
                 13,
                 Color.LTGRAY
         );
@@ -173,7 +179,7 @@ public final class MainActivity extends Activity {
         box.addView(detail);
 
         Button retry = button("Coba Lagi");
-        retry.setOnClickListener(v -> loadServer(currentServer));
+        retry.setOnClickListener(v -> loadBundledApp());
         box.addView(retry, buttonLayout());
 
         Button change = button("Ubah Server");
@@ -308,7 +314,7 @@ public final class MainActivity extends Activity {
     public void onBackPressed() {
         if (overlay != null) {
             removeOverlay();
-            loadServer(currentServer == null ? DEFAULT_SERVER : currentServer);
+            loadBundledApp();
             return;
         }
         webView.evaluateJavascript("history.back()", null);
@@ -454,6 +460,11 @@ public final class MainActivity extends Activity {
         public void clearServerUrl() {
             getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(KEY_SERVER).apply();
             runOnUiThread(() -> loadServer(DEFAULT_SERVER));
+        }
+
+        @JavascriptInterface
+        public void reportReady() {
+            Log.i("DIZA", "DIZA_UI_READY");
         }
 
         @JavascriptInterface

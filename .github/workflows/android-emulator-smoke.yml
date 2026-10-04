@@ -26,6 +26,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bundle DIZA UI into APK
+        shell: bash
+        run: |
+          VITE_ANDROID_BUNDLE=1 pnpm build
+          rm -rf android/app/src/main/assets/www
+          mkdir -p android/app/src/main/assets/www
+          cp -R dist/. android/app/src/main/assets/www/
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -38,27 +57,6 @@ jobs:
       - name: Build debug APK
         run: gradle -p android :app:assembleDebug --stacktrace
 
-      - name: Prepare local DIZA smoke server
-        shell: bash
-        run: |
-          cat > /tmp/diza-smoke-server.mjs <<'EOF'
-          import { createServer } from "node:http";
-          const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
-          <title>DIZA Smoke</title><body style="background:#000;color:#fff;font:20px sans-serif">
-          <main id="diza-smoke">DIZA AI Personal Assistant</main>
-          <script>history.pushState({diza:true}, "", "/home");</script></body>`;
-          createServer((req,res) => {
-            if (req.url === "/api/health") {
-              res.writeHead(200, {"content-type":"application/json"});
-              return res.end(JSON.stringify({ok:true}));
-            }
-            res.writeHead(200, {"content-type":"text/html; charset=utf-8"});
-            res.end(html);
-          }).listen(8788, "127.0.0.1");
-          EOF
-          node /tmp/diza-smoke-server.mjs >/tmp/diza-smoke-server.log 2>&1 &
-          echo $! > /tmp/diza-smoke-server.pid
-
       - name: Boot emulator and launch DIZA
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -69,12 +67,13 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            adb reverse tcp:8788 tcp:8788
+            adb logcat -c
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -W -n com.diza.personalai/.MainActivity
-            sleep 6
+            sleep 8
             adb shell dumpsys activity activities | grep -q "com.diza.personalai/.MainActivity"
             adb shell pidof com.diza.personalai | grep -Eq "^[0-9]+"
+            adb logcat -d -s DIZA:I '*:S' | grep -q "DIZA_UI_READY"
             adb exec-out screencap -p > /tmp/diza-emulator.png
             adb shell input keyevent KEYCODE_BACK
             sleep 2
