@@ -29,4 +29,6 @@ async function start() {
     }).DizaNative?.reportReady?.();
   } catch {}
 
+}
+
 void start();
