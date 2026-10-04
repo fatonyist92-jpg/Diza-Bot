@@ -68,7 +68,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             adb reverse tcp:8788 tcp:8788
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -W -n com.diza.personalai/.MainActivity
