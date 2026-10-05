@@ -33,6 +33,14 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Reject WebView or browser UI
+        shell: bash
+        run: |
+          if grep -R -n -E 'WebView|android\.webkit' android/app/src/main; then
+            echo "WebView/browser UI is forbidden in the native Diza APK."
+            exit 1
+          fi
+
       - name: Build APK
         run: gradle -p android :app:assembleRelease --stacktrace
 
