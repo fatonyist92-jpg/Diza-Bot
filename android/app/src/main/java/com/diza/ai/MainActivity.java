@@ -404,8 +404,6 @@ public final class MainActivity extends Activity {
             LinearLayout bubble = vertical(user ? USER_BUBBLE : BOT_BUBBLE);
             bubble.setPadding(dp(11), dp(8), dp(11), dp(7));
             bubble.setBackground(round(user ? USER_BUBBLE : BOT_BUBBLE, dp(12)));
-            int max = (int) (getResources().getDisplayMetrics().widthPixels * 0.82f);
-            bubble.setMaximumWidth(max);
 
             if (openThreadRoom && !user) {
                 String who = roomAuthor(msg);
