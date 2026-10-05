@@ -20,9 +20,23 @@ import { ProjectsPanel } from "@/components/ProjectsPanel";
 import { ActivityPanel } from "@/components/Activity";
 import { CommandPalette } from "@/components/CommandPalette";
 import { QuickAsk } from "@/components/QuickAsk";
+import { MobileWhatsAppHome } from "@/components/MobileWhatsAppHome";
 
 function Shell() {
   const { state, dispatch } = useStore();
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  const [mobileHome, setMobileHome] = useState(() => window.innerWidth < 768);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => {
+      setMobile(media.matches);
+      if (!media.matches) setMobileHome(false);
+    };
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   const room = state.bloks.find((b) => b.id === state.selectedId);
   const bot = room
     ? null
@@ -36,17 +50,28 @@ function Shell() {
   useEffect(() => {
     window.bloks?.badgeSet?.(waiting);
   }, [waiting]);
+
+  if (mobile && mobileHome) {
+    return (
+      <>
+        <MobileWhatsAppHome onOpenConversation={() => setMobileHome(false)} />
+        {state.appSettingsOpen && <AppSettingsPanel />}
+        {state.newRoomOpen && <NewRoomDialog />}
+        {state.newAgentOpen && <NewAgentScreen />}
+      </>
+    );
+  }
   return (
     <div data-app-shell="diza-bot" className="relative flex h-full min-w-0 flex-col overflow-hidden bg-background md:flex-row">
-      <Sidebar />
+      {!mobile && <Sidebar />}
       {/* Automations lives beside the sidebar like any other view, so
           opening it never hides the agent list. */}
       {state.routinesOpen ? (
         <AutomationsPanel onClose={() => dispatch({ type: "toggleRoutines", open: false })} />
       ) : room ? (
-        <RoomView blok={room} />
+        <RoomView blok={room} onMobileBack={mobile ? () => setMobileHome(true) : undefined} />
       ) : bot ? (
-        <ChatView bot={bot} />
+        <ChatView bot={bot} onMobileBack={mobile ? () => setMobileHome(true) : undefined} />
       ) : (
         <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
           <Loader2 size={20} className="animate-spin" />
