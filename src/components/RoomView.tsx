@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.mjs";
 import ArrowUp from "lucide-react/dist/esm/icons/arrow-up.mjs";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import BookmarkPlus from "lucide-react/dist/esm/icons/bookmark-plus.mjs";
 import FolderOpen from "lucide-react/dist/esm/icons/folder-open.mjs";
 import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock.mjs";
@@ -291,7 +292,7 @@ function RoomMessage({
   );
 }
 
-export function RoomView({ blok }: { blok: Blok }) {
+export function RoomView({ blok, onMobileBack }: { blok: Blok; onMobileBack?: () => void }) {
   const { state, dispatch } = useStore();
   const [text, setText] = useState("");
   // Typing @ opens a list of the people in this room. Naming somebody is
@@ -495,6 +496,11 @@ export function RoomView({ blok }: { blok: Blok }) {
     <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <div className="titlebar-drag flex h-[52px] shrink-0 items-center justify-between gap-2 border-b px-3 md:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
+          {onMobileBack && (
+            <Button variant="ghost" size="icon" onClick={onMobileBack} className="md:hidden" title="Kembali">
+              <ArrowLeft size={19} />
+            </Button>
+          )}
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <Users size={15} />
           </span>
