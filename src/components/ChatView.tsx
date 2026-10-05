@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
 import Check from "lucide-react/dist/esm/icons/check.mjs";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle.mjs";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left.mjs";
 import Search from "lucide-react/dist/esm/icons/search.mjs";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up.mjs";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.mjs";
@@ -654,7 +655,7 @@ function reactTo(threadId: string, messageId: string, emoji: string) {
   }).catch(() => {});
 }
 
-export function ChatView({ bot }: { bot: Bot }) {
+export function ChatView({ bot, onMobileBack }: { bot: Bot; onMobileBack?: () => void }) {
   const { state, dispatch } = useStore();
   // Only a frame that arrived during this turn is live. The one held from
   // the last turn is already in the transcript, and showing it again as
@@ -802,6 +803,12 @@ export function ChatView({ bot }: { bot: Bot }) {
     <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       {/* Header */}
       <div data-chat-header className="titlebar-drag flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-border/50 bg-background/90 px-3 backdrop-blur-md md:px-4">
+        <div className="flex min-w-0 items-center gap-1">
+          {onMobileBack && (
+            <Button variant="ghost" size="icon" onClick={onMobileBack} className="md:hidden" title="Kembali">
+              <ArrowLeft size={19} />
+            </Button>
+          )}
         <button
           onClick={() => dispatch({ type: "toggleSettings" })}
           className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors duration-150 hover:bg-accent"
@@ -817,6 +824,7 @@ export function ChatView({ bot }: { bot: Bot }) {
             )}
           </span>
         </button>
+        </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {bot.busy && (
             <Button

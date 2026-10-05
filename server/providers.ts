@@ -296,10 +296,10 @@ export const CLI_PROVIDERS = [
   },
   {
     kind: "codex",
-    name: "Codex",
+    name: "ChatGPT via Codex",
     auth: "cli" as const,
-    keyHint: "Install with npm i -g @openai/codex",
-    signInHint: "Run codex login in a terminal",
+    keyHint: "Install Codex with npm i -g @openai/codex",
+    signInHint: "Sign in to your ChatGPT account with: codex login",
     docsUrl: "https://developers.openai.com/codex/cli",
   },
   {

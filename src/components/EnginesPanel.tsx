@@ -6,6 +6,7 @@
 // a sign-in that is really a text field.
 import { useState } from "react";
 import Check from "lucide-react/dist/esm/icons/check.mjs";
+import Copy from "lucide-react/dist/esm/icons/copy.mjs";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link.mjs";
 import Loader2 from "lucide-react/dist/esm/icons/loader-2.mjs";
 import Plus from "lucide-react/dist/esm/icons/plus.mjs";
@@ -77,6 +78,7 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
   const [open, setOpen] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedCodex, setCopiedCodex] = useState(false);
 
   // an engine can be connected and still be down: no CLI on PATH, a key
   // the provider rejected, a local server that is not running
@@ -104,6 +106,12 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
     setOpen((v) => !v);
   };
 
+  const copyCodexLogin = () => {
+    void navigator.clipboard?.writeText("codex login");
+    setCopiedCodex(true);
+    setTimeout(() => setCopiedCodex(false), 1600);
+  };
+
   return (
     <div className="border-t px-4 py-3 first:border-t-0">
       <div className="flex items-center gap-3">
@@ -127,9 +135,16 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
         </div>
 
         {provider.auth === "cli" ? (
-          <span className="shrink-0 text-[11.5px] text-muted-foreground">
-            {provider.connected ? "" : "Not found"}
-          </span>
+          provider.kind === "codex" ? (
+            <Button variant="secondary" size="sm" onClick={copyCodexLogin} className="shrink-0">
+              {copiedCodex ? <Check size={13} /> : <Copy size={13} />}
+              {copiedCodex ? "Copied" : "codex login"}
+            </Button>
+          ) : (
+            <span className="shrink-0 text-[11.5px] text-muted-foreground">
+              {provider.connected ? "" : "Not found"}
+            </span>
+          )
         ) : provider.connected ? (
           <Button
             variant="ghost"
@@ -167,7 +182,9 @@ function EngineRow({ provider }: { provider: ProviderRow }) {
               hint rather than a verdict, and stays muted. */}
           {provider.connected
             ? `No sign-in detected. ${provider.signInHint ?? provider.keyHint}`
-            : provider.keyHint}
+            : provider.kind === "codex"
+              ? "Install Codex first, then run codex login to sign in with your ChatGPT account."
+              : provider.keyHint}
         </div>
       )}
       {error && <div className="mt-1.5 pl-10 text-[12px] text-destructive">{error}</div>}
