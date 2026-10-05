@@ -496,11 +496,11 @@ public final class MainActivity extends Activity {
         actionsLp.topMargin = dp(12);
         codexCard.addView(actions, actionsLp);
 
-        Button copy = actionButton("Salin codex login");
+        Button copy = actionButton("Salin login ChatGPT");
         actions.addView(copy, new LinearLayout.LayoutParams(0, dp(46), 1));
         copy.setOnClickListener(v -> {
-            copyText("codex login");
-            Toast.makeText(this, "codex login disalin", Toast.LENGTH_SHORT).show();
+            copyText("codex login --device-auth");
+            Toast.makeText(this, "codex login --device-auth disalin", Toast.LENGTH_SHORT).show();
         });
 
         Button termux = actionButton("Buka Termux");
@@ -560,7 +560,7 @@ public final class MainActivity extends Activity {
                     } else if (!found.optBoolean("connected")) {
                         view.setText("Codex belum terpasang.");
                     } else if (found.optBoolean("needsSignIn")) {
-                        view.setText("Codex terpasang, akun ChatGPT belum login.");
+                        view.setText("Codex terpasang, akun ChatGPT belum login. Gunakan device code.");
                     } else {
                         view.setText("Terhubung ke ChatGPT melalui Codex ✓");
                         view.setTextColor(ACCENT);
@@ -670,7 +670,7 @@ public final class MainActivity extends Activity {
         page.addView(title);
 
         TextView msg = text(
-                "Core Diza belum terhubung. UI tetap berjalan native di APK.\n\nJalankan server Bloks di perangkat ini, lalu login ChatGPT lewat Codex.",
+                "Core Diza belum terhubung. UI tetap berjalan native di APK.\n\nJalankan server Bloks di perangkat ini, lalu login ChatGPT lewat Codex Device Auth.",
                 14, MUTED, false
         );
         msg.setGravity(Gravity.CENTER);
@@ -703,13 +703,13 @@ public final class MainActivity extends Activity {
             loadHome(true);
         });
 
-        Button copy = actionButton("Salin perintah: codex login");
+        Button copy = actionButton("Salin perintah login ChatGPT");
         LinearLayout.LayoutParams copyLp = lp(-1, dp(50));
         copyLp.topMargin = dp(8);
         page.addView(copy, copyLp);
         copy.setOnClickListener(v -> {
-            copyText("codex login");
-            Toast.makeText(this, "codex login disalin", Toast.LENGTH_SHORT).show();
+            copyText("codex login --device-auth");
+            Toast.makeText(this, "codex login --device-auth disalin", Toast.LENGTH_SHORT).show();
         });
 
         if (reason != null && !reason.isEmpty()) {
@@ -954,8 +954,8 @@ public final class MainActivity extends Activity {
         if (intent != null) {
             startActivity(intent);
         } else {
-            copyText("codex login");
-            Toast.makeText(this, "Termux tidak ditemukan. Perintah codex login sudah disalin.", Toast.LENGTH_LONG).show();
+            copyText("codex login --device-auth");
+            Toast.makeText(this, "Termux tidak ditemukan. Perintah login ChatGPT sudah disalin.", Toast.LENGTH_LONG).show();
         }
     }
 
