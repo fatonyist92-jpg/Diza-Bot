@@ -237,7 +237,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     // Hand off to the agent picker rather than dropping the user into a
     // chat with a stranger. Choosing a role is what teaches that agents
     // have jobs, and it is the one idea the rest of the product rests on.
-    // Skipping is fine: Nova is seeded on the server and already waiting.
+    // Skipping is fine: Diza is seeded on the server and already waiting.
     // Somebody who took a recommendation already has an agent with a job.
     // Opening the picker on top of that would read as though the choice
     // they just made had not counted.
@@ -270,10 +270,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     },
     {
       kind: "codex",
-      name: "Codex",
+      name: "ChatGPT via Codex",
       command: "npm i -g @openai/codex",
-      have: "Installed. Agents can run on Codex too.",
-      want: "Optional. Adds a second engine your agents can use.",
+      have: "Codex installed. Sign in to ChatGPT with: codex login",
+      want: "Install Codex, then sign in with your ChatGPT account using codex login.",
     },
     {
       kind: "pi",
