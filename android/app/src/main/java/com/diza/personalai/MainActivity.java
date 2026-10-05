@@ -372,6 +372,15 @@ public final class MainActivity extends Activity {
         public void onPageFinished(WebView view, String url) {
             removeOverlay();
             injectServerIntoWeb();
+
+            // Native smoke-test fallback: only report ready after the bundled
+            // React app has actually mounted content into #root.
+            view.postDelayed(() -> view.evaluateJavascript(
+                    "(function(){var r=document.getElementById('root');return !!(r&&r.childElementCount>0);})()",
+                    value -> {
+                        if ("true".equals(value)) Log.i("DIZA", "DIZA_UI_READY");
+                    }
+            ), 1200);
         }
 
         @Override
